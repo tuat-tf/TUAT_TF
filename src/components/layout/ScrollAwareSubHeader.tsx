@@ -30,7 +30,7 @@ export function ScrollAwareSubHeader({ title, backHref }: { title: string; backH
         ? "grid-cols-[minmax(44px,1fr)_minmax(0,2fr)_minmax(44px,1fr)]"
         : "grid-cols-[minmax(72px,1fr)_minmax(0,2fr)_minmax(72px,1fr)]")}>
         <BackButton fallback={backHref} />
-        <h1 className="truncate text-center text-title" title={title}>{title}</h1>
+        <h1 data-new-ui-title className="truncate text-center text-title" title={title}>{title}</h1>
         <div />
       </div>
     </header>

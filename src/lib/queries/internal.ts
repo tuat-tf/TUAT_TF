@@ -2,6 +2,7 @@
 // アプリ側からは @/lib/queries を使う（このモジュールは公開しない）。
 
 import { hydrateRecordFieldGroups } from "@/lib/record-field-groups";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import type { PracticeRecord } from "@/types";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeAuthorRow } from "@/lib/profile-normalize";
@@ -82,14 +83,20 @@ export async function fetchQuotedPosts(
             `id, created_at, recorded_date, dist_low, dist_mid, dist_high, dist_speed, dist_actual, menu_text, result_text, memo, focus_text, strength_text, custom, ${TWEET_AUTHOR_SELECT}`,
           )
           .in("id", [...recordIds])
-          .then(({ data }) => data ?? [])
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data ?? [];
+          })
       : Promise.resolve([]),
     tweetIds.size > 0
       ? supabase
           .from("tweets")
           .select(`id, created_at, content, image_path, ${TWEET_AUTHOR_SELECT}`)
           .in("id", [...tweetIds])
-          .then(({ data }) => data ?? [])
+          .then(({ data, error }) => {
+            if (error) throw error;
+            return data ?? [];
+          })
       : Promise.resolve([]),
   ]);
 
@@ -160,10 +167,12 @@ export async function withNoticeReactions(
 ): Promise<NoticeWithReactions[]> {
   const ids = notices.map((notice) => notice.id);
   if (ids.length === 0) return [];
-  const { data } = await supabase
+  const data = await fetchAllPages((from, to) => supabase
     .from("notice_reactions")
     .select("notice_id, user_id, reaction")
-    .in("notice_id", ids);
+    .in("notice_id", ids)
+    .order("notice_id").order("user_id").order("reaction")
+    .range(from, to));
 
   const counts = new Map<string, Record<NoticeReaction, number>>();
   const mine = new Map<string, NoticeReaction[]>();

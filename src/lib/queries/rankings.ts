@@ -1,15 +1,17 @@
 // 走行距離ランキングの取得。
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import type { WeeklyRankingRow, Block } from "@/types";
 
 /** 週間ランキング（中長距離） */
 export async function getWeeklyRanking(): Promise<WeeklyRankingRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("weekly_ranking")
     .select("*")
     .order("total_km", { ascending: false });
+  if (error) throw error;
   return (data ?? []).flatMap((row) => {
     if (!row.id || !row.display_name || !row.period_start || !row.period_end) return [];
     return [{
@@ -36,13 +38,14 @@ export async function getMonthlyRanking(
   periodEnd: string,
 ): Promise<WeeklyRankingRow[]> {
   const supabase = await createClient();
-  const { data: records, error } = await supabase
+  const records = await fetchAllPages((from, to) => supabase
     .from("practice_records")
     .select("user_id, dist_low, dist_mid, dist_high, dist_speed, dist_actual")
     .gte("recorded_date", periodStart)
-    .lte("recorded_date", periodEnd);
-  if (error) throw new Error(`Failed to load monthly ranking: ${error.message}`);
-  if (!records?.length) return [];
+    .lte("recorded_date", periodEnd)
+    .order("id")
+    .range(from, to));
+  if (!records.length) return [];
 
   const userIds = [...new Set(records.map((record) => record.user_id))];
   const { data: profiles, error: profileError } = await supabase

@@ -12,9 +12,16 @@ import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
  * のかが読み取れなかった（オーナー指摘 2026-09-19）。
  * 動詞は docs/WORDING-GUIDELINES.md §6-1（投稿する／更新する／保存する）に合わせる。
  */
-export type UnsavedIntent = "post" | "update" | "save";
+export type UnsavedIntent = "post" | "create" | "update" | "save";
 
 const COPY: Record<UnsavedIntent, { title: string; description: string; confirm: string; busy: string; discard: string }> = {
+  create: {
+    title: "作成しますか？",
+    description: "まだ作成していない内容があります。",
+    confirm: "作成する",
+    busy: "作成中…",
+    discard: "作成せずに閉じる",
+  },
   post: {
     title: "投稿しますか？",
     description: "まだ投稿していない内容があります。投稿すると、みんなのタイムラインに出ます。",

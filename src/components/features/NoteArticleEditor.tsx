@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
-import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
+import { notePollSaveConfirmed } from "@/lib/note-poll-save";
 import { prepareTweetImage } from "@/lib/tweet-image";
 import {
   parseNoteBody,
@@ -64,15 +65,20 @@ export function NoteArticleEditor({
   );
   const caret = useRef({ textIndex: 0, caret: 0 });
   const [saving, setSaving] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState(article?.id);
+  const [draftId] = useState(() => article?.id ?? crypto.randomUUID());
+  const version = useRef(article?.updated_at ?? null);
+  const saveState = useRef({ uncertain: false });
+  const newOptionIds = useRef<string[]>([]);
   const [images, setImages] = useState<NoteImage[]>(article?.images ?? []);
   const [removed, setRemoved] = useState<string[]>([]);
   const [pending, setPending] = useState<PendingImage[]>([]);
   const [preparing, setPreparing] = useState(false);
 
   // 投票。投稿済みの選択肢は、まだ票が入っていないものだけ外せる。
-  const savedOptions = article?.pollOptions ?? [];
+  const [savedOptions, setSavedOptions] = useState(article?.pollOptions ?? []);
   const [pollEnabled, setPollEnabled] = useState(savedOptions.length > 0);
   const [keptOptions, setKeptOptions] = useState<NotePollOption[]>(savedOptions);
   const [newOptions, setNewOptions] = useState<string[]>(
@@ -175,56 +181,16 @@ export function NoteArticleEditor({
     })();
   }
 
-  /** 投票の保存。記事を保存した後に呼ぶ。 */
-  async function savePoll(articleId: string) {
-    const supabase = createClient();
-    const texts = newOptions.map((option) => option.trim()).filter(Boolean);
-
-    if (!pollEnabled) {
-      if (savedOptions.length === 0) return;
-      const { error: deleteError } = await supabase
-        .from("note_poll_options")
-        .delete()
-        .eq("article_id", articleId);
-      if (deleteError) throw new Error("記事は保存しましたが、投票を削除できませんでした");
-      return;
-    }
-
-    if (keptOptions.length + texts.length < 2)
-      throw new Error("投票の選択肢は2つ以上入力してください");
-
-    const dropped = savedOptions.filter(
-      (option) => !keptOptions.some((kept) => kept.id === option.id),
-    );
-    if (dropped.length) {
-      const { error: deleteError } = await supabase
-        .from("note_poll_options")
-        .delete()
-        .in(
-          "id",
-          dropped.map((option) => option.id),
-        );
-      if (deleteError) throw new Error("記事は保存しましたが、選択肢を外せませんでした");
-    }
-    if (texts.length) {
-      const { error: insertError } = await supabase.from("note_poll_options").insert(
-        texts.map((text, index) => ({
-          article_id: articleId,
-          text,
-          created_by: currentUser.id,
-          sort_order: keptOptions.length + index,
-        })),
-      );
-      if (insertError)
-        throw new Error("記事は保存しましたが、投票の選択肢を保存できませんでした");
-    }
-  }
-
   async function submit() {
     if (saving || preparing) return;
     const body = serializeNoteBlocks(blocks);
     if (!title.trim() || (!body && !pending.length && !liveImages.length && !pollEnabled)) {
       setError("タイトルと、本文・写真・投票のいずれかを入力してください");
+      return;
+    }
+    const texts = pollEnabled ? newOptions.map((option) => option.trim()).filter(Boolean) : [];
+    if (pollEnabled && keptOptions.length + texts.length < 2) {
+      setError("投票の選択肢は2つ以上入力してください");
       return;
     }
 
@@ -239,36 +205,59 @@ export function NoteArticleEditor({
       poll_allow_options: pollEnabled && pollAllowOptions,
     };
 
-    let articleId = savedId;
+    const articleId = draftId;
     try {
-      if (articleId) {
-        const result = await safeUpdate(supabase, "note_articles", payload, {
-          id: articleId,
-          note_id: noteId,
+      newOptionIds.current = texts.map((_, index) => newOptionIds.current[index] ?? crypto.randomUUID());
+      const addedOptions = texts.map((text, index) => ({ id: newOptionIds.current[index], text }));
+      const expectedOptions = pollEnabled
+        ? [...keptOptions.map(({ id, text, created_by }) => ({ id, text, created_by })),
+          ...addedOptions.map((option) => ({ ...option, created_by: currentUser.id }))] : [];
+      const removedOptionIds = savedOptions.filter((option) => !expectedOptions.some((expected) => expected.id === option.id)).map((option) => option.id);
+      let confirmedOptions: NotePollOption[] | null = null;
+      const result = await atomicSave(saveState.current, async () => {
+        const response = await supabase.rpc("save_note_article", {
+          p_id: articleId, p_note_id: noteId, p_expected_updated_at: version.current,
+          p_values: payload, p_existing_option_ids: savedOptions.map((option) => option.id),
+          p_kept_option_ids: pollEnabled ? keptOptions.map((option) => option.id) : [],
+          p_new_options: addedOptions, p_poll_enabled: pollEnabled,
         });
-        if (!result.ok) {
-          setError(safeUpdateMessage(result.reason));
-          setSaving(false);
-          return;
-        }
-      } else {
-        const { data: inserted, error: insertError } = await supabase
-          .from("note_articles")
-          .insert({
-            ...payload,
-            note_id: noteId,
-            author_id: currentUser.id,
-          })
-          .select("id")
-          .single();
-        if (insertError || !inserted) {
-          setError("記事を保存できませんでした");
-          setSaving(false);
-          return;
-        }
-        articleId = inserted.id;
-        setSavedId(articleId);
+        const value = response.data;
+        const data = value && typeof value === "object" && !Array.isArray(value) && typeof value.updated_at === "string"
+          ? value.updated_at : null;
+        return { data, error: response.error };
+      }, async () => {
+        const { data, error: readError } = await supabase.from("note_articles")
+          .select("id, author_id, title, body, poll_multiple, poll_anonymous, poll_allow_options, updated_at, note_poll_options(id,text,created_by,sort_order)")
+          .eq("id", articleId).eq("note_id", noteId).single();
+        if (readError || !data || (!article && data.author_id !== currentUser.id)) return null;
+        if (data.title !== payload.title || data.body !== payload.body || data.poll_multiple !== payload.poll_multiple || data.poll_anonymous !== payload.poll_anonymous || data.poll_allow_options !== payload.poll_allow_options) return null;
+        // The author can add options even when viewer additions are off. Confirm
+        // the submitted changes without dropping permitted later additions.
+        if (!notePollSaveConfirmed(data.note_poll_options, expectedOptions, removedOptionIds, pollEnabled)) return null;
+        confirmedOptions = data.note_poll_options.map((option) => ({
+          ...option, article_id: articleId,
+          vote_count: savedOptions.find((old) => old.id === option.id)?.vote_count ?? 0,
+          voted_by_me: savedOptions.find((old) => old.id === option.id)?.voted_by_me ?? false,
+          voters: savedOptions.find((old) => old.id === option.id)?.voters ?? [],
+        })).sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
+        return data.updated_at;
+      });
+      if (!result.ok) {
+        setUnconfirmed(result.reason === "unknown");
+        setError(atomicSaveMessage(result.reason));
+        return;
       }
+      version.current = result.value;
+      setUnconfirmed(false);
+      setSavedId(articleId);
+      const nextOptions: NotePollOption[] = confirmedOptions ?? (pollEnabled ? [...keptOptions, ...addedOptions.map((option, index) => ({
+        ...option, article_id: articleId, created_by: currentUser.id, sort_order: keptOptions.length + index,
+        vote_count: 0, voted_by_me: false, voters: [],
+      }))] : []);
+      setSavedOptions(nextOptions);
+      setKeptOptions(nextOptions);
+      setNewOptions([]);
+      newOptionIds.current = [];
 
       for (const id of removed) {
         const response = await fetch(`/api/note-image?id=${id}`, {
@@ -276,7 +265,7 @@ export function NoteArticleEditor({
         });
         if (!response.ok)
           throw new Error(
-            "記事は保存しましたが、写真を削除できませんでした。もう一度保存してください。",
+            "記事と投票は保存しましたが、写真を削除できませんでした。もう一度保存すると残りを処理します。",
           );
         setImages((old) => old.filter((i) => i.id !== id));
         setRemoved((old) => old.filter((i) => i !== id));
@@ -292,14 +281,12 @@ export function NoteArticleEditor({
         );
         if (!response.ok)
           throw new Error(
-            "記事は保存しましたが、一部の写真を追加できませんでした。もう一度保存すると残りを追加します。",
+            "記事と投票は保存しましたが、一部の写真を追加できませんでした。もう一度保存すると残りを追加します。",
           );
         const image = (await response.json()) as NoteImage;
         setImages((old) => [...old.filter((i) => i.id !== image.id), image]);
         setPending((old) => old.filter((i) => i.id !== file.id));
       }
-
-      await savePoll(articleId);
 
       router.refresh();
       onDone();
@@ -313,7 +300,8 @@ export function NoteArticleEditor({
   }
 
   return (
-    <fieldset disabled={saving} className="min-w-0 space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
+      <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-5">
       <div>
         <p className="section-label mb-1.5">タイトル</p>
         <Input
@@ -331,7 +319,7 @@ export function NoteArticleEditor({
         <NoteBodyEditor
           blocks={blocks}
           photos={editorPhotos}
-          disabled={saving}
+          disabled={saving || unconfirmed}
           onChange={setBlocks}
           onCaretChange={(position) => {
             caret.current = position;
@@ -522,6 +510,7 @@ export function NoteArticleEditor({
         </section>
       )}
 
+      </fieldset>
       {error && <p className="text-center text-caption text-danger">{error}</p>}
 
       <ConfirmDialog
@@ -530,6 +519,7 @@ export function NoteArticleEditor({
         title="投票をやめますか？"
         description="保存すると、選択肢とこれまでの票をすべて削除します。元に戻せません。"
         onConfirm={() => {
+          if (saving || unconfirmed) return;
           setPollEnabled(false);
           setKeptOptions([]);
           setNewOptions([]);
@@ -539,9 +529,9 @@ export function NoteArticleEditor({
 
       <FormModalFooter>
         <Button size="lg" disabled={saving || preparing} onClick={submit}>
-          {saving ? "保存中…" : article ? "更新する" : "保存する"}
+          {saving ? "保存中…" : unconfirmed ? "保存結果を確認" : article ? "更新する" : "保存する"}
         </Button>
       </FormModalFooter>
-    </fieldset>
+    </div>
   );
 }

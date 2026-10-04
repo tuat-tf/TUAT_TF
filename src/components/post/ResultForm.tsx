@@ -4,15 +4,17 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
 } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import { FormModalFooter } from "@/components/ui/form-modal";
+import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import {
   RESULT_STATUS_LABEL,
   STAGE_LABEL,
@@ -193,6 +195,10 @@ export const ResultForm = forwardRef<
   const [isUb, setIsUb] = useState(initial?.is_ub ?? false);
   const [isOfficial, setIsOfficial] = useState(initial?.is_official ?? false);
   const [saving, setSaving] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [draftId] = useState(() => initial?.id ?? crypto.randomUUID());
+  const saveState = useRef({ uncertain: false });
+  const pendingValues = useRef<Omit<PbRecord, "id" | "user_id" | "created_at"> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const snapshot = JSON.stringify([
@@ -226,6 +232,7 @@ export const ResultForm = forwardRef<
     onDirtyChange?.(snapshot !== baseline);
   }, [snapshot, baseline, onDirtyChange]);
   useImperativeHandle(ref, () => ({ save: () => void submit() }));
+  useFormDraft({ dirty: false, busy: saving, onSave: submit });
 
   function timeValue(format: ResultInputFormat): number | null {
     const secondsValue = seconds.trim() === "" ? 0 : parseDecimalSeconds(seconds);
@@ -319,6 +326,7 @@ export const ResultForm = forwardRef<
   }
 
   async function submit() {
+    if (saving) return;
     if (!eventName) {
       setError("種目を選んでください");
       return;
@@ -345,51 +353,63 @@ export const ResultForm = forwardRef<
     }
     setSaving(true);
     setError(null);
+    try {
+      const date = normalizedDate();
+      const payload = pendingValues.current ?? {
+        event_name: eventName,
+        ...values,
+        result_status: status,
+        wind: windValue,
+        record: formatRecord({ ...values, result_status: status }, measure, timeFormat),
+        competition_id: meetMode === "catalog" ? competitionId || null : null,
+        meet_name:
+          meetMode === "catalog"
+            ? (competitions.find((c) => c.id === competitionId)?.name ?? null)
+            : meetOther.trim() || null,
+        stage,
+        ...date,
+        is_pb: isPb,
+        is_ub: stage === "university" && isUb,
+        is_official: isOfficial,
+      };
+      pendingValues.current = payload;
 
-    const date = normalizedDate();
-    const payload = {
-      event_name: eventName,
-      ...values,
-      result_status: status,
-      wind: windValue,
-      record: formatRecord({ ...values, result_status: status }, measure, timeFormat),
-      competition_id: meetMode === "catalog" ? competitionId || null : null,
-      meet_name:
-        meetMode === "catalog"
-          ? (competitions.find((c) => c.id === competitionId)?.name ?? null)
-          : meetOther.trim() || null,
-      stage,
-      ...date,
-      is_pb: isPb,
-      is_ub: stage === "university" && isUb,
-      is_official: isOfficial,
-    };
-
-    const supabase = createClient();
-    const { data, error: saveError } = editing
-      ? await supabase
-          .from("pb_records")
-          .update(payload)
-          .eq("id", initial!.id)
-          .select()
-          .single()
-      : await supabase
-          .from("pb_records")
-          .insert({ user_id: userId, ...payload })
-          .select()
-          .single();
-
-    if (saveError || !data) {
+      const supabase = createClient();
+      const result = await atomicSave(saveState.current, async () => {
+        const run = () => editing
+          ? supabase.from("pb_records").update(payload).eq("id", draftId).select().maybeSingle()
+          : supabase.from("pb_records").insert({ id: draftId, user_id: userId, ...payload }).select().single();
+        let response = await run();
+        if (editing && !response.error && !response.data) {
+          await supabase.auth.refreshSession();
+          response = await run();
+        }
+        return { data: response.data, error: response.error ?? (!response.data ? { code: "42501" } : null) };
+      }, async () => {
+        const { data, error: readError } = await supabase.from("pb_records").select().eq("id", draftId).single();
+        if (readError || !data || data.user_id !== (initial?.user_id ?? userId)) return null;
+        const saved = data as unknown as Record<string, unknown>;
+        return Object.entries(payload).every(([key, value]) => saved[key] === value) ? data : null;
+      });
+      if (!result.ok) {
+        setUnconfirmed(result.reason === "unknown");
+        if (result.reason !== "unknown") pendingValues.current = null;
+        setError(atomicSaveMessage(result.reason));
+        return;
+      }
+      setUnconfirmed(false);
+      router.refresh();
+      onDone(result.value as PbRecord);
+    } catch {
       setError("保存できませんでした。もう一度お試しください");
+    } finally {
       setSaving(false);
-      return;
     }
-    router.refresh();
-    onDone(data as PbRecord);
   }
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="min-w-0 space-y-4 pb-4">
+    <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-4">
       <div>
         <p className="section-label mb-1.5">いつの記録か</p>
         <div data-ui-group="segmented" className="flex rounded-xl bg-separator/50 p-0.5">
@@ -726,6 +746,7 @@ export const ResultForm = forwardRef<
         PB・UB は種目ごとに1件だけ付きます。新しく付けると、同じ種目の前の記録からは外れます。UBは大学の記録だけに付きます。
       </p>
 
+      </fieldset>
       {error && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         <Button size="lg" onClick={submit} disabled={saving}>
@@ -734,6 +755,8 @@ export const ResultForm = forwardRef<
               <LoaderCircle size={18} className="animate-spin" />
               保存中…
             </>
+          ) : unconfirmed ? (
+            "保存結果を確認"
           ) : editing ? (
             "更新する"
           ) : (

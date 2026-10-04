@@ -43,7 +43,7 @@ export function TweetCard({
   return (
     <>
     <Card data-ui-embedded={embedded || undefined} className={cn("space-y-3 p-4", embedded && "rounded-none border-0")}>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start gap-2.5">
         <Link data-ui-link href={`/members/${author.id}`} prefetch={false} onClick={(event) => event.stopPropagation()}>
           <Avatar name={author.display_name} blocks={author.blocks} avatarUrl={author.avatar_url} />
         </Link>
@@ -53,19 +53,21 @@ export function TweetCard({
               href={`/members/${author.id}`}
               prefetch={false}
               onClick={(event) => event.stopPropagation()}
-              className="truncate text-headline"
+              className="max-w-full truncate text-headline"
             >
               {author.display_name || "名無し"}
             </Link>
             <BlockPills blocks={author.blocks} />
             {gradeLabel && <span className="text-micro">{gradeLabel}</span>}
           </div>
-          <p className="text-caption">
-            {formatDistanceToNow(new Date(tweet.created_at), { addSuffix: true, locale: ja })}
-            {tweet.expires_at ? " · ストーリー" : " のつぶやき"}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-caption">
+              {formatDistanceToNow(new Date(tweet.created_at), { addSuffix: true, locale: ja })}
+              {tweet.expires_at ? " · ストーリー" : " のつぶやき"}
+            </p>
+            {showSource && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">アプリ由来</span>}
+          </div>
         </div>
-        {showSource && <span className="shrink-0 rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">アプリ由来</span>}
         <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
           <TweetOwnerMenu
             tweet={{ id: tweet.id, content: tweet.content, quoted: tweet.quoted }}

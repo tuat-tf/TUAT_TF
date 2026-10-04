@@ -14,7 +14,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { useToast } from "@/components/ui/toast";
 import { Linkify } from "@/components/common/Linkify";
-import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { safeDelete, safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
 import type { VenueRow } from "@/types";
 
 /** 練習場所の管理（追加・編集・削除・選択リスト表示の切替） */
@@ -46,8 +46,8 @@ export function VenueManager({ initial }: { initial: VenueRow[] }) {
 
   async function remove(v: VenueRow) {
     const supabase = createClient();
-    const { error } = await supabase.from("venues").delete().eq("id", v.id);
-    if (error) {
+    const result = await safeDelete(supabase, "venues", { id: v.id });
+    if (!result.ok) {
       showToast("会場を削除できませんでした");
       return false;
     }

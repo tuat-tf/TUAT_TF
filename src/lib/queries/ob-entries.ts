@@ -46,11 +46,17 @@ export async function getMyObParticipation(entryId: string) {
 
 /** ホーム用: まだ誰にも紐付いていない回答のうち、氏名照合で自分が候補に挙がるもの（自動確定はしない）。 */
 export async function getMyObEntryCandidates(profileId: string) {
-  const { entries, members, history } = await getObEntries();
+  const client = entryClient(await createClient());
+  const [entries, members, history] = await Promise.all([
+    client.from("ob_meet_entries").select("id,revision,profile_id,submitted_name,grade,events").eq("meet_key", OB_MEET.meetKey).is("profile_id", null).order("grade").order("submitted_name"),
+    client.from("profiles").select("id,display_name,grade").eq("status", "active").eq("approved", true).order("display_name"),
+    client.from("ob_meet_entries").select("submitted_name,profile_id").neq("meet_key", OB_MEET.meetKey).not("profile_id", "is", null),
+  ]);
+  if (entries.error || members.error || history.error) throw new Error("本人照合の候補を取得できませんでした");
   const all = members.data ?? [];
   const confirmed = (history.data ?? []).flatMap((h) => h.profile_id ? [{ submitted_name: h.submitted_name, profile_id: h.profile_id }] : []);
-  return (entries.data ?? []).filter((e: ObEntry) => !e.profile_id && !isAlumniEntry(e))
-    .flatMap((e: ObEntry) => {
+  return (entries.data ?? []).filter((e) => !isAlumniEntry(e))
+    .flatMap((e) => {
       const match = matchEntryMember(e, all, confirmed);
       return match.candidates.some((c) => c.id === profileId)
         ? [{ id: e.id, revision: e.revision, submitted_name: e.submitted_name, grade: e.grade, events: e.events, sure: match.status === "exact" || match.status === "previous" }]

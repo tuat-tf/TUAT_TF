@@ -71,22 +71,29 @@ export function AttendanceToggle({
     setStatus(next);
     setBusy(true);
     onChanged?.({ status: next, isLate: false, lateNote: null, absenceNote: null });
-    const supabase = createClient();
-    const result =
-      next === "none"
-        ? await supabase.from("attendances").delete().eq("schedule_id", scheduleId).eq("attend_date", attendDate).eq("user_id", userId).select("id")
-        : await supabase.from("attendances").upsert(
-            { schedule_id: scheduleId, attend_date: attendDate, user_id: userId, status: next, is_late: false, late_note: null, absence_note: null, updated_at: new Date().toISOString() },
-            { onConflict: "schedule_id,user_id,attend_date" },
-          ).select("status, is_late, late_note, absence_note").single();
-    setBusy(false);
-    if (result.error || (next !== "none" && !result.data)) {
+    try {
+      const supabase = createClient();
+      const result =
+        next === "none"
+          ? await supabase.from("attendances").delete().eq("schedule_id", scheduleId).eq("attend_date", attendDate).eq("user_id", userId).select("id")
+          : await supabase.from("attendances").upsert(
+              { schedule_id: scheduleId, attend_date: attendDate, user_id: userId, status: next, is_late: false, late_note: null, absence_note: null, updated_at: new Date().toISOString() },
+              { onConflict: "schedule_id,user_id,attend_date" },
+            ).select("status, is_late, late_note, absence_note").single();
+      if (result.error || (next === "none" ? !Array.isArray(result.data) || result.data.length !== 1 : !result.data)) {
+        setStatus(prev);
+        onChanged?.({ status: prev, isLate: false, lateNote: null, absenceNote: null });
+        showToast("出欠を送信できませんでした", "error");
+        return;
+      }
+      if (refreshOnChange) router.refresh();
+    } catch {
       setStatus(prev);
       onChanged?.({ status: prev, isLate: false, lateNote: null, absenceNote: null });
-      showToast("出欠を送信できませんでした", "error");
-      return;
+      showToast("出欠の送信結果を確認できませんでした", "error");
+    } finally {
+      setBusy(false);
     }
-    if (refreshOnChange) router.refresh();
   }
 
   const style = STYLE[status];
@@ -145,23 +152,28 @@ export function LateAttendanceControl({
   async function persistNote(value: string) {
     const normalized = value.trim() || null;
     setNoteState("saving");
-    const { data, error } = await createClient()
-      .from("attendances")
-      .update({ late_note: normalized, updated_at: new Date().toISOString() })
-      .eq("schedule_id", scheduleId)
-      .eq("attend_date", attendDate)
-      .eq("user_id", userId)
-      .eq("status", "present")
-      .eq("is_late", true)
-      .select("is_late, late_note")
-      .maybeSingle();
-    if (error || !data) {
+    try {
+      const { data, error } = await createClient()
+        .from("attendances")
+        .update({ late_note: normalized, updated_at: new Date().toISOString() })
+        .eq("schedule_id", scheduleId)
+        .eq("attend_date", attendDate)
+        .eq("user_id", userId)
+        .eq("status", "present")
+        .eq("is_late", true)
+        .select("is_late, late_note")
+        .maybeSingle();
+      if (error || !data) {
+        setNoteState("error");
+        showToast("連絡事項を送信できませんでした", "error");
+        return;
+      }
+      setNoteState("saved");
+      onChanged?.({ isLate: true, lateNote: normalized });
+    } catch {
       setNoteState("error");
-      showToast("連絡事項を送信できませんでした", "error");
-      return;
+      showToast("連絡事項の保存結果を確認できませんでした", "error");
     }
-    setNoteState("saved");
-    onChanged?.({ isLate: true, lateNote: normalized });
   }
 
   async function toggleLate() {
@@ -173,24 +185,31 @@ export function LateAttendanceControl({
     setLate(next);
     if (!next) setNote("");
     setBusy(true);
-    const { data, error } = await createClient()
-      .from("attendances")
-      .update({ is_late: next, late_note: nextNote, updated_at: new Date().toISOString() })
-      .eq("schedule_id", scheduleId)
-      .eq("attend_date", attendDate)
-      .eq("user_id", userId)
-      .eq("status", "present")
-      .select("is_late, late_note")
-      .maybeSingle();
-    setBusy(false);
-    if (error || !data) {
+    try {
+      const { data, error } = await createClient()
+        .from("attendances")
+        .update({ is_late: next, late_note: nextNote, updated_at: new Date().toISOString() })
+        .eq("schedule_id", scheduleId)
+        .eq("attend_date", attendDate)
+        .eq("user_id", userId)
+        .eq("status", "present")
+        .select("is_late, late_note")
+        .maybeSingle();
+      if (error || !data) {
+        setLate(prevLate);
+        setNote(prevNote);
+        showToast("遅刻の登録を送信できませんでした", "error");
+        return;
+      }
+      setNoteState(nextNote ? "saved" : "idle");
+      onChanged?.({ isLate: next, lateNote: nextNote });
+    } catch {
       setLate(prevLate);
       setNote(prevNote);
-      showToast("遅刻の登録を送信できませんでした", "error");
-      return;
+      showToast("遅刻の登録結果を確認できませんでした", "error");
+    } finally {
+      setBusy(false);
     }
-    setNoteState(nextNote ? "saved" : "idle");
-    onChanged?.({ isLate: next, lateNote: nextNote });
   }
 
   function changeNote(value: string) {
@@ -242,9 +261,14 @@ export function AbsenceAttendanceControl({ scheduleId, attendDate, userId, initi
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
   async function persist(value: string) {
     const normalized = value.trim() || null; setNoteState("saving");
-    const { data, error } = await createClient().from("attendances").update({ absence_note: normalized, updated_at: new Date().toISOString() }).eq("schedule_id", scheduleId).eq("attend_date", attendDate).eq("user_id", userId).eq("status", "absent").select("absence_note").maybeSingle();
-    if (error || !data) { setNoteState("error"); showToast("連絡事項を送信できませんでした", "error"); return; }
-    setNoteState("saved"); onChanged?.(normalized);
+    try {
+      const { data, error } = await createClient().from("attendances").update({ absence_note: normalized, updated_at: new Date().toISOString() }).eq("schedule_id", scheduleId).eq("attend_date", attendDate).eq("user_id", userId).eq("status", "absent").select("absence_note").maybeSingle();
+      if (error || !data) { setNoteState("error"); showToast("連絡事項を送信できませんでした", "error"); return; }
+      setNoteState("saved"); onChanged?.(normalized);
+    } catch {
+      setNoteState("error");
+      showToast("連絡事項の保存結果を確認できませんでした", "error");
+    }
   }
   function changeNote(value: string) { setNote(value); setNoteState("idle"); if (saveTimer.current) clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => { saveTimer.current = null; void persist(value); }, 700); }
   function blurNote() { if (!saveTimer.current) return; clearTimeout(saveTimer.current); saveTimer.current = null; void persist(note); }
@@ -283,16 +307,22 @@ export function CancelledBanner({
   const [busy, setBusy] = useState(false);
 
   async function restore() {
+    if (busy) return;
     setBusy(true);
-    const { data, error } = await createClient()
-      .rpc("set_schedule_cancelled", { target_schedule_id: scheduleId, cancel: false, reason: null });
-    setBusy(false);
-    if (error || !data) {
-      showToast("中止を取り消せませんでした", "error");
-      return;
+    try {
+      const { data, error } = await createClient()
+        .rpc("set_schedule_cancelled", { target_schedule_id: scheduleId, cancel: false, reason: null });
+      if (error || !data) {
+        showToast("中止を取り消せませんでした", "error");
+        return;
+      }
+      setConfirming(false);
+      onChanged?.(data.cancelled_at, data.cancel_reason);
+    } catch {
+      showToast("中止の取り消し結果を確認できませんでした", "error");
+    } finally {
+      setBusy(false);
     }
-    setConfirming(false);
-    onChanged?.(data.cancelled_at, data.cancel_reason);
   }
 
   return (
@@ -344,16 +374,25 @@ export function WeatherStatusControl({
 
   async function persist(value: string) {
     setSaveState("saving");
-    const { data, error } = await createClient()
-      .rpc("set_schedule_weather_note", { target_schedule_id: scheduleId, new_note: value || null });
-    if (error || !data) {
+    try {
+      const { data, error } = await createClient()
+        .rpc("set_schedule_weather_note", { target_schedule_id: scheduleId, new_note: value || null });
+      if (error || !data) {
+        setSaveState("error");
+        showToast("対応状況を送信できませんでした", "error");
+        return;
+      }
+      setSaveState(data.weather_note ? "saved" : "idle");
+      setUpdatedAt(data.weather_note_updated_at);
+      if (!value) {
+        setNote((current) => current === note ? "" : current);
+        setOpen(false);
+      }
+      onChanged?.(data.weather_note, data.weather_note_updated_at);
+    } catch {
       setSaveState("error");
-      showToast("対応状況を送信できませんでした", "error");
-      return;
+      showToast("対応状況の保存結果を確認できませんでした", "error");
     }
-    setSaveState(data.weather_note ? "saved" : "idle");
-    setUpdatedAt(data.weather_note_updated_at);
-    onChanged?.(data.weather_note, data.weather_note_updated_at);
   }
 
   function changeNote(value: string) {
@@ -370,23 +409,27 @@ export function WeatherStatusControl({
   }
   function clearNote() {
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
-    setNote("");
-    setOpen(false);
     void persist("");
   }
 
   // 中止の理由には、入力済みの対応状況をそのまま使う（改めて書かせない）。
   async function cancelPractice() {
+    if (cancelBusy) return;
     setCancelBusy(true);
-    const { data, error } = await createClient()
-      .rpc("set_schedule_cancelled", { target_schedule_id: scheduleId, cancel: true, reason: note.trim() || null });
-    setCancelBusy(false);
-    if (error || !data) {
-      showToast("中止にできませんでした", "error");
-      return;
+    try {
+      const { data, error } = await createClient()
+        .rpc("set_schedule_cancelled", { target_schedule_id: scheduleId, cancel: true, reason: note.trim() || null });
+      if (error || !data) {
+        showToast("中止にできませんでした", "error");
+        return;
+      }
+      setConfirming(false);
+      onCancelled?.(data.cancelled_at, data.cancel_reason);
+    } catch {
+      showToast("中止の保存結果を確認できませんでした", "error");
+    } finally {
+      setCancelBusy(false);
     }
-    setConfirming(false);
-    onCancelled?.(data.cancelled_at, data.cancel_reason);
   }
 
   // 予定ごとに入力欄を開いておくと場所を取るので、

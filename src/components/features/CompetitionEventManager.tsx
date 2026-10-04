@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
+import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { useToast } from "@/components/ui/toast";
@@ -19,6 +19,8 @@ import {
   type RecordFormat,
 } from "@/lib/competition-record";
 import type { CompetitionEvent } from "@/lib/competition-goals";
+import { saveCompetitionOrder } from "@/lib/competition-order";
+import { safeDelete } from "@/lib/safe-update";
 
 const selectClass =
   "w-full rounded-xl border border-separator bg-card p-3 text-base";
@@ -40,6 +42,10 @@ export function CompetitionEventManager({
   const { showToast } = useToast();
   const [items, setItems] = useState(initial);
   const [pending, setPending] = useState(unregistered);
+  const [receivedInitial, setReceivedInitial] = useState(initial);
+  const [receivedUnregistered, setReceivedUnregistered] = useState(unregistered);
+  if (receivedInitial !== initial) { setReceivedInitial(initial); setItems(initial); }
+  if (receivedUnregistered !== unregistered) { setReceivedUnregistered(unregistered); setPending(unregistered); }
   const [editing, setEditing] = useState<CompetitionEvent | null>(null);
   const [creating, setCreating] = useState(false);
   const [merging, setMerging] = useState<{ name: string; count: number } | null>(
@@ -51,26 +57,19 @@ export function CompetitionEventManager({
 
   /** ドラッグした順に 10 刻みで振り直す（数字を手で入れなくてよいように） */
   async function reorder(next: CompetitionEvent[]) {
-    const previous = items;
+    if (busy) return;
+    setBusy(true);
     const renumbered = next.map((e, index) => ({ ...e, sort_order: (index + 1) * 10 }));
     setItems(renumbered);
-    const { error } = await createClient()
-      .from("competition_events")
-      .upsert(renumbered);
-    if (error) {
-      setItems(previous);
-      showToast("並び順を更新できませんでした");
-      return;
-    }
+    const saved = await saveCompetitionOrder(createClient(), "competition_events", next.map((row) => row.name));
+    setBusy(false);
+    if (!saved) showToast("一部の並び順を保存できませんでした。更新後の一覧を確認してください");
     router.refresh();
   }
 
   async function remove(event: CompetitionEvent) {
-    const { error } = await createClient()
-      .from("competition_events")
-      .delete()
-      .eq("name", event.name);
-    if (error) {
+    const result = await safeDelete(createClient(), "competition_events", { name: event.name });
+    if (!result.ok) {
       showToast("目標が登録されている種目は削除できません");
       return false;
     }
@@ -178,7 +177,7 @@ export function CompetitionEventManager({
         </div>
         <ReorderList
           items={items.map((e) => ({ ...e, id: e.name }))}
-          enabled={reorderMode}
+          enabled={reorderMode && !busy}
           onReorder={(next) =>
             void reorder(
               next.map(({ name, sort_order, measure_type, time_format }) => ({
@@ -307,8 +306,10 @@ function EventForm({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dirty = name !== (event?.name ?? "") || format !== (event ? recordFormatOf([event], event.name) : "minutes");
 
   async function submit() {
+    if (saving) return;
     if (!name.trim()) {
       setError("種目名を入力してください");
       return;
@@ -318,9 +319,9 @@ function EventForm({
     const supabase = createClient();
     const payload = {
       name: name.trim(),
-      sort_order: sort,
       ...fromRecordFormat(format),
     };
+    try {
     const { data, error: saveError } = event
       ? await supabase
           .from("competition_events")
@@ -330,7 +331,7 @@ function EventForm({
           .single()
       : await supabase
           .from("competition_events")
-          .insert(payload)
+          .insert({ ...payload, sort_order: sort })
           .select("name,sort_order,measure_type,time_format")
           .single();
     if (saveError || !data) {
@@ -339,10 +340,16 @@ function EventForm({
       return;
     }
     onSaved(data as CompetitionEvent, event?.name);
+    } catch {
+      setError("保存結果を確認できませんでした。入力を残して、画面を開き直して確認してください");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div className="space-y-4 pb-4">
+    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
+      <FormDraftGuard dirty={dirty} busy={saving} onSave={submit} />
       <div>
         <p className="section-label mb-1.5">種目名</p>
         <Input
@@ -379,6 +386,6 @@ function EventForm({
           {saving ? "保存中…" : event ? "更新する" : "追加する"}
         </Button>
       </FormModalFooter>
-    </div>
+    </fieldset>
   );
 }

@@ -8,7 +8,7 @@ import { Avatar } from "@/components/common/Avatar";
 import { BlockPills } from "@/components/common/BlockPill";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
+import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { GRADE_OPTIONS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -150,6 +150,10 @@ function MemberRoleEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [mentionReading, setMentionReading] = useState(member.mention_reading ?? "");
+  const initialRoleIds = member.roles.filter((role) => !role.is_everyone).map((role) => role.id).sort();
+  const [partialSave, setPartialSave] = useState(false);
+  const dirty = partialSave || JSON.stringify([...selectedIds].sort()) !== JSON.stringify(initialRoleIds)
+    || mentionReading !== (member.mention_reading ?? "");
 
   function toggle(roleId: string) {
     setSelectedIds((current) =>
@@ -160,8 +164,10 @@ function MemberRoleEditor({
   }
 
   async function save() {
+    if (saving) return;
     setSaving(true);
     setError("");
+    try {
     const supabase = createClient();
     if (canManageSystem) {
       const normalizedReading = mentionReading.trim().replace(/\s+/g, " ");
@@ -179,6 +185,7 @@ function MemberRoleEditor({
         setSaving(false);
         return;
       }
+      if (mentionReading !== (member.mention_reading ?? "")) setPartialSave(true);
     }
     const { error: saveError } = await supabase.rpc("set_profile_roles", {
       target_profile_id: member.id,
@@ -191,11 +198,17 @@ function MemberRoleEditor({
     }
     router.refresh();
     onClose();
+    } catch {
+      setError("ロールを更新できませんでした。入力は残っています");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <FormModal open onOpenChange={(open) => !open && onClose()} title="ロールを設定">
-      <div className="space-y-4 pb-4">
+      <FormDraftGuard dirty={dirty} busy={saving} onSave={save}/>
+      <fieldset disabled={saving} className="space-y-4 pb-4">
         <div className="flex items-center gap-3">
           <Avatar
             name={member.display_name || "?"}
@@ -256,7 +269,7 @@ function MemberRoleEditor({
             {saving ? "保存中…" : "保存する"}
           </Button>
         </FormModalFooter>
-      </div>
+      </fieldset>
     </FormModal>
   );
 }

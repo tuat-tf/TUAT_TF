@@ -5,15 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LoaderCircle, X } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
-import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { safeDelete, safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
+import { FormModal, FormModalFooter, useFormChangeGuard, useFormDraft } from "@/components/ui/form-modal";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Select } from "@/components/ui/select";
+import { RefreshStatus } from "@/components/ui/refresh-status";
 import { useToast } from "@/components/ui/toast";
 import { ScheduleSheetsManager } from "@/components/features/ScheduleSheetsManager";
 import {
@@ -27,6 +28,7 @@ import type { Block, PracticeSchedule, ScheduleType, VenueRow } from "@/types";
 const OTHER = "__other__";
 
 export function ScheduleCreatePanel({ onDone }: { onDone: () => void }) {
+  const guardChange = useFormChangeGuard();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"normal" | "sheets">(
     searchParams.get("sheets") === "1" ? "sheets" : "normal",
@@ -40,7 +42,7 @@ export function ScheduleCreatePanel({ onDone }: { onDone: () => void }) {
           { key: "sheets", label: "スプレッドシートから入力" },
         ]}
         value={mode}
-        onChange={setMode}
+        onChange={(next) => { if (next !== mode) guardChange(() => setMode(next)); }}
       />
       {mode === "normal" ? <ScheduleForm onDone={onDone} /> : <ScheduleSheetsManager />}
     </div>
@@ -62,13 +64,17 @@ export function ScheduleForm({
   const editing = !!schedule;
 
   const [venues, setVenues] = useState<VenueRow[]>([]);
+  const [venueFailed, setVenueFailed] = useState(false);
+  const [venueAttempt, setVenueAttempt] = useState(0);
   const [type, setType] = useState<ScheduleType>(
     schedule?.schedule_type ?? initialType ?? "practice",
   );
   const [date, setDate] = useState(schedule?.schedule_date ?? "");
   const [meetingTime, setMeetingTime] = useState(schedule?.meeting_time?.slice(0, 5) ?? "");
+  const [defaultMeetingTime, setDefaultMeetingTime] = useState(meetingTime);
   const [venueKey, setVenueKey] = useState<string>(schedule?.venue_name ? OTHER : "");
   const [otherVenue, setOtherVenue] = useState(schedule?.venue_name ?? "");
+  const venueTouched = useRef(false);
   const [title, setTitle] = useState(schedule?.title ?? "");
   const [useEndDate, setUseEndDate] = useState(!!schedule?.end_date);
   const [endDate, setEndDate] = useState(schedule?.end_date ?? "");
@@ -83,6 +89,17 @@ export function ScheduleForm({
 
   const isPractice = type === "practice";
   const canEntry = ENTRY_PERIOD_TYPES.includes(type);
+  const venue = venueKey && venueKey !== OTHER ? venues.find((item) => item.id === venueKey) : undefined;
+  const venueName = venue ? venue.name : venueKey === OTHER ? otherVenue : "";
+  const dirty = type !== (schedule?.schedule_type ?? initialType ?? "practice")
+    || date !== (schedule?.schedule_date ?? "") || meetingTime !== defaultMeetingTime
+    || venueName !== (schedule?.venue_name ?? "") || title !== (schedule?.title ?? "")
+    || useEndDate !== !!schedule?.end_date || endDate !== (schedule?.end_date ?? "")
+    || useEntry !== !!(schedule?.entry_start || schedule?.entry_end)
+    || entryStart !== (schedule?.entry_start ?? "") || entryEnd !== (schedule?.entry_end ?? "")
+    || note !== (schedule?.note ?? "")
+    || JSON.stringify([...targetBlocks].sort()) !== JSON.stringify(normalizeProfileBlocks(schedule?.target_blocks).sort());
+  useFormDraft({ dirty, busy: saving, onSave: submit, intent: editing ? "update" : "create" });
 
   // 場所リスト（pinned）をDBから取得。編集時は保存済み会場名を選択状態に復元。
   useEffect(() => {
@@ -110,27 +127,30 @@ export function ScheduleForm({
           : Promise.resolve({ data: null }),
       ]);
       if (!active) return;
+      if (venueResult.error) { setVenueFailed(true); return; }
       const list = (venueResult.data ?? []) as VenueRow[];
       setVenues(list);
       const previousTime = previousTimeResult.data?.meeting_time;
       if (!schedule && previousTime && !meetingTimeTouched.current) {
         setMeetingTime(previousTime.slice(0, 5));
+        setDefaultMeetingTime(previousTime.slice(0, 5));
       }
-      if (schedule?.venue_name) {
+      if (schedule?.venue_name && !venueTouched.current) {
         const match = list.find((v) => v.name === schedule.venue_name);
         if (match) {
           setVenueKey(match.id);
           setOtherVenue("");
         }
       }
-    })();
+    })().catch(() => { if (active) setVenueFailed(true); });
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [venueAttempt]);
 
   async function submit() {
+    if (saving) return;
     if (!date) {
       setError("日付を選択してください");
       return;
@@ -141,60 +161,63 @@ export function ScheduleForm({
     }
     setSaving(true);
     setError(null);
-    const supabase = createClient();
-    const userId = await getCurrentUserId(supabase);
-    if (!userId) {
+    try {
+      const supabase = createClient();
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setError("保存できませんでした。画面を開き直してから、もう一度お試しください");
+        return;
+      }
+
+      const payload = {
+        schedule_date: date,
+        schedule_type: type,
+        meeting_time: meetingTime || null,
+        venue_name: venueName.trim() || null,
+        venue_access: venue ? venue.access : schedule && venueName === schedule.venue_name ? schedule.venue_access : null,
+        venue_fee: venue ? venue.fee : schedule && venueName === schedule.venue_name ? schedule.venue_fee : null,
+        venue_url: venue ? venue.url : schedule && venueName === schedule.venue_name ? schedule.venue_url : null,
+        title: !isPractice ? title.trim() || null : null,
+        end_date: !isPractice && useEndDate && endDate ? endDate : null,
+        entry_start: canEntry && useEntry && entryStart ? entryStart : null,
+        entry_end: canEntry && useEntry && entryEnd ? entryEnd : null,
+        note: note.trim() || null,
+        target_blocks: targetBlocks,
+      };
+
+      if (editing) {
+        const result = await safeUpdate(
+          supabase,
+          "practice_schedules",
+          payload,
+          { id: schedule!.id },
+        );
+        if (!result.ok) {
+          setError(safeUpdateMessage(result.reason));
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { error } = await supabase
+          .from("practice_schedules")
+          .insert({ ...payload, created_by: userId });
+        if (error) {
+          setError("保存できませんでした。もう一度お試しください");
+          setSaving(false);
+          return;
+        }
+      }
+      router.refresh();
+      onDone();
+    } catch {
+      setError("保存できませんでした。もう一度お試しください");
+    } finally {
       setSaving(false);
-      return;
     }
-
-    const venue = venueKey && venueKey !== OTHER ? venues.find((v) => v.id === venueKey) : undefined;
-    const venueName = venue ? venue.name : venueKey === OTHER ? otherVenue.trim() || null : null;
-
-    const payload = {
-      schedule_date: date,
-      schedule_type: type,
-      meeting_time: meetingTime || null,
-      venue_name: venueName,
-      venue_access: venue ? venue.access : null,
-      venue_fee: venue ? venue.fee : null,
-      venue_url: venue ? venue.url : null,
-      title: !isPractice ? title.trim() || null : null,
-      end_date: !isPractice && useEndDate && endDate ? endDate : null,
-      entry_start: canEntry && useEntry && entryStart ? entryStart : null,
-      entry_end: canEntry && useEntry && entryEnd ? entryEnd : null,
-      note: note.trim() || null,
-      target_blocks: targetBlocks,
-    };
-
-    if (editing) {
-      const result = await safeUpdate(
-        supabase,
-        "practice_schedules",
-        payload,
-        { id: schedule!.id },
-      );
-      if (!result.ok) {
-        setError(safeUpdateMessage(result.reason));
-        setSaving(false);
-        return;
-      }
-    } else {
-      const { error } = await supabase
-        .from("practice_schedules")
-        .insert({ ...payload, created_by: userId });
-      if (error) {
-        setError("保存できませんでした。もう一度お試しください");
-        setSaving(false);
-        return;
-      }
-    }
-    router.refresh();
-    onDone();
   }
 
   return (
-    <div className="space-y-4 pb-4">
+    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
       {showTypeSelector && (
         <SegmentedControl
           items={SCHEDULE_TYPE_OPTIONS}
@@ -230,9 +253,10 @@ export function ScheduleForm({
       {/* 場所（選択式） */}
       <div>
         <p className="section-label mb-1.5">場所</p>
+        <RefreshStatus failed={venueFailed} busy={false} label="会場" hasData={venues.length > 0} retry={() => { setVenueFailed(false); setVenueAttempt((value) => value + 1); }} />
         <Select
           value={venueKey}
-          onValueChange={setVenueKey}
+          onValueChange={(value) => { venueTouched.current = true; setVenueKey(value); }}
           ariaLabel="場所"
           options={[
             { value: "", label: "選択しない" },
@@ -248,7 +272,7 @@ export function ScheduleForm({
             className="mt-2"
             placeholder="場所名を入力"
             value={otherVenue}
-            onChange={(e) => setOtherVenue(e.target.value)}
+            onChange={(e) => { venueTouched.current = true; setOtherVenue(e.target.value); }}
           />
         )}
         {venueKey && venueKey !== OTHER && (
@@ -366,7 +390,7 @@ export function ScheduleForm({
           {saving ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : editing ? "更新する" : "作成する"}
         </Button>
       </FormModalFooter>
-    </div>
+    </fieldset>
   );
 }
 
@@ -378,8 +402,8 @@ export function ScheduleManageActions({ schedule }: { schedule: PracticeSchedule
 
   async function remove() {
     const supabase = createClient();
-    const { error } = await supabase.from("practice_schedules").delete().eq("id", schedule.id);
-    if (error) {
+    const result = await safeDelete(supabase, "practice_schedules", { id: schedule.id });
+    if (!result.ok) {
       showToast("予定を削除できませんでした");
       return false;
     }

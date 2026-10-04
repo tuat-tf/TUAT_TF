@@ -6,11 +6,12 @@ import { LoaderCircle } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
 import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
-import { FormModalFooter } from "@/components/ui/form-modal";
+import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
+import { RefreshStatus } from "@/components/ui/refresh-status";
 import { RecipientPicker } from "@/components/features/RecipientPicker";
 import { NOTICE_CATEGORIES, normalizeProfileBlocks } from "@/lib/constants";
 import { noticeConditionRecipientIds } from "@/lib/notice-recipients";
@@ -33,6 +34,9 @@ export function NoticeForm({
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [members, setMembers] = useState<AuthorMini[]>([]);
   const [roleAssignments, setRoleAssignments] = useState<{ profile_id: string; role_id: string }[]>([]);
+  const [recipientsFailed, setRecipientsFailed] = useState(false);
+  const [recipientsReady, setRecipientsReady] = useState(false);
+  const [recipientsAttempt, setRecipientsAttempt] = useState(0);
   const [mentionedAll, setMentionedAll] = useState(
     initial?.mentioned_all ?? (initial ? initial.notify_members && initial.target_role_ids.length === 0 : true),
   );
@@ -45,6 +49,11 @@ export function NoticeForm({
   const [mentionedGrades, setMentionedGrades] = useState<string[]>(initial?.mentioned_grades ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const draft = JSON.stringify([category, title, content, deadline, pinHome, mentionedAll,
+    [...mentionedRoleIds].sort(), [...mentionedUserIds].sort(), [...mentionedExcludedUserIds].sort(),
+    [...mentionedBlocks].sort(), [...mentionedGrades].sort()]);
+  const [initialDraft] = useState(draft);
+  useFormDraft({ dirty: draft !== initialDraft, busy: saving, onSave: submit, intent: editing ? "update" : "create" });
 
   useEffect(() => {
     let active = true;
@@ -55,94 +64,103 @@ export function NoticeForm({
       supabase.from("profile_roles").select("profile_id, role_id"),
 ]).then(([roleResult, memberResult, assignmentResult]) => {
       if (!active) return;
+      if (roleResult.error || memberResult.error || assignmentResult.error) { setRecipientsFailed(true); return; }
       setRoles((roleResult.data ?? []) as AppRole[]);
       setMembers((memberResult.data ?? []) as AuthorMini[]);
       setRoleAssignments((assignmentResult.data ?? []) as { profile_id: string; role_id: string }[]);
-    });
+      setRecipientsReady(true);
+    }).catch(() => { if (active) setRecipientsFailed(true); });
     return () => {
       active = false;
     };
-  }, []);
+  }, [recipientsAttempt]);
 
   const hasMentions = mentionedAll || mentionedRoleIds.length > 0 || mentionedUserIds.length > 0 || mentionedBlocks.length > 0 || mentionedGrades.length > 0;
 
   async function submit() {
+    if (saving) return;
     if (!title.trim() || !content.trim()) {
       setError("タイトルと本文を入力してください");
       return;
     }
     setSaving(true);
     setError(null);
-    const supabase = createClient();
-    const conditionRecipientIds = new Set(noticeConditionRecipientIds({ people: members, roleAssignments, all: mentionedAll, roleIds: mentionedRoleIds, blocks: mentionedBlocks, grades: mentionedGrades }));
-    // 編集画面を開いた直後で部員一覧がまだ読めていない場合は、既存の除外設定を失わない。
-    const effectiveExcludedUserIds = members.length === 0
-      ? mentionedExcludedUserIds
-      : mentionedExcludedUserIds.filter((id) => conditionRecipientIds.has(id));
+    try {
+      const supabase = createClient();
+      const conditionRecipientIds = new Set(noticeConditionRecipientIds({ people: members, roleAssignments, all: mentionedAll, roleIds: mentionedRoleIds, blocks: mentionedBlocks, grades: mentionedGrades }));
+      // 編集画面を開いた直後で部員一覧がまだ読めていない場合は、既存の除外設定を失わない。
+      const effectiveExcludedUserIds = members.length === 0
+        ? mentionedExcludedUserIds
+        : mentionedExcludedUserIds.filter((id) => conditionRecipientIds.has(id));
 
-    if (editing) {
-      const result = await safeUpdate(
-        supabase,
-        "notices",
-        {
-          category,
-          title: title.trim(),
-          content: content.trim(),
-          deadline: deadline || null,
-          pin_home: pinHome,
-          notify_members: hasMentions,
-          target_role_ids: mentionedRoleIds,
-          mentioned_all: mentionedAll,
-          mentioned_role_ids: mentionedRoleIds,
-          mentioned_user_ids: mentionedUserIds,
-          mentioned_excluded_user_ids: effectiveExcludedUserIds,
-          mentioned_blocks: mentionedBlocks,
-          mentioned_grades: mentionedGrades,
-        },
-        { id: initial!.id },
-      );
-      if (!result.ok) {
-        setError(safeUpdateMessage(result.reason));
+      if (editing) {
+        const result = await safeUpdate(
+          supabase,
+          "notices",
+          {
+            category,
+            title: title.trim(),
+            content: content.trim(),
+            deadline: deadline || null,
+            pin_home: pinHome,
+            notify_members: hasMentions,
+            target_role_ids: mentionedRoleIds,
+            mentioned_all: mentionedAll,
+            mentioned_role_ids: mentionedRoleIds,
+            mentioned_user_ids: mentionedUserIds,
+            mentioned_excluded_user_ids: effectiveExcludedUserIds,
+            mentioned_blocks: mentionedBlocks,
+            mentioned_grades: mentionedGrades,
+          },
+          { id: initial!.id },
+        );
+        if (!result.ok) {
+          setError(safeUpdateMessage(result.reason));
+          setSaving(false);
+          return;
+        }
+        router.refresh();
+        onDone();
+        return;
+      }
+
+      const userId = await getCurrentUserId(supabase);
+      if (!userId) {
+        setError("保存できませんでした。画面を開き直してから、もう一度お試しください");
+        return;
+      }
+      const { error } = await supabase.from("notices").insert({
+        author_id: userId,
+        category,
+        title: title.trim(),
+        content: content.trim(),
+        deadline: deadline || null,
+        pin_home: pinHome,
+        notify_members: hasMentions,
+        target_role_ids: mentionedRoleIds,
+        mentioned_all: mentionedAll,
+        mentioned_role_ids: mentionedRoleIds,
+        mentioned_user_ids: mentionedUserIds,
+        mentioned_excluded_user_ids: effectiveExcludedUserIds,
+        mentioned_blocks: mentionedBlocks,
+        mentioned_grades: mentionedGrades,
+      });
+      if (error) {
+        setError("保存できませんでした。もう一度お試しください");
         setSaving(false);
         return;
       }
       router.refresh();
       onDone();
-      return;
-    }
-
-    const userId = await getCurrentUserId(supabase);
-    if (!userId) {
-      setSaving(false);
-      return;
-    }
-    const { error } = await supabase.from("notices").insert({
-      author_id: userId,
-      category,
-      title: title.trim(),
-      content: content.trim(),
-      deadline: deadline || null,
-      pin_home: pinHome,
-      notify_members: hasMentions,
-      target_role_ids: mentionedRoleIds,
-      mentioned_all: mentionedAll,
-      mentioned_role_ids: mentionedRoleIds,
-      mentioned_user_ids: mentionedUserIds,
-      mentioned_excluded_user_ids: effectiveExcludedUserIds,
-      mentioned_blocks: mentionedBlocks,
-      mentioned_grades: mentionedGrades,
-    });
-    if (error) {
+    } catch {
       setError("保存できませんでした。もう一度お試しください");
+    } finally {
       setSaving(false);
-      return;
     }
-    router.refresh();
-    onDone();
   }
 
   return (
-    <div className="space-y-4 pb-4">
+    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
       <div>
         <p className="section-label mb-1.5">カテゴリ</p>
         <div data-ui-group className="grid grid-cols-4 gap-2">
@@ -187,16 +205,19 @@ export function NoticeForm({
         checked={pinHome}
         onChange={() => setPinHome((v) => !v)}
       />
+      <RefreshStatus failed={recipientsFailed} busy={false} hasData={recipientsReady} label="通知先" retry={() => { setRecipientsFailed(false); setRecipientsAttempt((value) => value + 1); }} />
+      <fieldset disabled={!recipientsReady} className="min-w-0">
       <RecipientPicker
         people={members} roles={roles} roleAssignments={roleAssignments} all={mentionedAll} roleIds={mentionedRoleIds} personIds={mentionedUserIds} excludedPersonIds={mentionedExcludedUserIds} blocks={mentionedBlocks} grades={mentionedGrades}
         onAllChange={setMentionedAll} onRoleIdsChange={setMentionedRoleIds} onPersonIdsChange={setMentionedUserIds} onExcludedPersonIdsChange={setMentionedExcludedUserIds} onBlocksChange={setMentionedBlocks} onGradesChange={setMentionedGrades}
       />
+      </fieldset>
       {error && <p className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         <Button size="lg" onClick={submit} disabled={saving}>
           {saving ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : editing ? "更新する" : "作成する"}
         </Button>
       </FormModalFooter>
-    </div>
+    </fieldset>
   );
 }

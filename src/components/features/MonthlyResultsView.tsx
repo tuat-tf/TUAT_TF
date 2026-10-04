@@ -17,6 +17,7 @@ import { FormModal } from "@/components/ui/form-modal";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
+import { safeDelete } from "@/lib/safe-update";
 import { ResultForm, type ResultFormHandle } from "@/components/post/ResultForm";
 import { shiftMonth } from "@/lib/date";
 
@@ -63,14 +64,12 @@ export function MonthlyResultsView({
   const router = useRouter();
   const { showToast } = useToast();
   async function remove(id: string) {
-    const previous = results;
-    setResults((rows) => rows.filter((r) => r.id !== id));
-    const { error } = await createClient().from("pb_records").delete().eq("id", id);
-    if (error) {
-      setResults(previous);
+    const result = await safeDelete(createClient(), "pb_records", { id });
+    if (!result.ok) {
       showToast("結果を削除できませんでした");
       return false;
     }
+    setResults((rows) => rows.filter((r) => r.id !== id));
     router.refresh();
     return true;
   }

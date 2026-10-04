@@ -7,6 +7,7 @@ import { PeopleFilterButton } from "@/components/features/PeopleFilterButton";
 import { Button } from "@/components/ui/button";
 import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import { GRADE_OPTIONS, matchSimpleBlock } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { AuthorMini, Block } from "@/types";
@@ -19,7 +20,9 @@ function readMemberLists(): MemberList[] {
   if (typeof window === "undefined") return [];
   try {
     const value = JSON.parse(localStorage.getItem(MEMBER_LISTS_KEY) ?? "[]") as unknown;
-    return Array.isArray(value) ? value as MemberList[] : [];
+    return Array.isArray(value) ? value.filter((item): item is MemberList =>
+      !!item && typeof item === "object" && typeof item.key === "string" && typeof item.name === "string"
+      && Array.isArray(item.ids) && item.ids.every((id: unknown) => typeof id === "string")) : [];
   } catch {
     return [];
   }
@@ -28,6 +31,7 @@ function readMemberLists(): MemberList[] {
 export function PersonPicker({ people, value, onChange, label = "対象者", excludeIds = [], includedIds = [], excludedIncludedIds = [], onExcludedIncludedIdsChange }: {
   people: AuthorMini[]; value: string[]; onChange: (ids: string[]) => void; label?: string; excludeIds?: string[]; includedIds?: string[]; excludedIncludedIds?: string[]; onExcludedIncludedIdsChange?: (ids: string[]) => void;
 }) {
+  const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
   const [draftExcludedIncludedIds, setDraftExcludedIncludedIds] = useState(excludedIncludedIds);
@@ -71,13 +75,19 @@ export function PersonPicker({ people, value, onChange, label = "対象者", exc
     toggle(id);
   }
   function saveMemberLists(next: MemberList[]) {
-    setMemberLists(next);
-    localStorage.setItem(MEMBER_LISTS_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(MEMBER_LISTS_KEY, JSON.stringify(next));
+      setMemberLists(next);
+      return true;
+    } catch {
+      showToast("リストを保存できませんでした");
+      return false;
+    }
   }
   function createMemberList() {
     const name = listName.trim();
     if (!name || draft.length === 0) return;
-    saveMemberLists([...memberLists, { key: crypto.randomUUID(), name, ids: draft }]);
+    if (!saveMemberLists([...memberLists, { key: crypto.randomUUID(), name, ids: draft }])) return;
     setListName("");
     setCreatingList(false);
   }

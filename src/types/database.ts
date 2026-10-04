@@ -2233,6 +2233,22 @@ export type Database = {
         Args: { p_profile_id: string; p_expected: Json; p_sheet_name: string; p_fields: Json; p_signature: string; p_mode: string }
         Returns: { id: string; record_fields_version: number }[]
       }
+      save_tweet: {
+        Args: { p_id: string; p_values: Json; p_poll_options: string[]; p_mention_ids: string[]; p_edit: boolean; p_expected_content: string | null }
+        Returns: Json
+      }
+      save_note_folder: {
+        Args: { p_id: string; p_expected_updated_at: string | null; p_values: Json; p_editor_ids: string[] }
+        Returns: Json
+      }
+      save_note_article: {
+        Args: { p_id: string; p_note_id: string; p_expected_updated_at: string | null; p_values: Json; p_existing_option_ids: string[]; p_kept_option_ids: string[]; p_new_options: Json; p_poll_enabled: boolean }
+        Returns: Json
+      }
+      set_competition_countdown: {
+        Args: { p_target_id: string | null; p_expected_id: string | null }
+        Returns: Json
+      }
       save_october_sheet_setup: {
         Args: { p_sheet_name: string; p_fields: Json; p_signature: string; p_mode: string }
         Returns: undefined

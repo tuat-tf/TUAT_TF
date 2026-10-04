@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TrainingChart } from "@/components/features/TrainingChart";
+import { RefreshStatus } from "@/components/ui/refresh-status";
 import { loadMyTrainingRecords } from "@/app/(app)/mypage/actions";
 import type { PracticeRecord } from "@/types";
 
@@ -17,7 +18,7 @@ export function MyTrainingChartCached({
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["my-training-records", userId];
-  const { data } = useQuery({
+  const { data, isError, isFetching, refetch } = useQuery({
     queryKey,
     queryFn: loadMyTrainingRecords,
     initialData: initialRecords,
@@ -31,5 +32,5 @@ export function MyTrainingChartCached({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRecords, queryClient]);
   if (!showIntensitySummary) return null;
-  return <TrainingChart records={data} showIntensitySummary />;
+  return <><RefreshStatus failed={isError} busy={isFetching} label="練習記録" retry={() => { void refetch(); }} /><TrainingChart records={data} showIntensitySummary /></>;
 }

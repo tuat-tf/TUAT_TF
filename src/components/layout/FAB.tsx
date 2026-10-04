@@ -20,10 +20,10 @@ import {
   Plus,
   Trophy,
 } from "lucide-react";
-import { FormModal } from "@/components/ui/form-modal";
+import { FormModal, useFormChangeGuard } from "@/components/ui/form-modal";
+import { RefreshStatus } from "@/components/ui/refresh-status";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
-import type { MonthlyPlanningEditorHandle } from "@/components/features/MonthlyPlanningEditorV2";
 import type { RecordFormHandle } from "@/components/post/RecordForm";
 import type { ResultFormHandle } from "@/components/post/ResultForm";
 import { useCompetitionCatalog } from "@/components/post/use-competition-catalog";
@@ -155,13 +155,9 @@ function ContextualFAB({
   const [tweetDirty, setTweetDirty] = useState(false);
   const [resultDirty, setResultDirty] = useState(false);
   const [pendingTimelineClose, setPendingTimelineClose] = useState<"record" | "tweet" | "result" | null>(null);
-  const planningRef = useRef<MonthlyPlanningEditorHandle>(null);
-  const [planningDirty, setPlanningDirty] = useState(false);
   const [scheduleType, setScheduleType] = useState<
     Extract<ScheduleType, "practice" | "meet" | "time_trial">
   >("practice");
-  const [confirmPlanningClose, setConfirmPlanningClose] = useState(false);
-  const [savingPlanning, setSavingPlanning] = useState(false);
   const [canEditArticles, setCanEditArticles] = useState(false);
   const [folderInfo, setFolderInfo] = useState<{
     scope: "shared" | "personal";
@@ -185,6 +181,7 @@ function ContextualFAB({
   const noteFolderMatch = pathname.match(/^\/notes\/([^/]+)$/);
   const noteId = noteFolderMatch?.[1] ?? null;
   const isNoteFolder = Boolean(noteId && canEditArticles);
+  const canCreateSubfolder = Boolean(isNoteFolder && folderInfo?.canManage && folderInfo.depth < 3);
   const visible = isFeed || isSchedule || isNotice || isNotesRoot || isNoteFolder;
 
   useEffect(() => {
@@ -240,12 +237,7 @@ function ContextualFAB({
       return;
     }
     if (isNoteFolder) {
-      // サブフォルダを作れる立場なら2択メニュー、そうでなければ従来どおり記事作成へ直行
-      if (isNoteFolder || (folderInfo?.canManage && folderInfo.depth < 3)) {
-        setSpeedDialOpen((open) => !open);
-      } else {
-        setDirectForm("article");
-      }
+      setSpeedDialOpen((open) => !open);
     }
   }
 
@@ -278,8 +270,6 @@ function ContextualFAB({
 
   function closeDirectForm() {
     setScheduleType("practice");
-    setPlanningDirty(false);
-    setConfirmPlanningClose(false);
     setDirectForm(null);
     if (autoOpen) router.back();
   }
@@ -310,7 +300,7 @@ function ContextualFAB({
     { key: "folder", label: "フォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("folder") },
   ] : [
     { key: "article", label: "記事", icon: <NotebookPen size={21} />, onIntent: () => warmForm("article"), onSelect: () => setDirectForm("article") },
-    { key: "subfolder", label: "サブフォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("subfolder") },
+    ...(canCreateSubfolder ? [{ key: "subfolder", label: "サブフォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("subfolder") }] : []),
     { key: "thread", label: "スレッド", icon: <MessagesSquare size={21} />, onIntent: () => warmForm("thread"), onSelect: () => setDirectForm("thread") },
   ];
   const trigger = <button
@@ -416,14 +406,14 @@ function ContextualFAB({
                 setDirectForm("article");
               }}
             />
-            <SpeedDialAction
+            {canCreateSubfolder && <SpeedDialAction
               icon={<FolderPlus size={19} />}
               label="サブフォルダ"
               onClick={() => {
                 setSpeedDialOpen(false);
                 setDirectForm("subfolder");
               }}
-            />
+            />}
             <SpeedDialAction
               icon={<MessagesSquare size={19} />}
               label="スレッド"
@@ -461,24 +451,17 @@ function ContextualFAB({
         onOpenChange={(open) => { if (!open) { if (resultDirty) setPendingTimelineClose("result"); else closeTimelineForm("result"); } }}
         title="大会・記録会の結果"
       >
-        <ResultForm ref={resultRef} userId={userId} events={catalog.events} competitions={catalog.competitions} onDirtyChange={setResultDirty} onDone={() => closeTimelineForm("result")} />
+        <RefreshStatus failed={catalog.isError} busy={catalog.isLoading} hasData={catalog.hasData} label="種目・大会" retry={catalog.retry} />
+        {catalog.hasData && <ResultForm ref={resultRef} userId={userId} events={catalog.events} competitions={catalog.competitions} onDirtyChange={setResultDirty} onDone={() => closeTimelineForm("result")} />}
       </FormModal>
 
       <UnsavedChangesDialog open={pendingTimelineClose !== null} busy={false} intent="post" onContinue={() => setPendingTimelineClose(null)} onDiscard={() => { if (pendingTimelineClose) closeTimelineForm(pendingTimelineClose); }} onSave={savePendingTimelineForm} />
 
-      <FormModal open={directForm === "planning"} autoFocus={!systemGlass} onOpenChange={(open) => { if (!open) { if (scheduleType === "practice" && planningDirty) setConfirmPlanningClose(true); else closeDirectForm(); } }} title="予定">
+      <FormModal open={directForm === "planning"} autoFocus={!systemGlass} onOpenChange={(open) => !open && closeDirectForm()} title="予定">
         <div className="space-y-5">
-          <SegmentedControl
-            items={[
-              { key: "practice", label: "練習" },
-              { key: "meet", label: "大会・行事" },
-              { key: "time_trial", label: "記録会" },
-            ]}
-            value={scheduleType}
-            onChange={(key) => setScheduleType(key as typeof scheduleType)}
-          />
+          <PlanningTypePicker value={scheduleType} onChange={setScheduleType} />
           {scheduleType === "practice" ? (
-            <MonthlyPlanningEditorV2 ref={planningRef} initialTab="schedule" canSchedule={can.createSchedule} canMenu={can.createMenu} onDirtyChange={setPlanningDirty} onSaved={handlePlanningSaved} />
+            <MonthlyPlanningEditorV2 userId={userId} initialTab="schedule" canSchedule={can.createSchedule} canMenu={can.createMenu} onSaved={handlePlanningSaved} />
           ) : (
             <ScheduleForm
               key={scheduleType}
@@ -489,7 +472,6 @@ function ContextualFAB({
           )}
         </div>
       </FormModal>
-      <UnsavedChangesDialog open={confirmPlanningClose} busy={savingPlanning} onContinue={() => setConfirmPlanningClose(false)} onDiscard={closeDirectForm} onSave={() => { setSavingPlanning(true); void planningRef.current?.save().then((ok) => { setSavingPlanning(false); if (ok) handlePlanningSaved(); }); }} />
 
       <FormModal
         open={directForm === "schedule"}
@@ -582,4 +564,16 @@ function SpeedDialAction({
       {label}
     </button>
   );
+}
+
+function PlanningTypePicker({ value, onChange }: {
+  value: Extract<ScheduleType, "practice" | "meet" | "time_trial">;
+  onChange: (value: Extract<ScheduleType, "practice" | "meet" | "time_trial">) => void;
+}) {
+  const guardChange = useFormChangeGuard();
+  return <SegmentedControl
+    items={[{ key: "practice", label: "練習" }, { key: "meet", label: "大会・行事" }, { key: "time_trial", label: "記録会" }]}
+    value={value}
+    onChange={(next) => { if (next !== value) guardChange(() => onChange(next)); }}
+  />;
 }

@@ -1,3 +1,5 @@
+import sanitizeHtml from "sanitize-html";
+
 export const BLOG_HOME_URL = "https://nokotandf.livedoor.blog/";
 export const BLOG_FEED_URL = `${BLOG_HOME_URL}index.rdf`;
 export const BLOG_PAGE_SIZE = 20;
@@ -26,11 +28,11 @@ function decodeEntities(value: string): string {
   return value.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (match, entity: string) => {
     if (entity.startsWith("#x")) {
       const codePoint = Number.parseInt(entity.slice(2), 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : match;
     }
     if (entity.startsWith("#")) {
       const codePoint = Number.parseInt(entity.slice(1), 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : match;
     }
     return named[entity.toLowerCase()] ?? match;
   });
@@ -77,13 +79,25 @@ function safeMediaUrl(value: string): string | null {
 }
 
 export function sanitizeBlogArticleHtml(value: string): string {
-  const clean = value.replace(/<(script|style|iframe|object|embed|form|button)[^>]*>[\s\S]*?<\/\1\s*>/gi, "").replace(/<(script|style|iframe|object|embed|form|button)\b[^>]*\/?>/gi, "");
-  const allowed = new Set(["p", "br", "div", "span", "b", "strong", "i", "em", "u", "s", "del", "h2", "h3", "h4", "ul", "ol", "li", "blockquote", "img", "a"]);
-  const sanitized = clean.replace(/<\/?([a-z][\w-]*)(?:\s[^>]*)?>/gi, (tag, rawName: string) => {
-    const name = rawName.toLowerCase(); if (!allowed.has(name)) return ""; if (tag.startsWith("</")) return `</${name}>`; if (name === "br") return "<br>";
-    if (name === "img") { const src = safeMediaUrl(attributeOf(tag, "src")); if (!src) return ""; const alt = attributeOf(tag, "alt").replace(/[<>"']/g, ""); return `<img src="${src}" alt="${alt}" loading="lazy" decoding="async">`; }
-    if (name === "a") { const href = safeBlogUrl(attributeOf(tag, "href")); return href ? `<a href="${href}">` : "<span>"; }
-    return `<${name}>`;
+  const sanitized = sanitizeHtml(value, {
+    allowedTags: ["p", "br", "div", "span", "b", "strong", "i", "em", "u", "s", "del", "h2", "h3", "h4", "ul", "ol", "li", "blockquote", "img", "a"],
+    allowedAttributes: { a: ["href"], img: ["src", "alt", "loading", "decoding"] },
+    allowedSchemes: ["https"],
+    allowProtocolRelative: false,
+    nonTextTags: ["script", "style", "iframe", "object", "embed", "form", "button", "textarea", "option"],
+    parseStyleAttributes: false,
+    transformTags: {
+      img: (_tag, attributes): sanitizeHtml.Tag => {
+        const src = safeMediaUrl(attributes.src ?? "");
+        return src
+          ? { tagName: "img", attribs: { src, alt: attributes.alt ?? "", loading: "lazy", decoding: "async" } }
+          : { tagName: "span", attribs: {} };
+      },
+      a: (_tag, attributes): sanitizeHtml.Tag => {
+        const href = safeBlogUrl(attributes.href ?? "");
+        return href ? { tagName: "a", attribs: { href } } : { tagName: "span", attribs: {} };
+      },
+    },
   });
   return sanitized
     .replace(/<p>(?:\s|<br>)*<\/p>/gi, "")

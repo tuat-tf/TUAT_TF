@@ -143,5 +143,15 @@ it("makes whole-meet absence and event DNS visible without hiding assigned dutie
   const html=renderToStaticMarkup(content.props.children[2]);
   expect(html).toContain("大会欠席");expect(html).toContain("DNS");expect(html).toContain("計測");
 });
+it("shows participation retrieval failure while keeping the entry and program available",async()=>{
+  mocks.obEntry.mockResolvedValue({id:"my-entry",events:["男子100m"],qualification_marks:{}});
+  mocks.participation.mockRejectedValue(new Error("unavailable"));
+  const body=HomePage().props.children[1].props.children;
+  const content=await body.type(body.props);
+  const html=renderToStaticMarkup(content.props.children[2]);
+  expect(html).toContain("出場状態を取得できませんでした");
+  expect(html).toContain("男子100m");
+  expect(html).toContain("プログラム（タイムテーブル）");
+});
 
 });

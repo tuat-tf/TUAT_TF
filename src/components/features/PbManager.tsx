@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { safeDelete } from "@/lib/safe-update";
 import { FormModal } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { ResultsList } from "@/components/features/ResultsList";
@@ -48,15 +49,13 @@ export function PbManager({
   }
 
   async function remove(id: string) {
-    const previous = items;
-    setItems((arr) => arr.filter((x) => x.id !== id));
     const supabase = createClient();
-    const { error } = await supabase.from("pb_records").delete().eq("id", id);
-    if (error) {
-      setItems(previous);
+    const result = await safeDelete(supabase, "pb_records", { id, user_id: userId });
+    if (!result.ok) {
       showToast("結果を削除できませんでした");
       return false;
     }
+    setItems((arr) => arr.filter((x) => x.id !== id));
     router.refresh();
     return true;
   }

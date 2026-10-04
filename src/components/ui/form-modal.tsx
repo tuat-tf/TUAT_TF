@@ -2,33 +2,39 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useRef,
-  type RefObject,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { FullScreen, FullScreenContent } from "@/components/ui/fullscreen";
-import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { UnsavedChangesDialog, type UnsavedIntent } from "@/components/ui/unsaved-changes-dialog";
 
-type DraftState = { dirty: boolean; busy: boolean; onSave: () => void | Promise<void> };
-const FormDraftContext = createContext<RefObject<DraftState | null> | null>(null);
+type DraftState = { dirty: boolean; busy: boolean; onSave: () => void | Promise<void>; intent?: UnsavedIntent };
+type DraftContext = { register: (state: DraftState) => () => void; requestChange: (change: () => void) => void };
+const FormDraftContext = createContext<DraftContext | null>(null);
 
 /** 子フォームの変更・保存状態を親の閉じる操作へ伝える。 */
 export function useFormDraft(state: DraftState) {
-  const guardRef = useContext(FormDraftContext);
-  useEffect(() => {
-    if (!guardRef) return;
-    guardRef.current = state;
-    return () => { guardRef.current = null; };
-  }, [guardRef, state]);
+  const context = useContext(FormDraftContext);
+  useLayoutEffect(() => {
+    return context?.register(state);
+  }, [context, state]);
 }
 export function FormDraftGuard(props: DraftState) {
   useFormDraft(props);
   return null;
+}
+
+/** 入力方式などの切替にも、閉じる操作と同じ未保存確認を使う。 */
+export function useFormChangeGuard() {
+  const context = useContext(FormDraftContext);
+  return context?.requestChange ?? ((change: () => void) => change());
 }
 
 type FooterContextValue = {
@@ -56,11 +62,25 @@ export function FormModal({
   floatingAction?: ReactNode;
 }) {
   const draft = useRef<DraftState | null>(null);
-  const [confirmClose, setConfirmClose] = useState(false);
+  const pendingChange = useRef<(() => void) | null>(null);
+  const [confirmClose, setConfirmClose] = useState<UnsavedIntent | null>(null);
+  const registerDraft = useCallback((state: DraftState) => {
+    draft.current = state;
+    return () => { if (draft.current === state) draft.current = null; };
+  }, []);
+  const requestChange = useCallback((change: () => void) => {
+    if (draft.current?.busy) return;
+    if (draft.current?.dirty) {
+      pendingChange.current = change;
+      setConfirmClose(draft.current.intent ?? "save");
+      return;
+    }
+    change();
+  }, []);
+  const draftContext = useMemo(() => ({ register: registerDraft, requestChange }), [registerDraft, requestChange]);
   function requestOpenChange(next: boolean) {
-    if (!next && draft.current?.busy) return;
-    if (!next && draft.current?.dirty) { setConfirmClose(true); return; }
-    onOpenChange(next);
+    if (!next) requestChange(() => onOpenChange(false));
+    else onOpenChange(true);
   }
   const [footerCount, setFooterCount] = useState(0);
   const [footerTarget, setFooterTarget] = useState<HTMLDivElement | null>(null);
@@ -88,16 +108,16 @@ export function FormModal({
         floatingAction={floatingAction}
       >
         <FormModalFooterContext.Provider value={context}>
-          <FormDraftContext.Provider value={draft}>
+          <FormDraftContext.Provider value={draftContext}>
             {children}
           </FormDraftContext.Provider>
         </FormModalFooterContext.Provider>
       </FullScreenContent>
     </FullScreen>
-    <UnsavedChangesDialog open={open && confirmClose} busy={false}
-      onContinue={() => setConfirmClose(false)}
-      onDiscard={() => { if (draft.current?.busy) return; setConfirmClose(false); onOpenChange(false); }}
-      onSave={() => { if (draft.current?.busy) return; setConfirmClose(false); void draft.current?.onSave(); }} />
+    <UnsavedChangesDialog open={open && confirmClose !== null} busy={false} intent={confirmClose ?? "save"}
+      onContinue={() => { pendingChange.current = null; setConfirmClose(null); }}
+      onDiscard={() => { if (draft.current?.busy) return; setConfirmClose(null); const change = pendingChange.current; pendingChange.current = null; change?.(); }}
+      onSave={() => { if (draft.current?.busy) return; pendingChange.current = null; setConfirmClose(null); void draft.current?.onSave(); }} />
     </>
   );
 }

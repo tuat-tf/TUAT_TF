@@ -1,6 +1,7 @@
 // システムロール向け: 全員の大会・記録会の結果（月別・年別・新着）。
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import type { Block, PbRecord } from "@/types";
 
 export type MonthlyResult = PbRecord & {
@@ -13,15 +14,16 @@ const SELECT = "*, author:profiles!user_id(display_name, grade, blocks), competi
 /** [from, to) の記録日の結果。大学の結果で、記録日が入っているものだけ（高校以前・日付なしは対象外）。 */
 async function getResultsBetween(from: string, to: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const data = await fetchAllPages((pageFrom, pageTo) => supabase
     .from("pb_records")
     .select(SELECT)
     .eq("stage", "university")
     .gte("recorded_on", from)
     .lt("recorded_on", to)
-    .order("recorded_on", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as unknown as MonthlyResult[];
+    .order("recorded_on", { ascending: false })
+    .order("id")
+    .range(pageFrom, pageTo));
+  return data as unknown as MonthlyResult[];
 }
 
 /** month は "YYYY-MM" */

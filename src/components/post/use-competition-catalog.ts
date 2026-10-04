@@ -15,8 +15,10 @@ let cache: Catalog | null = null;
  * 結果フォーム用の種目マスタと大会マスタ。
  * FAB は全画面に常駐するので、フォームを開いたときに初めて読む。
  */
-export function useCompetitionCatalog(enabled: boolean): Catalog {
-  const [catalog, setCatalog] = useState<Catalog>(cache ?? EMPTY);
+export function useCompetitionCatalog(enabled: boolean) {
+  const [catalog, setCatalog] = useState<Catalog | null>(cache);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     // キャッシュがあっても開くたびに裏で読み直す（種目や大会を足した直後に古い一覧を見せないため）。
@@ -36,17 +38,25 @@ export function useCompetitionCatalog(enabled: boolean): Catalog {
           .order("sort_order")
           .order("starts_on", { ascending: false }),
       ]);
-      if (events.error || competitions.error) return;
+      if (!active) return;
+      if (events.error || competitions.error) { setStatus("error"); return; }
       cache = {
         events: (events.data ?? []) as CompetitionEvent[],
         competitions: (competitions.data ?? []) as CompetitionRow[],
       };
-      if (active) setCatalog(cache);
-    })();
+      setCatalog(cache);
+      setStatus("ready");
+    })().catch(() => { if (active) setStatus("error"); });
     return () => {
       active = false;
     };
-  }, [enabled]);
+  }, [enabled, attempt]);
 
-  return catalog;
+  return {
+    ...(catalog ?? EMPTY),
+    hasData: catalog !== null,
+    isError: status === "error",
+    isLoading: enabled && status === "loading",
+    retry: () => { setStatus("loading"); setAttempt((value) => value + 1); },
+  };
 }

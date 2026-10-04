@@ -1,12 +1,12 @@
 "use client";
 import { OCTOBER_START, type SheetTransition } from "@/lib/sheet-period";
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, useId } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, useId, useRef } from "react";
 import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import { jstToday } from "@/lib/date";
 import { canSaveRecord, customRecordFields, recordFieldHidden, recordFieldLabel } from "@/lib/record-fields";
 import { hasCustomRecordContent } from "@/lib/record-content";
@@ -15,7 +15,7 @@ import { recordFieldsFromJson } from "@/lib/profile-normalize";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FormModalFooter } from "@/components/ui/form-modal";
+import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { CONDITIONS, CONDITION_ORDER } from "@/lib/constants";
 import type { Condition, PracticeRecord, RecordFieldDef } from "@/types";
@@ -54,6 +54,7 @@ type RecordDraftValues = {
   condition: Condition | null;
   customValues: Record<string, string>;
 };
+type RecordSaveValues = Pick<PracticeRecord, "recorded_date" | "dist_low" | "dist_mid" | "dist_high" | "dist_speed" | "dist_actual" | "strides" | "result_text" | "strength_text" | "menu_text" | "focus_text" | "memo" | "condition" | "custom">;
 
 function recordDraftValues(record: PracticeRecord | null | undefined, date: string): RecordDraftValues {
   const customValues: Record<string, string> = {};
@@ -132,6 +133,10 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
   const [memo, setMemo] = useState(record?.memo ?? "");
   const [condition, setCondition] = useState<Condition | null>(record?.condition ?? null);
   const [saving, setSaving] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [draftId] = useState(() => record?.id ?? crypto.randomUUID());
+  const saveState = useRef({ uncertain: false });
+  const pendingSave = useRef<{ id: string; updating: boolean; values: RecordSaveValues } | null>(null);
   const [error, setError] = useState<string | null>(null);
   useImperativeHandle(ref, () => ({ save: () => { void submit(); } }));
   // 新規作成モードでその日の記録が既にあるか（1日1記録ルール。見つかったら編集扱いでフォームへ読み込む）
@@ -187,6 +192,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
     Object.values(customValues).some((value) => value.trim() !== "");
   const dirty = hasMeaningfulContent || record || hasExistingSameDay ? currentSnapshot !== baselineSnapshot : false;
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useFormDraft({ dirty: false, busy: saving, onSave: submit });
 
   useEffect(() => {
     if (recordFields) return;
@@ -253,6 +259,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
   }
 
   async function submit() {
+    if (saving) return;
     if (date > jstToday()) {
       setError("未来の日付は選べません");
       return;
@@ -290,113 +297,123 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
 
     setSaving(true);
     setError(null);
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    const custom = buildCustom();
+      const custom = buildCustom();
 
-    // 中長距離は距離系、それ以外はメニュー/目的系。使わない側は null/0 にする。
-    const payload = isMiddleLong
-      ? {
-          recorded_date: date,
-          dist_low: parseFloat(dist.low) || 0,
-          dist_mid: parseFloat(dist.mid) || 0,
-          dist_high: parseFloat(dist.high) || 0,
-          dist_speed: parseFloat(dist.speed) || 0,
-          dist_actual: parseFloat(actualDistance) || 0,
-          strides: parseInt(strides) || 0,
-          result_text: resultText.trim() || null,
-          strength_text: strengthText.trim() || null,
-          menu_text: null,
-          focus_text: null,
-          memo: memo.trim() || null,
-          condition,
-          custom,
+      // 中長距離は距離系、それ以外はメニュー/目的系。使わない側は null/0 にする。
+      const payload = isMiddleLong
+        ? {
+            recorded_date: date,
+            dist_low: parseFloat(dist.low) || 0,
+            dist_mid: parseFloat(dist.mid) || 0,
+            dist_high: parseFloat(dist.high) || 0,
+            dist_speed: parseFloat(dist.speed) || 0,
+            dist_actual: parseFloat(actualDistance) || 0,
+            strides: parseInt(strides) || 0,
+            result_text: resultText.trim() || null,
+            strength_text: strengthText.trim() || null,
+            menu_text: null,
+            focus_text: null,
+            memo: memo.trim() || null,
+            condition,
+            custom,
+          }
+        : {
+            recorded_date: date,
+            dist_low: 0,
+            dist_mid: 0,
+            dist_high: 0,
+            dist_speed: 0,
+            dist_actual: 0,
+            strides: 0,
+            result_text: resultText.trim() || null,
+            strength_text: null,
+            menu_text: menuText.trim() || null,
+            focus_text: focusText.trim() || null,
+            memo: memo.trim() || null,
+            condition,
+            custom,
+          };
+
+      if (!pendingSave.current && !editing) {
+        // 同じ日の記録が既にあれば新規ではなく更新する（1日1件に保つ＝重複防止。
+        // 'sheet'メインの部員はシート行と1:1対応のため特に重要）
+        const { data: sameDay, error: readError } = await supabase
+          .from("practice_records")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("recorded_date", date)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (readError) {
+          setError("この日の記録を確認できませんでした。入力は残っています");
+          return;
         }
-      : {
-          recorded_date: date,
-          dist_low: 0,
-          dist_mid: 0,
-          dist_high: 0,
-          dist_speed: 0,
-          dist_actual: 0,
-          strides: 0,
-          result_text: resultText.trim() || null,
-          strength_text: null,
-          menu_text: menuText.trim() || null,
-          focus_text: focusText.trim() || null,
-          memo: memo.trim() || null,
-          condition,
-          custom,
-        };
-
-    let savedId: string;
-    if (editing) {
-      const result = await safeUpdate(supabase, "practice_records", payload, { id: record!.id });
+        pendingSave.current = { id: sameDay?.id ?? draftId, updating: !!sameDay, values: payload };
+      }
+      const attempt = pendingSave.current ?? { id: draftId, updating: editing, values: payload };
+      pendingSave.current = attempt;
+      const result = await atomicSave(saveState.current, async () => {
+        const run = () => attempt.updating
+          ? supabase.from("practice_records").update(attempt.values).eq("id", attempt.id).select().maybeSingle()
+          // from_sheet はinsert時のみ設定する。既存記録の更新では変更しない。
+          : supabase.from("practice_records").insert({ id: attempt.id, user_id: userId, from_sheet: false, ...attempt.values }).select().single();
+        let response = await run();
+        if (attempt.updating && !response.error && !response.data) {
+          await supabase.auth.refreshSession();
+          response = await run();
+        }
+        return { data: response.data, error: response.error ?? (!response.data ? { code: "42501" } : null) };
+      }, async () => {
+        const { data, error: readError } = await supabase.from("practice_records").select().eq("id", attempt.id).single();
+        if (readError || !data || data.user_id !== userId) return null;
+        const saved = data as unknown as Record<string, unknown>;
+        return Object.entries(attempt.values).every(([key, value]) => key === "custom"
+          ? JSON.stringify(Object.entries((saved.custom ?? {}) as object).sort()) === JSON.stringify(Object.entries(value ?? {}).sort())
+          : saved[key] === value) ? data : null;
+      });
       if (!result.ok) {
-        setError(safeUpdateMessage(result.reason));
-        setSaving(false);
+        setUnconfirmed(result.reason === "unknown");
+        if (result.reason !== "unknown") pendingSave.current = null;
+        setError(atomicSaveMessage(result.reason));
         return;
       }
-      savedId = record!.id;
-    } else {
-      // 同じ日の記録が既にあれば新規ではなく更新する（1日1件に保つ＝重複防止。
-      // 'sheet'メインの部員はシート行と1:1対応のため特に重要）
-      const { data: sameDay } = await supabase
-        .from("practice_records")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("recorded_date", date)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (sameDay) {
-        const result = await safeUpdate(supabase, "practice_records", payload, { id: sameDay.id });
-        if (!result.ok) {
-          setError(safeUpdateMessage(result.reason));
-          setSaving(false);
-          return;
+      setUnconfirmed(false);
+      const savedId = attempt.id;
+
+      // DBへの保存はここで完了しているので、先にフォームを閉じる。
+      router.refresh();
+      onDone();
+
+      // write-through: 連携シートがある場合は、閉じた後に裏でGASへ1回だけ反映する（応答を待たない）。
+      // 保存の時点でDBトリガーが pending_sheet_push を立てており、取り込み側はその日を上書きしない。
+      // 書き込めなかった分は毎日0時の連携が再送する。未連携ならAPI側がskippedで返す。
+      void pushRecordToSheet(savedId).then((pushResult) => {
+        if (!pushResult.ok) {
+          showToast(
+            `記録は保存できました。スプレッドシートへの書き込みは、あとでもう一度自動で試します: ${pushResult.error}`,
+            "error",
+          );
+        } else if (pushResult.unmapped && pushResult.unmapped.length > 0) {
+          showToast(
+            `スプレッドシートに次の項目の欄がなかったので、その項目だけ書き込めませんでした: ${pushResult.unmapped.join("・")}`,
+            "error",
+          );
         }
-        savedId = sameDay.id;
-      } else {
-        const { data: inserted, error } = await supabase
-          .from("practice_records")
-          // from_sheet はinsert時のみ設定する（アプリ投稿＝タイムラインに出す）。updateでは変更しない。
-          .insert({ user_id: userId, from_sheet: false, ...payload })
-          .select("id")
-          .single();
-        if (error || !inserted) {
-          setError("保存できませんでした。もう一度お試しください");
-          setSaving(false);
-          return;
-        }
-        savedId = inserted.id;
-      }
+      });
+    } catch {
+      setError("保存できませんでした。もう一度お試しください");
+    } finally {
+      setSaving(false);
     }
-
-    // DBへの保存はここで完了しているので、先にフォームを閉じる。
-    router.refresh();
-    onDone();
-
-    // write-through: 連携シートがある場合は、閉じた後に裏でGASへ1回だけ反映する（応答を待たない）。
-    // 保存の時点でDBトリガーが pending_sheet_push を立てており、取り込み側はその日を上書きしない。
-    // 結果不明・部分成功は送信を保留する。未連携ならAPI側がskippedで返す。
-    void pushRecordToSheet(savedId).then((pushResult) => {
-      if (!pushResult.ok) {
-        showToast(
-          `記録は保存できました。${pushResult.error}`,
-          "error",
-        );
-      } else if (pushResult.unmapped && pushResult.unmapped.length > 0) {
-        showToast(
-          `スプレッドシートに次の項目の欄がなかったので、その項目だけ書き込めませんでした: ${pushResult.unmapped.join("・")}`,
-          "error",
-        );
-      }
-    });
   }
 
   return (
-    <div data-ui-record-form className="space-y-4 pb-4">
+    <div data-ui-record-form className="min-w-0 space-y-4 pb-4">
+    <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-4">
       {/* 日付 */}
       <div data-ui-record-field>
         <label htmlFor={`${formId}-date`} className="section-label mb-1.5 block">日付</label>
@@ -586,10 +603,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
         </div>
       </div>}
 
+      </fieldset>
       {error && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         <Button size="lg" onClick={submit} disabled={saving}>
-          {saving ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : editing || hasExistingSameDay ? "更新する" : "投稿する"}
+          {saving ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : unconfirmed ? "保存結果を確認" : editing || hasExistingSameDay ? "更新する" : "投稿する"}
         </Button>
       </FormModalFooter>
     </div>

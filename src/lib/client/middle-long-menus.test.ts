@@ -5,9 +5,23 @@ import type { ScheduleWithMenus } from "@/types";
 
 const practice = { schedule_type: "practice", schedule_date: "2026-09-23", target_blocks: ["middle_long"] } as ScheduleWithMenus;
 const snapshot = { rows: [], loadedMonths: [9] };
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe("on-demand home menus", () => {
+  it("does not contact external sheets in the independent review, while retaining supplied data", () => {
+    vi.stubEnv("NEXT_PUBLIC_PC_TRIAL", "true");
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const client = new QueryClient();
+    const observer = new QueryObserver(client, middleLongMenuQueryOptions({
+      userId: "me", schedules: [practice], enabled: true, initialData: snapshot,
+    }));
+    const off = observer.subscribe(() => {});
+    try {
+      expect(observer.getCurrentResult().data).toEqual(snapshot);
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally { off(); client.clear(); }
+  });
   it("does not fetch collapsed cards, coalesces opens, and reuses fresh data on reopen", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => snapshot });
     vi.stubGlobal("fetch", fetcher);

@@ -5,6 +5,7 @@ import { jstToday } from "@/lib/date";
 import { normalizePracticeRecord } from "@/lib/profile-normalize";
 import { RECORD_NONEMPTY_OR } from "@/lib/record-content";
 import { displayedDistance } from "@/lib/record-distance";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import type { PbRecord, PracticeRecord } from "@/types";
 import { RECORD_LIST_SELECT, attachRecordFieldGroups, fetchTargetSocialState } from "./internal";
 
@@ -64,13 +65,15 @@ export async function getUserRecordsWithSocialState(
     comments_count: comments.get(record.id) ?? 0,
   }));
 }
-/** あるユーザーの PB 一覧 */
+/** あるユーザーの全大会結果（古いPBや大学以前の結果も含む） */
 export async function getPbRecords(userId: string) {
   const supabase = await createClient();
-  const { data } = await supabase
+  const data = await fetchAllPages((from, to) => supabase
     .from("pb_records")
     .select("*")
     .eq("user_id", userId)
-    .order("recorded_on", { ascending: false, nullsFirst: false });
-  return (data ?? []) as PbRecord[];
+    .order("recorded_on", { ascending: false, nullsFirst: false })
+    .order("id")
+    .range(from, to));
+  return data as PbRecord[];
 }

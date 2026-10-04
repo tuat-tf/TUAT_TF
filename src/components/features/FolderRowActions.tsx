@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { FormModal } from "@/components/ui/form-modal";
 import { NoteEditor } from "@/components/features/NoteEditor";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshStatus } from "@/components/ui/refresh-status";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
+import { safeDelete, safeUpdate } from "@/lib/safe-update";
 import type { AuthorMini, NoteWithRelations } from "@/types";
 
 /**
@@ -29,21 +31,28 @@ export function FolderRowActions({
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [members, setMembers] = useState<AuthorMini[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
-  async function openEdit() {
-    setEditing(true);
-    if (members) return;
-    const { data } = await createClient()
+  useEffect(() => {
+    if (!editing || members) return;
+    let active = true;
+    void Promise.resolve(createClient()
       .from("profiles")
       .select("id, display_name, avatar_url, blocks, grade")
       .eq("status", "active")
-      .order("display_name", { ascending: true });
-    setMembers((data ?? []) as AuthorMini[]);
-  }
+      .order("display_name", { ascending: true }))
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) { setFailed(true); return; }
+        setMembers((data ?? []) as AuthorMini[]);
+      }).catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [editing, members, attempt]);
 
   async function remove() {
-    const { error } = await createClient().from("notes").delete().eq("id", note.id);
-    if (error) {
+    const result = await safeDelete(createClient(), "notes", { id: note.id });
+    if (!result.ok) {
       showToast("フォルダを削除できませんでした");
       return false;
     }
@@ -51,11 +60,9 @@ export function FolderRowActions({
     return true;
   }
   async function togglePin() {
-    const { error } = await createClient()
-      .from("notes")
-      .update({ pinned: !note.pinned })
-      .eq("id", note.id);
-    if (error) {
+    const result = await safeUpdate(createClient(), "notes", { pinned: !note.pinned }, { id: note.id })
+      .catch(() => ({ ok: false } as const));
+    if (!result.ok) {
       showToast("\u30d4\u30f3\u7559\u3081\u3092\u5909\u66f4\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f");
       return;
     }
@@ -65,7 +72,7 @@ export function FolderRowActions({
   return (
     <>
       <ActionMenu
-        onEdit={() => void openEdit()}
+        onEdit={() => { setFailed(false); setEditing(true); }}
         onDelete={remove}
         onPin={togglePin}
         pinned={note.pinned}
@@ -83,6 +90,8 @@ export function FolderRowActions({
               initialScope={note.scope}
               onDone={() => setEditing(false)}
             />
+          ) : failed ? (
+            <RefreshStatus failed busy={false} hasData={false} label="部員" retry={() => { setFailed(false); setAttempt((value) => value + 1); }} />
           ) : (
             <div className="space-y-3">
               <Skeleton className="h-11 w-full" />

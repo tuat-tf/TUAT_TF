@@ -9,11 +9,12 @@ import { isPresent, withNoticeReactions } from "./internal";
 /** お知らせ一覧（直近200件。無期限の全件取得はしない） */
 export async function getNotices(userId: string): Promise<NoticeWithReactions[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notices")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(200);
+  if (error) throw error;
   return withNoticeReactions(supabase, (data ?? []) as Notice[], userId);
 }
 /** ホーム: 重要は全件、通常は直近3件、明日締切は件数外で表示 */
@@ -22,7 +23,7 @@ export async function getHomeNotices(userId: string): Promise<NoticeWithReaction
   const today = jstToday();
   const tomorrow = jstToday(1);
 
-  const [{ data: notices }, { data: dismissed }, { data: acknowledged }] = await Promise.all([
+  const [noticeResult, dismissalResult, acknowledgmentResult] = await Promise.all([
     supabase
       .from("notices")
       .select("*")
@@ -32,6 +33,11 @@ export async function getHomeNotices(userId: string): Promise<NoticeWithReaction
     supabase.from("notice_dismissals").select("notice_id").eq("user_id", userId),
     supabase.from("notice_reactions").select("notice_id").eq("user_id", userId).eq("reaction", "ack"),
   ]);
+  const error = noticeResult.error ?? dismissalResult.error ?? acknowledgmentResult.error;
+  if (error) throw error;
+  const notices = noticeResult.data;
+  const dismissed = dismissalResult.data;
+  const acknowledged = acknowledgmentResult.data;
 
   const dismissedIds = new Set((dismissed ?? []).map((dismissal) => dismissal.notice_id as string));
   const acknowledgedIds = new Set((acknowledged ?? []).map((reaction) => reaction.notice_id as string));
@@ -61,7 +67,8 @@ export async function getPersonalNotifications(userId: string): Promise<AppNotif
       actor:profiles!actor_id(id, display_name, avatar_url)
     `)
     .eq("user_id", userId);
-  const { data } = await query.order("created_at", { ascending: false }).limit(50);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
+  if (error) throw error;
   return (data ?? []).map(normalizeNotificationRow).filter(isPresent);
 }
 
@@ -72,6 +79,7 @@ export async function getUnreadNotificationCount(userId: string): Promise<number
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("is_read", false);
-  const { count } = await query;
+  const { count, error } = await query;
+  if (error) throw error;
   return count ?? 0;
 }

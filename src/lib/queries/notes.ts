@@ -23,10 +23,11 @@ export async function getNotesData(): Promise<{
   notes: NoteWithRelations[];
 }> {
   const supabase = await createClient();
-  const { data: notes } = await supabase
+  const { data: notes, error } = await supabase
     .from("notes")
     .select(NOTE_SELECT)
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   return {
     notes: (notes ?? []).map(normalizeNoteRow).filter(isPresent),
   };
@@ -35,65 +36,71 @@ export async function getNotesData(): Promise<{
 /** ノート詳細。RLSにより閲覧不可なら null */
 export async function getNoteById(id: string): Promise<NoteWithRelations | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notes")
     .select(NOTE_SELECT)
     .eq("id", id)
     .maybeSingle();
+  if (error) throw error;
   return data ? normalizeNoteRow(data) : null;
 }
 
 /** スレッド一覧（新しいメッセージがあった順） */
 export async function getThreads(): Promise<ThreadWithAuthor[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("threads")
     .select(`*, author:profiles!author_id(id, display_name, avatar_url, blocks, grade), posts:thread_posts(id)`)
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   return (data ?? []).map(normalizeThreadRow);
 }
 
 /** Threads directly inside a note folder, newest activity first. */
 export async function getThreadsByFolder(folderId: string): Promise<ThreadWithAuthor[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("threads")
     .select(`*, author:profiles!author_id(id, display_name, avatar_url, blocks, grade), posts:thread_posts(id)`)
     .eq("folder_id", folderId)
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   return (data ?? []).map(normalizeThreadRow);
 }
 
 /** スレッド詳細 */
 export async function getThreadById(id: string): Promise<ThreadWithAuthor | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("threads")
     .select(`*, author:profiles!author_id(id, display_name, avatar_url, blocks, grade)`)
     .eq("id", id)
     .maybeSingle();
+  if (error) throw error;
   return data ? normalizeThreadRow(data) : null;
 }
 
 /** スレッドの投稿（古い順=会話の流れ） */
 export async function getThreadPosts(threadId: string): Promise<ThreadPostWithAuthor[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("thread_posts")
     .select(`*, author:profiles!author_id(id, display_name, avatar_url, blocks, grade)`)
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true });
+  if (error) throw error;
   return (data ?? []).map(normalizeThreadPostRow);
 }
 
 /** フォルダ直下のサブフォルダ一覧（RLS継承） */
 export async function getChildNotes(parentId: string): Promise<NoteWithRelations[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notes")
     .select(NOTE_SELECT)
     .eq("parent_id", parentId)
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   return (data ?? []).map(normalizeNoteRow).filter(isPresent);
 }
 
@@ -105,11 +112,12 @@ export async function getNoteAncestors(
   const chain: { id: string; title: string }[] = [];
   let parentId = note.parent_id;
   for (let i = 0; i < 2 && parentId; i++) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("notes")
       .select("id, title, parent_id")
       .eq("id", parentId)
       .maybeSingle();
+    if (error) throw error;
     if (!data) break;
     chain.unshift({ id: data.id as string, title: data.title as string });
     parentId = (data as { parent_id: string | null }).parent_id;
@@ -122,7 +130,7 @@ export async function getNoteArticles(
   noteId: string,
 ): Promise<NoteArticleWithAuthor[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("note_articles")
     .select(`
       *,
@@ -131,6 +139,7 @@ export async function getNoteArticles(
     `)
     .eq("note_id", noteId)
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   return attachNotePolls(supabase, (data ?? []).map(normalizeNoteArticleRow));
 }
 
@@ -144,7 +153,8 @@ async function attachNotePolls(
 ): Promise<NoteArticleWithAuthor[]> {
   const ids = articles.map((article) => article.id);
   if (ids.length === 0) return articles;
-  const { data } = await supabase.rpc("get_note_poll_options", { article_ids: ids });
+  const { data, error } = await supabase.rpc("get_note_poll_options", { article_ids: ids });
+  if (error) throw error;
   const byArticle = new Map(
     (data ?? []).map((row) => [
       row.article_id,
@@ -163,7 +173,7 @@ export async function getNoteArticleById(
   articleId: string,
 ): Promise<NoteArticleWithAuthor | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("note_articles")
     .select(`
       *,
@@ -173,6 +183,7 @@ export async function getNoteArticleById(
     .eq("note_id", noteId)
     .eq("id", articleId)
     .maybeSingle();
+  if (error) throw error;
   if (!data) return null;
   const [article] = await attachNotePolls(supabase, [normalizeNoteArticleRow(data)]);
   return article;
@@ -183,13 +194,14 @@ export async function getRecentSharedNotes(
   limit = 3,
 ): Promise<NoteWithRelations[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notes")
     .select(NOTE_SELECT)
     .eq("scope", "shared")
     .eq("status", "published")
     .order("updated_at", { ascending: false })
     .limit(limit);
+  if (error) throw error;
   return (data ?? []).map(normalizeNoteRow).filter(isPresent);
 }
 
@@ -198,12 +210,13 @@ export async function getPublishedPersonalNotes(
   authorId: string,
 ): Promise<NoteWithRelations[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("notes")
     .select(NOTE_SELECT)
     .eq("author_id", authorId)
     .eq("scope", "personal")
     .eq("status", "published")
     .order("updated_at", { ascending: false });
+  if (error) throw error;
   return (data ?? []).map(normalizeNoteRow).filter(isPresent);
 }

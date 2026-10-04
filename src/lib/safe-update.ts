@@ -34,6 +34,23 @@ export async function safeUpdate(
   return { ok: true };
 }
 
+/** One-row deletion: a denied/absent row is not success, and an uncertain delete is never replayed. */
+export async function safeDelete(
+  supabase: BrowserClient,
+  table: PublicTableName,
+  match: Record<string, string | number | boolean | null>,
+): Promise<SafeUpdateResult> {
+  try {
+    const primaryKey = table === "competition_events" ? "name" : "id";
+    if (typeof match[primaryKey] !== "string" || !match[primaryKey]) return { ok: false, reason: "blocked" };
+    const { data, error } = await supabase.from(table).delete().match(match).select(primaryKey);
+    if (error) return { ok: false, reason: "error" };
+    return data?.length === 1 ? { ok: true } : { ok: false, reason: "blocked" };
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+}
+
 /** 更新失敗時に利用者へ表示する共通メッセージ。 */
 export function safeUpdateMessage(reason: "error" | "blocked"): string {
   return reason === "error"

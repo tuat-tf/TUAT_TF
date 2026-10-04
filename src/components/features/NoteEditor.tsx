@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { createClient } from "@/lib/supabase/client";
 import { PersonPicker } from "@/components/features/PersonPicker";
-import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import { cn } from "@/lib/utils";
 import type {
   AuthorMini,
@@ -101,8 +101,12 @@ export function NoteEditor({
     note?.editors?.map((editor) => editor.user_id) ?? [],
   );
   const [saving, setSaving] = useState(false);
-  // フォルダ作成後に編集者の保存だけ失敗しても、再試行で同じフォルダを使う。
+  const [unconfirmed, setUnconfirmed] = useState(false);
   const [savedId, setSavedId] = useState(note?.id);
+  const [draftId] = useState(() => note?.id ?? crypto.randomUUID());
+  const version = useRef(note?.updated_at ?? null);
+  const saveState = useRef({ uncertain: false });
+  const managedAttempt = useRef(canManagePermissions);
   // 場所（親フォルダ）の移動（タスク17-e）。編集時＋管理可の場合のみ使用。
   const [parentIdValue, setParentIdValue] = useState<string | null>(note?.parent_id ?? parentId ?? null);
   const [folderOptions, setFolderOptions] = useState<
@@ -202,66 +206,50 @@ export function NoteEditor({
         parent_id: parentIdValue,
       };
 
-      let noteId = savedId;
-      if (noteId) {
-        const updatePayload = canManagePermissions
-          ? payload
-          : { title: payload.title, status: payload.status };
-        const result = await safeUpdate(supabase, "notes", updatePayload, {
-          id: noteId,
+      const result = await atomicSave(saveState.current, async () => {
+        managedAttempt.current = canManagePermissions;
+        const response = await supabase.rpc("save_note_folder", {
+          p_id: draftId, p_expected_updated_at: version.current,
+          p_values: payload, p_editor_ids: editorIds,
         });
-        if (!result.ok) {
-          setError(safeUpdateMessage(result.reason));
-          return;
+        const value = response.data;
+        const data = value && typeof value === "object" && !Array.isArray(value) && typeof value.updated_at === "string"
+          ? value.updated_at : null;
+        return { data, error: response.error };
+      }, async () => {
+        const { data, error: readError } = await supabase.from("notes")
+          .select("id, author_id, title, status, scope, description, edit_policy, parent_id, updated_at, note_editors(user_id)")
+          .eq("id", draftId).single();
+        if (readError || !data || data.title !== payload.title || data.status !== payload.status) return null;
+        if (!note && data.author_id !== currentUser.id) return null;
+        if (managedAttempt.current) {
+          if (data.scope !== payload.scope || data.description !== payload.description || data.edit_policy !== payload.edit_policy || data.parent_id !== payload.parent_id) return null;
+          const expected = editPolicy === "specified" ? [...editorIds].sort() : [];
+          if (JSON.stringify(data.note_editors.map((editor) => editor.user_id).sort()) !== JSON.stringify(expected)) return null;
         }
-      } else {
-        const { data, error: insertError } = await supabase
-          .from("notes")
-          .insert({ ...payload, body: "", author_id: currentUser.id, parent_id: parentId ?? null })
-          .select("id")
-          .single();
-        if (insertError || !data) {
-          console.error("Failed to create note", insertError);
-          setError("ノートを保存できませんでした");
-          return;
-        }
-        noteId = data.id as string;
-        setSavedId(noteId);
+        return data.updated_at;
+      });
+      if (!result.ok) {
+        setUnconfirmed(result.reason === "unknown");
+        setError(atomicSaveMessage(result.reason));
+        return;
       }
-
-      if (noteId && canManagePermissions) {
-        const { error: deleteEditorsError } = await supabase
-          .from("note_editors")
-          .delete()
-          .eq("note_id", noteId);
-        if (deleteEditorsError) {
-          console.error("Failed to reset note editors", deleteEditorsError);
-          setError("編集者の設定を更新できませんでした");
-          return;
-        }
-        if (editPolicy === "specified" && editorIds.length > 0) {
-          const { error: editorError } = await supabase
-            .from("note_editors")
-            .insert(editorIds.map((userId) => ({ note_id: noteId, user_id: userId })));
-          if (editorError) {
-            console.error("Failed to save note editors", editorError);
-            setError("編集者の設定を保存できませんでした");
-            return;
-          }
-        }
-      }
+      version.current = result.value;
+      setUnconfirmed(false);
+      setSavedId(draftId);
 
       router.refresh();
       onDone();
     } catch {
-      setError("保存できませんでした。もう一度お試しください");
+      setError("保存できませんでした。入力は残っています");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <fieldset disabled={saving} className="min-w-0 space-y-5 pb-4">
+    <div className="min-w-0 space-y-5 pb-4">
+      <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-5">
       {(!note || canManagePermissions) && (
         <div>
           <p className="section-label mb-1.5">種類</p>
@@ -351,13 +339,13 @@ export function NoteEditor({
 
       <div>
         <p className="section-label mb-1.5">説明（任意）</p>
-        <Textarea
+        {canManagePermissions ? <Textarea
           value={description}
           onChange={(event) => setDescription(event.target.value)}
           placeholder="このフォルダにまとめる内容を入力"
           rows={3}
           maxLength={300}
-        />
+        /> : <p className="whitespace-pre-wrap text-[14px]">{description || "説明はありません"}</p>}
       </div>
 
       <div>
@@ -372,12 +360,13 @@ export function NoteEditor({
         />
       </div>
 
+      </fieldset>
       {error && <p className="text-center text-caption text-danger">{error}</p>}
       <FormModalFooter>
         <Button size="lg" disabled={saving} onClick={submit}>
-          {saving ? "保存中…" : note ? "更新する" : "保存する"}
+          {saving ? "保存中…" : unconfirmed ? "保存結果を確認" : note ? "更新する" : "保存する"}
         </Button>
       </FormModalFooter>
-    </fieldset>
+    </div>
   );
 }

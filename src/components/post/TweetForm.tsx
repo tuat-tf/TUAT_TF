@@ -1,12 +1,12 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- local object URL preview */
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { BarChart3, Check, Clock3, ImagePlus, Link2, LoaderCircle, Plus, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
-import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import {
   TWEET_MAX_LENGTH,
   TWEET_RAW_MAX_LENGTH,
@@ -18,12 +18,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import { FormModalFooter } from "@/components/ui/form-modal";
-import { useToast } from "@/components/ui/toast";
+import { RefreshStatus } from "@/components/ui/refresh-status";
+import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { cn } from "@/lib/utils";
 import { prepareTweetImage, validateTweetImage } from "@/lib/tweet-image";
 import { QuotedPostCard } from "@/components/cards/QuotedPostCard";
 import type { QuotedPost } from "@/types";
+import type { Database } from "@/types/database";
+
+type TweetValues = {
+  content: string; image_path: string | null; expires_at: string | null;
+  quoted_type: string | null; quoted_id: string | null;
+  poll_multiple: boolean; poll_anonymous: boolean; poll_allow_options: boolean;
+  poll_enabled: boolean;
+};
+type TweetSaveAttempt = { values: TweetValues; userId: string | null; pollOptions: string[]; mentionIds: string[] };
+type TweetConfirmation = Database["public"]["Tables"]["tweets"]["Row"] & {
+  tweet_poll_options: { text: string; sort_order: number; created_by: string }[];
+  tweet_mentions: { profile_id: string }[];
+};
 
 /** つぶやきフォーム。tweet を渡すと編集モード */
 export type TweetFormHandle = { save: () => void };
@@ -39,14 +52,20 @@ export const TweetForm = forwardRef<
   }
 >(function TweetForm({ tweet, initialStory = false, quote, onDone, onDirtyChange }, ref) {
   const router = useRouter();
-  const { showToast } = useToast();
   const editing = !!tweet;
   const [content, setContent] = useState(tweet?.content ?? "");
   const [saving, setSaving] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [draftId] = useState(() => tweet?.id ?? crypto.randomUUID());
+  const saveState = useRef({ uncertain: false });
+  const pendingSave = useRef<TweetSaveAttempt | null>(null);
+  const uploadedImage = useRef<{ file: File; path: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expiresIn24Hours, setExpiresIn24Hours] = useState(initialStory);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }>>([]);
+  const [membersFailed, setMembersFailed] = useState(false);
+  const [membersAttempt, setMembersAttempt] = useState(0);
   const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>([]);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [pollEnabled, setPollEnabled] = useState(false);
@@ -73,15 +92,22 @@ export const TweetForm = forwardRef<
     onDirtyChange?.(content !== initialContent || !!imageFile || expiresIn24Hours !== initialStory || pollEnabled);
   }, [content, imageFile, expiresIn24Hours, initialContent, initialStory, onDirtyChange, pollEnabled]);
   useImperativeHandle(ref, () => ({ save: () => { void submit(); } }));
+  useFormDraft({ dirty: false, busy: saving, onSave: submit });
   useEffect(() => {
+    let active = true;
     const supabase = createClient();
-    supabase
+    void Promise.resolve(supabase
       .from("profiles")
       .select("id, display_name, mention_reading")
       .eq("status", "active")
-      .order("display_name")
-      .then(({ data }) => setMembers(data ?? []));
-  }, []);
+      .order("display_name"))
+      .then(({ data, error: readError }) => {
+        if (!active) return;
+        if (readError) { setMembersFailed(true); return; }
+        setMembers(data ?? []);
+      }).catch(() => { if (active) setMembersFailed(true); });
+    return () => { active = false; };
+  }, [membersAttempt]);
 
   function selectMention(member: { id: string; display_name: string }) {
     setContent((value) => value.replace(/@([^\s@\n]*)$/, `@${member.display_name} `));
@@ -98,6 +124,7 @@ export const TweetForm = forwardRef<
 
 
   async function submit() {
+    if (saving) return;
     const text = content.trim();
     const cleanPollOptions = pollOptions.map((option) => option.trim()).filter(Boolean);
     if (imageFile && !expiresIn24Hours) {
@@ -108,105 +135,115 @@ export const TweetForm = forwardRef<
       setError(`本文は${TWEET_MAX_LENGTH.toLocaleString()}文字以内にしてください`);
       return;
     }
+    if (!editing && pollEnabled && cleanPollOptions.length < 2) {
+      setError("投票の選択肢を2つ以上入力してください");
+      return;
+    }
     setSaving(true);
     setError(null);
+    setAddMenuOpen(false);
+    try {
+      const supabase = createClient();
 
-    const supabase = createClient();
-
-    if (editing) {
-      const result = await safeUpdate(supabase, "tweets", { content: text }, { id: tweet!.id });
+      if (!pendingSave.current) {
+        const userId = await getCurrentUserId(supabase);
+        if (!userId) {
+          setError("ログイン情報を確認できませんでした");
+          setSaving(false);
+          return;
+        }
+        let imagePath: string | null = null;
+        if (!editing && imageFile && uploadedImage.current?.file === imageFile) {
+          imagePath = uploadedImage.current.path;
+        } else if (!editing && imageFile) {
+          let prepared: Blob;
+          try {
+            prepared = await prepareTweetImage(imageFile);
+          } catch (imageError) {
+            setError(imageError instanceof Error ? imageError.message : "画像を変換できませんでした");
+            setSaving(false);
+            return;
+          }
+          try {
+            const response = await fetch("/api/tweet-image/upload", {
+              method: "POST", headers: { "Content-Type": prepared.type }, body: prepared,
+            });
+            const result = await response.json();
+            if (!response.ok || typeof result.path !== "string") throw new Error("Upload failed");
+            imagePath = result.path;
+            uploadedImage.current = { file: imageFile, path: result.path };
+          } catch {
+            setError("画像をアップロードできませんでした");
+            setSaving(false);
+            return;
+          }
+        }
+        const expiresAt = expiresIn24Hours ? new Date(Date.now() + 86400000).toISOString() : null;
+        const activeMentionIds = selectedMentionIds.filter((profileId) => {
+          const member = members.find((candidate) => candidate.id === profileId);
+          return member ? text.includes(`@${member.display_name}`) : false;
+        });
+        pendingSave.current = {
+          userId,
+          values: { content: text, image_path: imagePath, expires_at: expiresAt,
+            quoted_type: quote?.kind ?? null, quoted_id: quote?.id ?? null,
+            poll_multiple: pollEnabled && pollMultiple, poll_anonymous: pollAnonymous,
+            poll_allow_options: pollEnabled && pollAllowOptions, poll_enabled: pollEnabled },
+          pollOptions: editing || !pollEnabled ? [] : cleanPollOptions,
+          mentionIds: editing ? [] : [...new Set(activeMentionIds)].sort(),
+        };
+      }
+      const attempt = pendingSave.current;
+      const result = await atomicSave(saveState.current, async () => {
+        const response = await supabase.rpc("save_tweet", {
+          p_id: draftId, p_values: editing ? { content: attempt.values.content } : attempt.values,
+          p_poll_options: attempt.pollOptions, p_mention_ids: attempt.mentionIds,
+          p_edit: editing, p_expected_content: tweet?.content ?? null,
+        });
+        const value = response.data;
+        const data = value && typeof value === "object" && !Array.isArray(value) && value.id === draftId ? draftId : null;
+        return { data, error: response.error };
+      }, async () => {
+        const { data, error: readError } = await supabase.from("tweets")
+          .select("*,tweet_poll_options(text,sort_order,created_by),tweet_mentions(profile_id)")
+          .eq("id", draftId).single();
+        if (readError || !data) return null;
+        const saved = data as unknown as TweetConfirmation;
+        if (saved.user_id !== attempt.userId || saved.content !== attempt.values.content) return null;
+        if (editing) return draftId;
+        if (saved.image_path !== attempt.values.image_path
+          || saved.quoted_type !== attempt.values.quoted_type || saved.quoted_id !== attempt.values.quoted_id
+          || saved.poll_multiple !== attempt.values.poll_multiple || saved.poll_anonymous !== attempt.values.poll_anonymous
+          || saved.poll_allow_options !== attempt.values.poll_allow_options
+          || (saved.expires_at ? Date.parse(saved.expires_at) : null) !== (attempt.values.expires_at ? Date.parse(attempt.values.expires_at) : null)) return null;
+        const options = [...saved.tweet_poll_options].sort((a, b) => a.sort_order - b.sort_order);
+        if (options.length < attempt.pollOptions.length
+          || attempt.pollOptions.some((text, i) => !options.some((option) => option.text === text && option.sort_order === i && option.created_by === attempt.userId))) return null;
+        if (JSON.stringify(saved.tweet_mentions.map((mention) => mention.profile_id).sort()) !== JSON.stringify(attempt.mentionIds)) return null;
+        return draftId;
+      });
       if (!result.ok) {
-        setError(safeUpdateMessage(result.reason));
-        setSaving(false);
+        setUnconfirmed(result.reason === "unknown");
+        if (result.reason !== "unknown") pendingSave.current = null;
+        setError(atomicSaveMessage(result.reason));
         return;
       }
-    } else {
-      const userId = await getCurrentUserId(supabase);
-      if (!userId) {
-        setError("ログイン情報を確認できませんでした");
-        setSaving(false);
-        return;
-      }
-      const id = crypto.randomUUID();
-      let imagePath: string | null = null;
-      if (imageFile) {
-        let prepared: Blob;
-        try {
-          prepared = await prepareTweetImage(imageFile);
-        } catch (imageError) {
-          setError(imageError instanceof Error ? imageError.message : "画像を変換できませんでした");
-          setSaving(false);
-          return;
-        }
-        try {
-          const response = await fetch("/api/tweet-image/upload", {
-            method: "POST", headers: { "Content-Type": prepared.type }, body: prepared,
-          });
-          const result = await response.json();
-          if (!response.ok || typeof result.path !== "string") throw new Error("Upload failed");
-          imagePath = result.path;
-        } catch {
-          setError("画像をアップロードできませんでした");
-          setSaving(false);
-          return;
-        }
-      }
-      const expiresAt = expiresIn24Hours ? new Date(Date.now() + 86400000).toISOString() : null;
-      const { error } = await supabase.from("tweets").insert({
-        id, user_id: userId, content: text, image_path: imagePath, expires_at: expiresAt,
-        quoted_type: quote?.kind ?? null,
-        quoted_id: quote?.id ?? null,
-        poll_multiple: pollEnabled && pollMultiple,
-        poll_anonymous: pollAnonymous,
-        poll_allow_options: pollEnabled && pollAllowOptions,
-      });
-      if (error && imagePath) {
-        await fetch(`/api/tweet-image/upload?path=${encodeURIComponent(imagePath)}`, { method: "DELETE" }).catch(() => {});
-      }
-      if (error) {
-        setError("保存できませんでした。もう一度お試しください");
-        setSaving(false);
-        return;
-      }
-      if (pollEnabled) {
-        const { error: pollError } = await supabase.from("tweet_poll_options").insert(
-          cleanPollOptions.map((option, sortOrder) => ({
-            tweet_id: id,
-            text: option,
-            created_by: userId,
-            sort_order: sortOrder,
-          })),
-        );
-        if (pollError) {
-          await supabase.from("tweets").delete().eq("id", id);
-          setError("投票を保存できませんでした");
-          setSaving(false);
-          return;
-        }
-      }
-      const activeMentionIds = selectedMentionIds.filter((profileId) => {
-        const member = members.find((candidate) => candidate.id === profileId);
-        return member ? text.includes(`@${member.display_name}`) : false;
-      });
-      if (activeMentionIds.length) {
-        const { error: mentionError } = await supabase.from("tweet_mentions").insert(
-          activeMentionIds.map((profileId) => ({ tweet_id: id, profile_id: profileId })),
-        );
-        // 投稿自体は保存済みなので取り消さない。黙って通知だけ届かない状態にしないよう知らせる。
-        if (mentionError) {
-          showToast("投稿しました。メンションした相手への通知は送れませんでした", "error");
-        }
-      }
+      setUnconfirmed(false);
+      setContent("");
+      setImageFile(null);
+      setExpiresIn24Hours(false);
+      router.refresh();
+      onDone();
+    } catch {
+      setError("保存できませんでした。もう一度お試しください");
+    } finally {
+      setSaving(false);
     }
-    setContent("");
-    setImageFile(null);
-    setExpiresIn24Hours(false);
-    router.refresh();
-    onDone();
   }
 
   return (
-    <div className="space-y-3 pb-4">
+    <div className="min-w-0 space-y-3 pb-4">
+    <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-3">
       <section className="overflow-hidden rounded-card border border-separator/80 bg-card transition-colors focus-within:border-accent/50">
         <Textarea
           aria-label="つぶやき本文"
@@ -226,10 +263,12 @@ export const TweetForm = forwardRef<
           }}
           className="min-h-[180px] rounded-none border-0 bg-transparent px-4 py-4 text-[16px] leading-7 placeholder:text-muted/75 focus:border-transparent"
         />
-        {mentionQuery !== null && (
+        {(mentionQuery !== null || (membersFailed && selectedMentionIds.length > 0)) && (
           <div className="border-t border-separator bg-bg p-2">
             <p className="px-2 pb-1 text-micro">メンションする人</p>
-            <div className="max-h-40 overflow-y-auto">
+            <RefreshStatus failed={membersFailed} busy={false} hasData={members.length > 0} label="メンション先"
+              retry={() => { setMembersFailed(false); setMembersAttempt((value) => value + 1); }} />
+            {mentionQuery !== null && <div className="max-h-40 overflow-y-auto">
               {members
                 .filter((member) => {
                   const displayName = member.display_name.toLocaleLowerCase("ja");
@@ -248,7 +287,7 @@ export const TweetForm = forwardRef<
                     <span className="shrink-0 text-[12px] font-semibold text-accent">追加</span>
                   </button>
                 ))}
-            </div>
+            </div>}
           </div>
         )}
         {selectedMentions.length > 0 && (
@@ -319,9 +358,9 @@ export const TweetForm = forwardRef<
           >
             <Plus size={20} className={cn("transition-transform", addMenuOpen && "rotate-45")} />
           </button>
-          <Sheet open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+          <Sheet open={addMenuOpen} onOpenChange={(next) => { if (!next || (!saving && !unconfirmed)) setAddMenuOpen(next); }}>
             <SheetContent title="投稿に追加" autoFocus={false}>
-              <div className="space-y-2 pb-4">
+              <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-2 pb-4">
                 <button data-ui-action="row" type="button" className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-separator bg-card p-3.5 text-left active:bg-bg" onClick={() => { setPollEnabled((value) => !value); setAddMenuOpen(false); }}>
                   <BarChart3 size={20} className="text-accent" />
                   <span className="min-w-0 flex-1 text-headline">投票</span>
@@ -340,7 +379,7 @@ export const TweetForm = forwardRef<
                   {expiresIn24Hours && <Check size={18} className="text-accent" />}
                 </button>
                 )}
-              </div>
+              </fieldset>
             </SheetContent>
           </Sheet>
           {pollEnabled && (
@@ -412,6 +451,7 @@ export const TweetForm = forwardRef<
         </div>
       )}
 
+      </fieldset>
       {error && (
         <p role="alert" className="rounded-xl bg-danger/8 px-3 py-2.5 text-[13px] text-danger">
           {error}
@@ -428,7 +468,7 @@ export const TweetForm = forwardRef<
           ) : (
             <>
               <Send size={17} />
-              {editing ? "更新する" : "投稿する"}
+              {unconfirmed ? "保存結果を確認" : editing ? "更新する" : "投稿する"}
             </>
           )}
         </Button>

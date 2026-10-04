@@ -7,6 +7,7 @@ export const dynamic = "force-static";
 
 export async function GET() {
   const version =
+    (process.env.NEXT_PUBLIC_PC_TRIAL === "true" ? process.env.TUAT_REVIEW_BUILD_ID : undefined) ??
     process.env.VERCEL_GIT_COMMIT_SHA ??
     process.env.VERCEL_DEPLOYMENT_ID ??
     "dev";

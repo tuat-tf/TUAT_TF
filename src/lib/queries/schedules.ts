@@ -11,25 +11,27 @@ import { isPresent } from "./internal";
 /** ある日付の練習予定を取得 */
 export async function getSchedulesOn(date: string) {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("practice_schedules")
     .select("*")
     .eq("schedule_date", date)
     .order("meeting_time", { ascending: true });
+  if (error) throw error;
   return data ?? [];
 }
 /** 今日以降の練習予定（メニュー込み）を取得 */
-function filterSchedulesForViewer<T extends { target_blocks?: string[] | null }>(
-  schedules: T[],
+function upcomingScheduleFilter(
+  today: string,
   viewerBlocks: Block[],
   canManage: boolean,
-): T[] {
-  if (canManage) return schedules;
-  const viewerBlockSet = new Set<string>(viewerCompetitionBlocks(viewerBlocks));
-  return schedules.filter((schedule) => {
-    const targets = schedule.target_blocks ?? [];
-    return targets.length === 0 || targets.some((block) => viewerBlockSet.has(block));
-  });
+): string {
+  const dates = stillRunningOrUpcoming(today);
+  if (canManage) return dates;
+  const blocks = viewerCompetitionBlocks(viewerBlocks);
+  const targets = ["target_blocks.is.null", "target_blocks.eq.{}"];
+  if (blocks.length) targets.push(`target_blocks.ov.{${blocks.join(",")}}`);
+  // Apply visibility before limit; unrelated blocks must not consume the viewer's page.
+  return `and(or(${dates}),or(${targets.join(",")}))`;
 }
 
 /**
@@ -61,13 +63,13 @@ export async function getUpcomingSchedules(
         )
       )
     `)
-    .or(stillRunningOrUpcoming(today))
+    .or(upcomingScheduleFilter(today, viewerBlocks, canManage))
     .order("schedule_date", { ascending: true })
     .order("meeting_time", { ascending: true, nullsFirst: false });
   if (type && type !== "all") q = q.eq("schedule_type", type);
   const { data, error } = await q;
   if (error) throw new Error("Failed to load upcoming schedules: " + error.message);
-  return filterSchedulesForViewer(data ?? [], viewerBlocks, canManage)
+  return (data ?? [])
     .map(normalizeScheduleRow)
     .filter(isPresent);
 }
@@ -104,12 +106,13 @@ export async function getUpcomingSchedulesWithAttendances(
         profile:profiles!user_id(id, display_name, avatar_url, blocks, grade)
       )
     `)
-    .or(stillRunningOrUpcoming(today))
+    .or(upcomingScheduleFilter(today, viewerBlocks, canManage))
     .order("schedule_date", { ascending: true })
     .order("meeting_time", { ascending: true, nullsFirst: false })
+    .order("id")
     .limit(limit);
   if (error) throw new Error(`Failed to load upcoming schedules: ${error.message}`);
-  return filterSchedulesForViewer(data ?? [], viewerBlocks, canManage)
+  return (data ?? [])
     .map(normalizeScheduleRow)
     .filter(isPresent);
 }
@@ -124,13 +127,14 @@ export async function getAttendanceSchedules(
   const { data, error } = await supabase
     .from("practice_schedules")
     .select("*")
-    .or(stillRunningOrUpcoming(today))
+    .or(upcomingScheduleFilter(today, viewerBlocks, canManage))
     .in("schedule_type", ["practice", "meet", "event"])
     .order("schedule_date", { ascending: true })
     .order("meeting_time", { ascending: true, nullsFirst: false })
-    .limit(Math.max(30, limit * 3));
+    .order("id")
+    .limit(limit);
   if (error) throw new Error(`Failed to load attendance schedules: ${error.message}`);
-  return filterSchedulesForViewer(data ?? [], viewerBlocks, canManage).slice(0, limit);
+  return data ?? [];
 }
 
 /** 指定した予定群の出欠（profile 付き） */

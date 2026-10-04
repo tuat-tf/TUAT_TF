@@ -71,25 +71,25 @@ export function RecordCard({
 
   return (
     <Card data-ui-embedded={embedded || undefined} className={embedded ? "space-y-3 rounded-none border-0 p-4" : "space-y-3 p-4"}>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start gap-2.5">
         <Link data-ui-link href={`/members/${author.id}`} prefetch={false} onClick={(event) => event.stopPropagation()}>
           <Avatar name={author.display_name} blocks={author.blocks} avatarUrl={author.avatar_url} />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <Link data-ui-link href={`/members/${author.id}`} prefetch={false} onClick={(event) => event.stopPropagation()} className="text-headline truncate">{author.display_name || "名無し"}</Link>
+            <Link data-ui-link href={`/members/${author.id}`} prefetch={false} onClick={(event) => event.stopPropagation()} className="max-w-full truncate text-headline">{author.display_name || "名無し"}</Link>
             <BlockPills blocks={author.blocks} />
             {gradeLabel && <span className="text-micro">{gradeLabel}</span>}
           </div>
-          <p className="text-caption">{format(new Date(record.recorded_date + "T00:00:00"), "M月d日(E)", { locale: ja })}の練習</p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="whitespace-nowrap text-caption">{format(new Date(record.recorded_date + "T00:00:00"), "M月d日(E)", { locale: ja })}の練習</p>
+            {cond && fieldVisible("condition") && <span className="inline-flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold" style={{ color: cond.color }} title={cond.label}><span className="text-[16px] leading-none">{cond.symbol}</span>{cond.label}</span>}
+            {/* 本人には保存元だけ知らせる。システム管理者には由来を対で出す（設定でオフにできる）。 */}
+            {isOwner && !showSource && record.from_sheet && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">スプレッドシート</span>}
+            {showSource && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">{record.from_sheet ? "スプレッドシート由来" : "アプリ由来"}</span>}
+          </div>
         </div>
-        {cond && fieldVisible("condition") && <span className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold" style={{ color: cond.color }} title={cond.label}><span className="text-[16px] leading-none">{cond.symbol}</span>{cond.label}</span>}
-        <div className="flex shrink-0 items-center gap-1.5">
-          {/* 本人には保存元だけ知らせる。システム管理者には由来を対で出す（設定でオフにできる）。 */}
-          {isOwner && !showSource && record.from_sheet && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">スプレッドシート</span>}
-          {showSource && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">{record.from_sheet ? "スプレッドシート由来" : "アプリ由来"}</span>}
-          <span onClick={(event) => event.stopPropagation()}><RecordOwnerMenu record={record} isOwner={isOwner} isMiddleLong={author.blocks?.includes("middle_long") ?? false} recordSource={author.record_source} recordFields={recordFields} systemRecordForm={currentUser.systemRecordForm === true && hasTimelineConfig} quote={{ kind: "record", id: record.id, author, created_at: record.created_at, recorded_date: record.recorded_date, distanceKm: totalDistance, summary: recordSummaryText(record) }} /></span>
-        </div>
+        <span className="shrink-0" onClick={(event) => event.stopPropagation()}><RecordOwnerMenu record={record} isOwner={isOwner} isMiddleLong={author.blocks?.includes("middle_long") ?? false} recordSource={author.record_source} recordFields={recordFields} systemRecordForm={currentUser.systemRecordForm === true && hasTimelineConfig} quote={{ kind: "record", id: record.id, author, created_at: record.created_at, recorded_date: record.recorded_date, distanceKm: totalDistance, summary: recordSummaryText(record) }} /></span>
       </div>
 
       {distanceVisible && totalDistance > 0 && <IntensityBar record={record} />}

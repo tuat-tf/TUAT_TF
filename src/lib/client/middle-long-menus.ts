@@ -26,7 +26,7 @@ export function middleLongMenuQueryOptions({
       return response.json();
     },
     initialData,
-    enabled: enabled && !!userId && months.length > 0,
+    enabled: process.env.NEXT_PUBLIC_PC_TRIAL !== "true" && enabled && !!userId && months.length > 0,
     staleTime: 60_000,
     // 月別シートの変更を、予定画面や展開中のホームカードへ反映する。
     refetchInterval: 60_000,

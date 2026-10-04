@@ -17,22 +17,24 @@ export const COMPETITION_SELECT = "id,name,starts_on,ends_on,sort_order,is_count
 /** 部で統一している大会（対抗戦など）の一覧 */
 export async function getCompetitions() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("competitions")
     .select(COMPETITION_SELECT)
     .order("sort_order")
     .order("starts_on", { ascending: false });
+  if (error) throw error;
   return (data ?? []) as CompetitionRow[];
 }
 
 /** 種目マスタ（表示順） */
 export async function getCompetitionEvents() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("competition_events")
     .select("name,sort_order,measure_type,time_format")
     .order("sort_order")
     .order("name");
+  if (error) throw error;
   return data ?? [];
 }
 
@@ -42,34 +44,38 @@ export async function getHomeCompetition() {
   const { data, error } = await supabase
     .from("competitions")
     .select(COMPETITION_SELECT);
+  if (error) throw error;
   const competition = selectHomeCompetition(data ?? []);
-  if (error || !competition) return null;
-  const { count } = await supabase
+  if (!competition) return null;
+  const { count, error: countError } = await supabase
     .from("competition_goals")
     .select("user_id", { count: "exact", head: true })
     .eq("competition_id", competition.id);
+  if (countError) throw countError;
   return { competition: competition as CompetitionRow, goalCount: count ?? 0 };
 }
 
 /** 目標一覧ページ（大会別）。目標の横に出す本人のPBも一緒に読む */
 export async function getCompetitionGoals(competitionId: string) {
   const supabase = await createClient();
-  const [{ data: goals }, events] = await Promise.all([
+  const [goalResult, events] = await Promise.all([
     supabase
       .from("competition_goals")
       .select("id,user_id,event,target,author:profiles!user_id(display_name,blocks)")
       .eq("competition_id", competitionId),
     getCompetitionEvents(),
   ]);
-  const rows = (goals ?? []) as unknown as CompetitionGoalRow[];
+  if (goalResult.error) throw goalResult.error;
+  const rows = (goalResult.data ?? []) as unknown as CompetitionGoalRow[];
   const userIds = [...new Set(rows.map((g) => g.user_id))];
-  const { data: bests } = userIds.length
+  const { data: bests, error: bestError } = userIds.length
     ? await supabase
         .from("pb_records")
         .select("user_id,event_name,record,value_cs,value_cm,value_points,result_status")
         .eq("is_pb", true)
         .in("user_id", userIds)
-    : { data: [] };
+    : { data: [], error: null };
+  if (bestError) throw bestError;
   return {
     goals: rows,
     events,
@@ -99,13 +105,13 @@ export async function getCompetitionResults(competition: Pick<CompetitionRow, "i
 /** 結果に入力されているがマスタに無い種目名（表記統一の入口） */
 export async function getUnregisteredEventNames() {
   const supabase = await createClient();
-  const [{ data: records }, events] = await Promise.all([
-    supabase.from("pb_records").select("event_name"),
+  const [records, events] = await Promise.all([
+    fetchAllPages((from, to) => supabase.from("pb_records").select("event_name").order("id").range(from, to)),
     getCompetitionEvents(),
   ]);
   const known = new Set(events.map((e) => e.name));
   const counts = new Map<string, number>();
-  for (const row of records ?? []) {
+  for (const row of records) {
     if (known.has(row.event_name)) continue;
     counts.set(row.event_name, (counts.get(row.event_name) ?? 0) + 1);
   }
@@ -139,15 +145,16 @@ export async function getCompetitionById(id: string) {
 export async function getGoalHub(userId: string) {
   const supabase = await createClient();
   const today = jstToday();
-  const [competitions, { data: goals }] = await Promise.all([
+  const [competitions, goalResult] = await Promise.all([
     getCompetitions(),
     supabase
       .from("competition_goals")
       .select("competition_id")
       .eq("user_id", userId),
   ]);
+  if (goalResult.error) throw goalResult.error;
   const myGoalCounts = new Map<string, number>();
-  for (const row of goals ?? [])
+  for (const row of goalResult.data ?? [])
     myGoalCounts.set(
       row.competition_id,
       (myGoalCounts.get(row.competition_id) ?? 0) + 1,

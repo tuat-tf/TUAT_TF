@@ -7,6 +7,7 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { NoteEditor } from "@/components/features/NoteEditor";
 import { FormModal } from "@/components/ui/form-modal";
 import { createClient } from "@/lib/supabase/client";
+import { safeDelete } from "@/lib/safe-update";
 import { useToast } from "@/components/ui/toast";
 import type { AuthorMini, NoteWithRelations } from "@/types";
 
@@ -31,8 +32,8 @@ export function NoteDetailActions({
 
   async function remove() {
     const supabase = createClient();
-    const { error } = await supabase.from("notes").delete().eq("id", note.id);
-    if (error) {
+    const result = await safeDelete(supabase, "notes", { id: note.id });
+    if (!result.ok) {
       showToast("フォルダを削除できませんでした");
       return false;
     }

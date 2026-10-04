@@ -2,9 +2,10 @@ import type { MetadataRoute } from "next";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/app";
 
 export default function manifest(): MetadataRoute.Manifest {
+  const name = process.env.NEXT_PUBLIC_PC_TRIAL === "true" ? `${APP_NAME} 検証版` : APP_NAME;
   return {
-    name: APP_NAME,
-    short_name: APP_NAME,
+    name,
+    short_name: name,
     description: APP_DESCRIPTION,
     // id はインストール済みアプリの同一性を決める。既定値は start_url なので、
     // 既存のホーム画面アイコンと同じ "/home" を明示して固定する（変更禁止）。
