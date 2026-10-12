@@ -76,7 +76,7 @@ export function PbManager({
       </div>
 
       {/* 追加は他の画面と同じくFABから。一覧の下にボタンを置かない（規約: 書く=FAB） */}
-      {<FloatingActionPosition>{addButton}</FloatingActionPosition>}
+      <FloatingActionPosition>{addButton}</FloatingActionPosition>
 
       {open && (
         <FormModal

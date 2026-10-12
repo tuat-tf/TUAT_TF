@@ -21,20 +21,3 @@ export function Card({
     />
   );
 }
-
-export function CardSection({
-  label,
-  className,
-  children,
-}: {
-  label?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={cn("space-y-2", className)}>
-      {label && <p className="section-label px-1">{label}</p>}
-      {children}
-    </div>
-  );
-}

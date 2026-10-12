@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Plus } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { FormModal, FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
+import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SegmentedControl } from "@/components/ui/segmented";
@@ -20,54 +20,6 @@ import type {
   NoteStatus,
   NoteWithRelations,
 } from "@/types";
-
-export function NoteEditorButton({
-  currentUser,
-  members,
-  note,
-  isAdmin = false,
-  initialScope = "shared",
-  label = "新しいフォルダ",
-  onDone,
-}: {
-  currentUser: AuthorMini;
-  members: AuthorMini[];
-  note?: NoteWithRelations;
-  isAdmin?: boolean;
-  initialScope?: NoteScope;
-  label?: string;
-  onDone?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <Button type="button" onClick={() => setOpen(true)}>
-        {!note && <Plus size={17} />}
-        {label}
-      </Button>
-      {open && (
-        <FormModal
-          open
-          onOpenChange={setOpen}
-          title={note ? "フォルダを編集" : "フォルダ"}
-        >
-          <NoteEditor
-            currentUser={currentUser}
-            members={members}
-            note={note}
-            isAdmin={isAdmin}
-            initialScope={initialScope}
-            onDone={() => {
-              setOpen(false);
-              onDone?.();
-            }}
-          />
-        </FormModal>
-      )}
-    </>
-  );
-}
 
 export function NoteEditor({
   currentUser,

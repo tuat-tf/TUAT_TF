@@ -75,11 +75,6 @@ export function MenuForm({ scheduleId }: { scheduleId: string }) {
   );
 }
 
-/** FABから予定を選び、練習メニューを作成する */
-export function MenuComposerForm({ onDone }: { onDone: () => void }) {
-  return <MenuCreatePanel onDone={onDone} />;
-}
-
 /** 通常入力とスプシ/CSVから一括登録を切り替えるパネル */
 function MenuCreatePanel({
   scheduleId,

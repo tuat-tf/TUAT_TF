@@ -19,7 +19,6 @@
  * アプリで記録を消したり日付を変えたりしたら、スプシの元の日の欄を空にする（2026-09-26 オーナー確定）。
  */
 
-
 // 実体はこのフォルダ内の各モジュール。アプリ側は @/lib/sheet-sync から使う。
 
 export * from "./types";
@@ -28,6 +27,5 @@ export * from "./field-map";
 export * from "./gas-client";
 export * from "./push";
 export * from "./clear";
-export * from "./reconcile";
 export * from "./pull";
 export * from "./run";
