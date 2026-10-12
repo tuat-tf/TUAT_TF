@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { Download, Link2, RefreshCw, Upload } from "lucide-react";
@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select } from "@/components/ui/select";
+import { useFormDraft } from "@/components/ui/form-modal";
 import { createClient } from "@/lib/supabase/client";
 import { MENU_IMPORT_COLUMNS } from "@/lib/menu-import";
 import { BLOCKS, EDITABLE_BLOCK_ORDER } from "@/lib/constants";
@@ -24,7 +25,9 @@ const BLOCK_OPTIONS = EDITABLE_BLOCK_ORDER.map((block) => ({
   label: BLOCKS[block].label,
 }));
 
-export function MenuSheetImportManager() {
+export function MenuSheetImportManager({ onDraftChange }: {
+  onDraftChange?: (draft: Parameters<typeof useFormDraft>[0] | null) => void;
+} = {}) {
   const router = useRouter();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -38,6 +41,7 @@ export function MenuSheetImportManager() {
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uncertainSave, setUncertainSave] = useState(false);
 
   function downloadTemplate() {
     const rows = [
@@ -62,13 +66,19 @@ export function MenuSheetImportManager() {
 
   async function selectFile(file: File | undefined) {
     if (!file) return;
-    setFileName(file.name);
-    setCsv(await file.text());
-    setPreview(null);
-    setError(null);
+    try {
+      const content = await file.text();
+      setFileName(file.name);
+      setCsv(content);
+      setPreview(null);
+      setError(null);
+    } catch {
+      setError("CSVファイルを読み込めませんでした。もう一度選択してください");
+    }
   }
 
   async function previewImport() {
+    if (loading || applying) return;
     if (source === "url" && !sheetUrl.trim()) {
       setError("Googleスプレッドシートの共有URLを入力してください");
       return;
@@ -79,24 +89,29 @@ export function MenuSheetImportManager() {
     }
     setLoading(true);
     setError(null);
-    const response = await fetch("/api/menu-sheets/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        year,
-        targetBlock,
-        sheetUrl: source === "url" ? sheetUrl.trim() : undefined,
-        csv: source === "file" ? csv : undefined,
-      }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setError(result.error ?? "CSVを確認できませんでした");
+    try {
+      const response = await fetch("/api/menu-sheets/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year,
+          targetBlock,
+          sheetUrl: source === "url" ? sheetUrl.trim() : undefined,
+          csv: source === "file" ? csv : undefined,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error ?? "CSVを確認できませんでした。もう一度お試しください");
+        return;
+      }
+      if (!["columns", "rows", "additions", "updates", "errors", "skips"].every((key) => Array.isArray(result[key]))) throw new Error("Invalid menu preview");
+      setPreview(result as MenuImportPreview);
+    } catch {
+      setError("CSVを確認できませんでした。もう一度お試しください");
+    } finally {
       setLoading(false);
-      return;
     }
-    setPreview(result as MenuImportPreview);
-    setLoading(false);
   }
 
   async function validateEditedRows(
@@ -104,25 +119,31 @@ export function MenuSheetImportManager() {
   ): Promise<MenuImportPreview | null> {
     setLoading(true);
     setError(null);
-    const response = await fetch("/api/menu-sheets/preview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        year,
-        targetBlock,
-        rows: rows.map(({ rowNumber, values }) => ({ rowNumber, values })),
-      }),
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      setError(result.error ?? "入力内容を再確認できませんでした");
-      setLoading(false);
+    try {
+      const response = await fetch("/api/menu-sheets/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          year,
+          targetBlock,
+          rows: rows.map(({ rowNumber, values }) => ({ rowNumber, values })),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error ?? "入力内容を再確認できませんでした。もう一度お試しください");
+        return null;
+      }
+      if (!["columns", "rows", "additions", "updates", "errors", "skips"].every((key) => Array.isArray(result[key]))) throw new Error("Invalid menu preview");
+      const next = result as MenuImportPreview;
+      setPreview(next);
+      return next;
+    } catch {
+      setError("入力内容を再確認できませんでした。もう一度お試しください");
       return null;
+    } finally {
+      setLoading(false);
     }
-    const next = result as MenuImportPreview;
-    setPreview(next);
-    setLoading(false);
-    return next;
   }
 
   function updatePreviewCell(rowNumber: number, column: string, value: string) {
@@ -133,12 +154,12 @@ export function MenuSheetImportManager() {
         rows: current.rows.map((row) =>
           row.rowNumber === rowNumber
             ? {
-                ...row,
-                values: { ...row.values, [column]: value },
-                status: "editing",
-                message: "未確認の変更があります",
-                normalized: null,
-              }
+              ...row,
+              values: { ...row.values, [column]: value },
+              status: "editing",
+              message: "未確認の変更があります",
+              normalized: null,
+            }
             : row,
         ),
       };
@@ -146,52 +167,68 @@ export function MenuSheetImportManager() {
   }
 
   async function apply() {
-    if (!preview || applying) return;
+    if (!preview || applying || loading || uncertainSave) return;
     setApplying(true);
     setError(null);
-    const validated = await validateEditedRows(preview.rows);
-    if (!validated) {
+    try {
+      const validated = await validateEditedRows(preview.rows);
+      if (!validated) return;
+      const validRows = [...validated.additions, ...validated.updates];
+      if (validRows.length === 0) return;
+      const supabase = createClient();
+      const savedRowNumbers = new Set<number>();
+      let uncertain = false;
+      for (const row of validRows) {
+        try {
+          const { data: savedId, error: saveError } = await supabase.rpc("save_practice_menu", {
+            target_schedule_id: row.scheduleId,
+            menu_content: row.content,
+            menu_status: status,
+            menu_target_block: row.targetBlock,
+            target_user_ids: [],
+            target_menu_id: row.existingMenuId ?? undefined,
+            menu_pace: row.pace ?? undefined,
+            menu_remark: row.remark ?? undefined,
+            menu_supplement: row.supplement ?? undefined,
+          });
+          if ((saveError && !saveError.code) || (!saveError && typeof savedId !== "string")) {
+            uncertain = true;
+            break;
+          }
+          if (!saveError) savedRowNumbers.add(row.rowNumber);
+        } catch {
+          uncertain = true;
+          break;
+        }
+      }
+      router.refresh();
+      const remaining = validated.rows.filter((row) =>
+        row.status === "error" || (!savedRowNumbers.has(row.rowNumber) && (row.status === "addition" || row.status === "update")),
+      );
+      if (remaining.length > 0) {
+        setPreview({
+          ...validated,
+          rows: remaining,
+          additions: validated.additions.filter((row) => !savedRowNumbers.has(row.rowNumber)),
+          updates: validated.updates.filter((row) => !savedRowNumbers.has(row.rowNumber)),
+        });
+      } else {
+        setPreview(null);
+        setCsv("");
+        setFileName("");
+        setSheetUrl("");
+      }
+      if (uncertain) {
+        setUncertainSave(true);
+      } else {
+        const failedCount = validRows.length - savedRowNumbers.size;
+        if (failedCount > 0) setError(`${failedCount}件を登録できませんでした。内容を確認して、もう一度お試しください`);
+      }
+    } catch {
+      setError("登録を開始できませんでした。もう一度お試しください");
+    } finally {
       setApplying(false);
-      return;
     }
-    const validRows = [...validated.additions, ...validated.updates];
-    if (validRows.length === 0) {
-      setPreview(validated);
-      setApplying(false);
-      return;
-    }
-    const supabase = createClient();
-    const failedRowNumbers = new Set<number>();
-    for (const row of validRows) {
-      const { error: saveError } = await supabase.rpc("save_practice_menu", {
-        target_schedule_id: row.scheduleId,
-        menu_content: row.content,
-        menu_status: status,
-        menu_target_block: row.targetBlock,
-        target_user_ids: [],
-        target_menu_id: row.existingMenuId ?? undefined,
-        menu_pace: row.pace ?? undefined,
-        menu_remark: row.remark ?? undefined,
-        menu_supplement: row.supplement ?? undefined,
-      });
-      if (saveError) failedRowNumbers.add(row.rowNumber);
-    }
-    router.refresh();
-    if (failedRowNumbers.size > 0) {
-      setPreview({
-        ...validated,
-        rows: validated.rows.filter((row) => failedRowNumbers.has(row.rowNumber)),
-        additions: [],
-        updates: [],
-      });
-      setError(`${failedRowNumbers.size}件を登録できませんでした`);
-    } else {
-      setPreview(null);
-      setCsv("");
-      setFileName("");
-      setSheetUrl("");
-    }
-    setApplying(false);
   }
 
   const applicable = preview
@@ -204,8 +241,17 @@ export function MenuSheetImportManager() {
     ? preview.rows.filter((row) => row.status === "editing").length
     : 0;
 
+  const draftDirty = !!sheetUrl.trim() || !!csv || !!preview;
+  const draftBusy = loading || applying || uncertainSave;
+  const saveDraft = preview ? apply : previewImport;
+  useFormDraft({ dirty: draftDirty, busy: draftBusy, onSave: saveDraft });
+  useEffect(() => {
+    onDraftChange?.({ dirty: draftDirty, busy: draftBusy, onSave: saveDraft });
+  }, [onDraftChange, draftDirty, draftBusy, saveDraft]);
+  useEffect(() => () => onDraftChange?.(null), [onDraftChange]);
+
   return (
-    <div className="space-y-5 pb-4">
+    <fieldset disabled={loading || applying} className="min-w-0 space-y-5 pb-4">
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Step number={1} />
@@ -349,7 +395,7 @@ export function MenuSheetImportManager() {
           </Button>
           <Button
             size="lg"
-            disabled={applying || preview.rows.length === 0 || (applicable === 0 && dirtyCount === 0)}
+            disabled={applying || loading || uncertainSave || preview.rows.length === 0 || (applicable === 0 && dirtyCount === 0)}
             onClick={apply}
           >
             {applying
@@ -367,7 +413,18 @@ export function MenuSheetImportManager() {
       )}
 
       {error && <p className="text-center text-caption text-danger">{error}</p>}
-    </div>
+      {uncertainSave && (
+        <div role="alert" className="space-y-2 text-caption text-danger">
+          <p>登録結果を確認できませんでした。予定一覧のメニューを確認してください</p>
+          <Button type="button" variant="outline" asChild>
+            <a href="/schedule" target="_blank" rel="noreferrer">予定一覧を確認</a>
+          </Button>
+          <Button type="button" variant="outline" onClick={() => {
+            setPreview(null); setCsv(""); setFileName(""); setSheetUrl(""); setError(null); setUncertainSave(false);
+          }}>結果を確認して、今回の入力を終了</Button>
+        </div>
+      )}
+    </fieldset>
   );
 }
 

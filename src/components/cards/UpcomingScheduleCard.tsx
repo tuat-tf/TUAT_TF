@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceToggle, type AttendanceChange } from "@/components/features/AttendanceToggle";
 import { attendanceCounts } from "@/components/features/AttendeesButton";
+import { cn } from "@/lib/utils";
 import { SCHEDULE_TYPES } from "@/lib/constants";
 import { venueShort } from "@/lib/venues";
 import { jstToday } from "@/lib/date";
@@ -77,7 +78,7 @@ export function UpcomingScheduleCard({
   }
 
   return (
-    <Card className="space-y-2 p-3">
+    <Card className="flex items-center gap-3 p-3">
       <Link data-ui-row
         href={`/schedule?open=${schedule.id}`}
         prefetch={false}
@@ -98,32 +99,28 @@ export function UpcomingScheduleCard({
               {schedule.title ?? venueShort(schedule.venue_name) ?? meta.label}
             </span>
           </div>
-          <div className="mt-0.5 text-[12px] text-muted2">
+          <div className={cn("mt-0.5 flex min-w-0 items-center gap-x-3 text-[12px] text-muted2", "flex-wrap gap-y-1")}>
             {schedule.meeting_time && (
               <span className="flex shrink-0 items-center gap-1">
                 <Clock size={12} /> {schedule.meeting_time.slice(0, 5)}
               </span>
             )}
+            <span className="shrink-0 text-success">
+              出席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.present}</span>
+            </span>
+            <span className="shrink-0 text-danger">
+              欠席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.absent}</span>
+            </span>
           </div>
         </div>
       </Link>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]" role="group" aria-label="出欠状況">
-          <span className="text-success">
-            出席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.present}</span>
-          </span>
-          <span className="text-danger">
-            欠席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.absent}</span>
-          </span>
-        </div>
-        <AttendanceToggle
-          scheduleId={schedule.id}
-          attendDate={attendDate}
-          userId={userId}
-          initial={status}
-          onChanged={handleChanged}
-        />
-      </div>
+      <AttendanceToggle
+        scheduleId={schedule.id}
+        attendDate={attendDate}
+        userId={userId}
+        initial={status}
+        onChanged={handleChanged}
+      />
     </Card>
   );
 }

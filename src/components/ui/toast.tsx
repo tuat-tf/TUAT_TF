@@ -11,7 +11,6 @@ import {
 } from "react";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 
 type ToastKind = "success" | "error";
 
@@ -28,7 +27,6 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const newUi = useSystemGlass();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(0);
 
@@ -51,7 +49,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        data-new-ui-surface={newUi || undefined}
+        data-new-ui-surface
         aria-live="polite"
         aria-atomic="true"
         className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+12px)] z-[100] mx-auto flex w-full max-w-md flex-col gap-2 px-4 md:inset-x-auto md:top-auto md:right-6 md:bottom-24 md:mx-0 md:max-w-sm md:px-0"

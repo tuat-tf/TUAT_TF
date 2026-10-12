@@ -15,7 +15,6 @@ import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import type { AuthorMini, ThreadPostWithAuthor } from "@/types";
 
 /** スレッドのメッセージ一覧＋送信欄（掲示板スタイル・時系列） */
@@ -42,12 +41,11 @@ export function ThreadPostsView({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLFormElement>(null);
-  const newUi = useSystemGlass();
 
   useEffect(() => {
     const thread = threadRef.current;
     const composer = composerRef.current;
-    if (!newUi || !thread || !composer) return;
+    if (!thread || !composer) return;
     const viewport = window.visualViewport;
     let frame = 0;
     const measure = () => {
@@ -82,7 +80,7 @@ export function ThreadPostsView({
       thread.style.removeProperty("--ui-composer-height");
       thread.style.removeProperty("--ui-composer-inset");
     };
-  }, [newUi]);
+  }, []);
 
   const [visiblePosts, setVisiblePosts] = useState(posts);
   async function send() {

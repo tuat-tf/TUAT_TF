@@ -14,8 +14,9 @@ import { Toggle } from "@/components/ui/toggle";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { useToast } from "@/components/ui/toast";
 import { Linkify } from "@/components/common/Linkify";
-import { safeDelete, safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
 import type { VenueRow } from "@/types";
+import type { Database } from "@/types/database";
 
 /** 練習場所の管理（追加・編集・削除・選択リスト表示の切替） */
 export function VenueManager({ initial }: { initial: VenueRow[] }) {
@@ -45,15 +46,19 @@ export function VenueManager({ initial }: { initial: VenueRow[] }) {
   }
 
   async function remove(v: VenueRow) {
-    const supabase = createClient();
-    const result = await safeDelete(supabase, "venues", { id: v.id });
-    if (!result.ok) {
+    try {
+      const { data, error } = await createClient().from("venues").delete().eq("id", v.id).select("id");
+      if (error || !data || data.length !== 1) {
+        showToast("会場を削除できませんでした");
+        return false;
+      }
+      setItems((arr) => arr.filter((x) => x.id !== v.id));
+      router.refresh();
+      return true;
+    } catch {
       showToast("会場を削除できませんでした");
       return false;
     }
-    setItems((arr) => arr.filter((x) => x.id !== v.id));
-    router.refresh();
-    return true;
   }
 
   async function reorder(next: VenueRow[]) {
@@ -181,12 +186,56 @@ function VenueForm({
   const [pinned, setPinned] = useState(venue?.pinned ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState<Database["public"]["Tables"]["venues"]["Insert"] | null>(null);
+  const [retryAllowed, setRetryAllowed] = useState(false);
 
   useFormDraft({
-    dirty: JSON.stringify([name, short, access, fee, url, pinned]) !== JSON.stringify([venue?.name ?? "", venue?.short ?? "", venue?.access ?? "", venue?.fee ?? "", venue?.url ?? "", venue?.pinned ?? true]),
-    busy: saving, onSave: submit,
+    dirty: !!unconfirmed || JSON.stringify([name, short, access, fee, url, pinned]) !== JSON.stringify([venue?.name ?? "", venue?.short ?? "", venue?.access ?? "", venue?.fee ?? "", venue?.url ?? "", venue?.pinned ?? true]),
+    busy: saving, intent: unconfirmed ? "check" : undefined, onSave: unconfirmed ? checkSave : submit,
   });
+  async function checkSave() {
+    if (saving || !unconfirmed) return;
+    setSaving(true);
+    setRetryAllowed(false);
+    try {
+      const { data, error: readError } = await createClient().from("venues").select().eq("id", unconfirmed.id!).maybeSingle();
+      if (!readError && data && Object.entries(unconfirmed).every(([key, value]) => data[key as keyof VenueRow] === value)) {
+        onSaved(data);
+        return;
+      }
+      if (!readError && (!data ? !venue : !!venue && Object.keys(unconfirmed).every(key => data[key as keyof VenueRow] === venue[key as keyof VenueRow]))) {
+        setRetryAllowed(true);
+        setError("保存結果を確認できませんでした。同じ内容で保存を試すこともできます");
+        return;
+      }
+      setError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } catch {
+      setError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } finally { setSaving(false); }
+  }
+  async function retrySave() {
+    if (saving || !retryAllowed || !unconfirmed) return;
+    setSaving(true);
+    setRetryAllowed(false);
+    try {
+      const supabase = createClient();
+      let query = venue ? supabase.from("venues").update(unconfirmed).eq("id", venue.id) : supabase.from("venues").insert(unconfirmed);
+      if (venue) {
+        for (const key of Object.keys(unconfirmed)) { const value = venue[key as keyof VenueRow]; query = value === null ? query.is(key, null) : query.eq(key, value); }
+      }
+      const { data, error: saveError } = await query.select().single();
+      if (saveError || !data) {
+        setError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+        return;
+      }
+      onSaved(data);
+    } catch {
+      setError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+    } finally { setSaving(false); }
+  }
   async function submit() {
+    if (saving || unconfirmed) return;
+    let submitted: Database["public"]["Tables"]["venues"]["Insert"] | null = null;
     try {
       if (!name.trim()) {
         setError("会場名を入力してください");
@@ -196,6 +245,7 @@ function VenueForm({
       setError(null);
       const supabase = createClient();
       const payload = {
+        id: venue?.id ?? crypto.randomUUID(),
         name: name.trim(),
         short: short.trim() || null,
         access: access.trim() || null,
@@ -204,23 +254,29 @@ function VenueForm({
         pinned,
         sort,
       };
+      submitted = payload;
       const { data, error } = venue
         ? await supabase.from("venues").update(payload).eq("id", venue.id).select().single()
         : await supabase.from("venues").insert(payload).select().single();
 
       if (error || !data) {
-        setError("保存できませんでした。もう一度お試しください");
-        setSaving(false);
+        if (!error?.code) {
+          setUnconfirmed(payload);
+          setError("保存できたか確認できませんでした。保存結果を確認してください");
+        } else setError("保存できませんでした。もう一度お試しください");
         return;
       }
       onSaved(data as VenueRow);
     } catch {
-      setError("保存できませんでした。もう一度お試しください");
+      if (submitted) {
+        setUnconfirmed(submitted);
+        setError("保存できたか確認できませんでした。保存結果を確認してください");
+      } else setError("保存できませんでした。もう一度お試しください");
     } finally { setSaving(false); }
   }
 
   return (
-    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
+    <fieldset disabled={saving || !!unconfirmed} className="min-w-0 space-y-4 pb-4">
       <div>
         <label htmlFor="venue-name" className="section-label mb-1.5 block">会場名</label>
         <Input placeholder="例: 府中市民陸上競技場" id="venue-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -244,9 +300,11 @@ function VenueForm({
       <Toggle label="予定作成に表示" checked={pinned} onChange={() => setPinned((v) => !v)} />
       {error && <p className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
-        <Button size="lg" onClick={submit} disabled={saving} className="gap-1">
-          <MapPin size={16} /> {saving ? "保存中…" : venue ? "更新する" : "追加する"}
-        </Button>
+        {unconfirmed
+          ? <div className="space-y-2"><Button size="lg" onClick={() => void checkSave()} disabled={saving}>保存結果を確認</Button>{retryAllowed && <Button size="lg" disabled={saving} onClick={() => void retrySave()}>同じ内容で保存する</Button>}</div>
+          : <Button size="lg" onClick={submit} disabled={saving} className="gap-1">
+              <MapPin size={16} /> {saving ? "保存中…" : venue ? "更新する" : "追加する"}
+            </Button>}
       </FormModalFooter>
     </fieldset>
   );

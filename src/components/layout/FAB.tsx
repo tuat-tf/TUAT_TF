@@ -1,9 +1,8 @@
 "use client";
 import { FloatingActionPosition, floatingActionButtonClass } from "@/components/ui/floating-action";
-import { useSystemGlass } from "./glass/system-glass-state";
 import { GlassMenu, type GlassMenuItem } from "@/components/ui/glass-menu";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { withIntentPreload } from "@/components/ui/intent-form";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -20,12 +19,11 @@ import {
   Plus,
   Trophy,
 } from "lucide-react";
-import { FormModal, useFormChangeGuard } from "@/components/ui/form-modal";
-import { RefreshStatus } from "@/components/ui/refresh-status";
+import { FormModal, type useFormDraft } from "@/components/ui/form-modal";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import type { MonthlyPlanningEditorHandle } from "@/components/features/MonthlyPlanningEditorV2";
 import type { RecordFormHandle } from "@/components/post/RecordForm";
-import type { ResultFormHandle } from "@/components/post/ResultForm";
 import { useCompetitionCatalog } from "@/components/post/use-competition-catalog";
 import type { TweetFormHandle } from "@/components/post/TweetForm";
 import { FormSkeleton } from "@/components/ui/page-skeletons";
@@ -142,7 +140,6 @@ function ContextualFAB({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [speedDialOpen, setSpeedDialOpen] = useState(false);
-  const systemGlass = useSystemGlass();
   const [recordOpen, setRecordOpen] = useState(false);
   const [tweetOpen, setTweetOpen] = useState(false);
   const [tweetInitialStory, setTweetInitialStory] = useState(false);
@@ -150,14 +147,22 @@ function ContextualFAB({
   const catalog = useCompetitionCatalog(resultOpen);
   const recordRef = useRef<RecordFormHandle>(null);
   const tweetRef = useRef<TweetFormHandle>(null);
-  const resultRef = useRef<ResultFormHandle>(null);
   const [recordDirty, setRecordDirty] = useState(false);
   const [tweetDirty, setTweetDirty] = useState(false);
-  const [resultDirty, setResultDirty] = useState(false);
-  const [pendingTimelineClose, setPendingTimelineClose] = useState<"record" | "tweet" | "result" | null>(null);
+  const [pendingTimelineClose, setPendingTimelineClose] = useState<"record" | "tweet" | null>(null);
+  const planningRef = useRef<MonthlyPlanningEditorHandle>(null);
+  const [planningDirty, setPlanningDirty] = useState(false);
   const [scheduleType, setScheduleType] = useState<
     Extract<ScheduleType, "practice" | "meet" | "time_trial">
   >("practice");
+  const [pendingScheduleType, setPendingScheduleType] = useState<typeof scheduleType | null>(null);
+  const planningDraft = useRef<Parameters<typeof useFormDraft>[0] | null>(null);
+  const [planningDraftFlags, setPlanningDraftFlags] = useState({ dirty: false, busy: false });
+  const onPlanningDraftChange = useCallback((draft: Parameters<typeof useFormDraft>[0] | null) => {
+    planningDraft.current = draft;
+    const next = { dirty: !!draft?.dirty, busy: !!draft?.busy };
+    setPlanningDraftFlags((current) => current.dirty === next.dirty && current.busy === next.busy ? current : next);
+  }, []);
   const [canEditArticles, setCanEditArticles] = useState(false);
   const [folderInfo, setFolderInfo] = useState<{
     scope: "shared" | "personal";
@@ -181,7 +186,6 @@ function ContextualFAB({
   const noteFolderMatch = pathname.match(/^\/notes\/([^/]+)$/);
   const noteId = noteFolderMatch?.[1] ?? null;
   const isNoteFolder = Boolean(noteId && canEditArticles);
-  const canCreateSubfolder = Boolean(isNoteFolder && folderInfo?.canManage && folderInfo.depth < 3);
   const visible = isFeed || isSchedule || isNotice || isNotesRoot || isNoteFolder;
 
   useEffect(() => {
@@ -237,20 +241,19 @@ function ContextualFAB({
       return;
     }
     if (isNoteFolder) {
-      setSpeedDialOpen((open) => !open);
+      // サブフォルダを作れる立場なら2択メニュー、そうでなければ従来どおり記事作成へ直行
+      if (isNoteFolder || (folderInfo?.canManage && folderInfo.depth < 3)) {
+        setSpeedDialOpen((open) => !open);
+      } else {
+        setDirectForm("article");
+      }
     }
   }
-
-  function openFeedForm(setOpen: (open: boolean) => void) {
-    setSpeedDialOpen(false);
-    setOpen(true);
-  }
-
 
   function closeTimelineForm(kind: "record" | "tweet" | "result") {
     if (kind === "record") { setRecordDirty(false); setRecordOpen(false); }
     if (kind === "tweet") { setTweetDirty(false); setTweetOpen(false); setTweetInitialStory(false); }
-    if (kind === "result") { setResultDirty(false); setResultOpen(false); }
+    if (kind === "result") setResultOpen(false);
     setPendingTimelineClose(null);
   }
 
@@ -259,7 +262,6 @@ function ContextualFAB({
     setPendingTimelineClose(null);
     if (kind === "record") recordRef.current?.save();
     if (kind === "tweet") tweetRef.current?.save();
-    if (kind === "result") resultRef.current?.save();
   }
 
   function handlePlanningSaved() {
@@ -270,6 +272,10 @@ function ContextualFAB({
 
   function closeDirectForm() {
     setScheduleType("practice");
+    setPlanningDirty(false);
+    setPendingScheduleType(null);
+    planningDraft.current = null;
+    setPlanningDraftFlags({ dirty: false, busy: false });
     setDirectForm(null);
     if (autoOpen) router.back();
   }
@@ -300,13 +306,13 @@ function ContextualFAB({
     { key: "folder", label: "フォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("folder") },
   ] : [
     { key: "article", label: "記事", icon: <NotebookPen size={21} />, onIntent: () => warmForm("article"), onSelect: () => setDirectForm("article") },
-    ...(canCreateSubfolder ? [{ key: "subfolder", label: "サブフォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("subfolder") }] : []),
+    { key: "subfolder", label: "サブフォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("subfolder") },
     { key: "thread", label: "スレッド", icon: <MessagesSquare size={21} />, onIntent: () => warmForm("thread"), onSelect: () => setDirectForm("thread") },
   ];
   const trigger = <button
           type="button"
           onPointerEnter={warmMainAction} onPointerDown={warmMainAction} onFocus={warmMainAction}
-          onClick={systemGlass && hasMenu ? undefined : handleMainAction}
+          onClick={hasMenu ? undefined : handleMainAction}
           aria-label={label}
           aria-expanded={isFeed || isNotesRoot || isNoteFolder ? speedDialOpen : undefined}
           className={floatingActionButtonClass}
@@ -332,100 +338,10 @@ function ContextualFAB({
         </button>;
   return (
     <>
-      {!systemGlass && (isFeed || isNotesRoot || isNoteFolder) && speedDialOpen && (
-        <button
-          type="button"
-          aria-label="作成メニューを閉じる"
-          className="fixed inset-0 z-30 bg-black/20"
-          onClick={() => setSpeedDialOpen(false)}
-        />
-      )}
 
       <FloatingActionPosition>
-        {!systemGlass && isFeed && speedDialOpen && (
-          <div data-glass-create-menu className="pointer-events-auto absolute right-5 bottom-[calc(142px+env(safe-area-inset-bottom))] w-[min(15rem,calc(100vw-2.5rem))] origin-bottom-right divide-y divide-separator/70 overflow-hidden rounded-card border border-separator bg-card shadow-xl lg:bottom-24 lg:right-8">
-            <SpeedDialAction
-              icon={<Activity size={19} />}
-              label="練習記録"
-              onClick={() => openFeedForm(setRecordOpen)}
-            />
-            <SpeedDialAction
-              icon={<MessageCircle size={19} />}
-              label="つぶやき"
-              onClick={() => {
-                setTweetInitialStory(false);
-                openFeedForm(setTweetOpen);
-              }}
-            />
-            <SpeedDialAction
-              icon={<ImagePlus size={19} />}
-              label="ストーリー"
-              onClick={() => {
-                setTweetInitialStory(true);
-                openFeedForm(setTweetOpen);
-              }}
-            />
-            <SpeedDialAction
-              icon={<Trophy size={19} />}
-              label="大会・記録会の結果"
-              onClick={() => openFeedForm(setResultOpen)}
-            />
-          </div>
-        )}
 
-        {!systemGlass && isNotesRoot && speedDialOpen && (
-          <div data-glass-create-menu className="pointer-events-auto absolute right-5 bottom-[calc(142px+env(safe-area-inset-bottom))] w-[min(15rem,calc(100vw-2.5rem))] origin-bottom-right divide-y divide-separator/70 overflow-hidden rounded-card border border-separator bg-card shadow-xl lg:bottom-24 lg:right-8">
-            <SpeedDialAction
-              icon={<FolderPlus size={19} />}
-              label="フォルダ"
-              onClick={() => {
-                setSpeedDialOpen(false);
-                setDirectForm("folder");
-              }}
-            />
-            {false && (
-            <SpeedDialAction
-              icon={<MessagesSquare size={19} />}
-              label="スレッド"
-              onClick={() => {
-                setSpeedDialOpen(false);
-                setDirectForm("thread");
-              }}
-            />
-            )}
-          </div>
-        )}
-
-        {!systemGlass && isNoteFolder && speedDialOpen && (
-          <div data-glass-create-menu className="pointer-events-auto absolute right-5 bottom-[calc(142px+env(safe-area-inset-bottom))] w-[min(15rem,calc(100vw-2.5rem))] origin-bottom-right divide-y divide-separator/70 overflow-hidden rounded-card border border-separator bg-card shadow-xl lg:bottom-24 lg:right-8">
-            <SpeedDialAction
-              icon={<NotebookPen size={19} />}
-              label="記事"
-              onClick={() => {
-                setSpeedDialOpen(false);
-                setDirectForm("article");
-              }}
-            />
-            {canCreateSubfolder && <SpeedDialAction
-              icon={<FolderPlus size={19} />}
-              label="サブフォルダ"
-              onClick={() => {
-                setSpeedDialOpen(false);
-                setDirectForm("subfolder");
-              }}
-            />}
-            <SpeedDialAction
-              icon={<MessagesSquare size={19} />}
-              label="スレッド"
-              onClick={() => {
-                setSpeedDialOpen(false);
-                setDirectForm("thread");
-              }}
-            />
-          </div>
-        )}
-
-        {systemGlass && hasMenu ? <GlassMenu open={speedDialOpen} onOpenChange={setSpeedDialOpen} label="作成メニュー" trigger={trigger} items={glassItems} placement="above" /> : trigger}
+        {hasMenu ? <GlassMenu open={speedDialOpen} onOpenChange={setSpeedDialOpen} label="作成メニュー" trigger={trigger} items={glassItems} placement="above" /> : trigger}
       </FloatingActionPosition>
 
       <FormModal open={recordOpen} onOpenChange={(open) => { if (!open) { if (recordDirty) setPendingTimelineClose("record"); else closeTimelineForm("record"); } }} title="練習記録">
@@ -448,34 +364,64 @@ function ContextualFAB({
 
       <FormModal
         open={resultOpen}
-        onOpenChange={(open) => { if (!open) { if (resultDirty) setPendingTimelineClose("result"); else closeTimelineForm("result"); } }}
+        onOpenChange={(open) => !open && closeTimelineForm("result")}
+        intent="post"
         title="大会・記録会の結果"
       >
-        <RefreshStatus failed={catalog.isError} busy={catalog.isLoading} hasData={catalog.hasData} label="種目・大会" retry={catalog.retry} />
-        {catalog.hasData && <ResultForm ref={resultRef} userId={userId} events={catalog.events} competitions={catalog.competitions} onDirtyChange={setResultDirty} onDone={() => closeTimelineForm("result")} />}
+        <ResultForm userId={userId} events={catalog.events} competitions={catalog.competitions} onDone={() => closeTimelineForm("result")} />
       </FormModal>
 
       <UnsavedChangesDialog open={pendingTimelineClose !== null} busy={false} intent="post" onContinue={() => setPendingTimelineClose(null)} onDiscard={() => { if (pendingTimelineClose) closeTimelineForm(pendingTimelineClose); }} onSave={savePendingTimelineForm} />
 
-      <FormModal open={directForm === "planning"} autoFocus={!systemGlass} onOpenChange={(open) => !open && closeDirectForm()} title="予定">
+      <FormModal open={directForm === "planning"} autoFocus={false} onOpenChange={(open) => !open && closeDirectForm()} title="予定" intent="save">
         <div className="space-y-5">
-          <PlanningTypePicker value={scheduleType} onChange={setScheduleType} />
+          <fieldset disabled={planningDraftFlags.busy}>
+            <SegmentedControl
+            items={[
+              { key: "practice", label: "練習" },
+              { key: "meet", label: "大会・行事" },
+              { key: "time_trial", label: "記録会" },
+            ]}
+            value={scheduleType}
+            onChange={(key) => {
+              const next = key as typeof scheduleType;
+              if (next === scheduleType || planningDraftFlags.busy) return;
+              if (planningDraftFlags.dirty || (scheduleType === "practice" && planningDirty)) setPendingScheduleType(next);
+              else setScheduleType(next);
+            }}
+          />
+          </fieldset>
           {scheduleType === "practice" ? (
-            <MonthlyPlanningEditorV2 userId={userId} initialTab="schedule" canSchedule={can.createSchedule} canMenu={can.createMenu} onSaved={handlePlanningSaved} />
+            <MonthlyPlanningEditorV2 ref={planningRef} initialTab="schedule" canSchedule={can.createSchedule} canMenu={can.createMenu} onDirtyChange={setPlanningDirty} onDraftChange={onPlanningDraftChange} onSaved={handlePlanningSaved} onClose={closeDirectForm} />
           ) : (
             <ScheduleForm
               key={scheduleType}
               initialType={scheduleType}
               showTypeSelector={false}
               onDone={handlePlanningSaved}
+              onDraftChange={onPlanningDraftChange}
             />
           )}
         </div>
       </FormModal>
+      <UnsavedChangesDialog
+        open={pendingScheduleType !== null}
+        busy={planningDraftFlags.busy}
+        intent="save"
+        onContinue={() => setPendingScheduleType(null)}
+        onDiscard={() => {
+          if (planningDraftFlags.busy || pendingScheduleType === null) return;
+          setScheduleType(pendingScheduleType); setPendingScheduleType(null);
+        }}
+        onSave={() => {
+          if (planningDraftFlags.busy) return;
+          setPendingScheduleType(null); void planningDraft.current?.onSave();
+        }}
+      />
 
       <FormModal
         open={directForm === "schedule"}
-        autoFocus={!systemGlass}
+        autoFocus={false}
         onOpenChange={(open) => !open && closeDirectForm()}
         title="予定"
       >
@@ -541,39 +487,4 @@ function ContextualFAB({
       </FormModal>
     </>
   );
-}
-
-function SpeedDialAction({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-3 whitespace-nowrap px-4 py-3 text-left text-[14px] font-semibold text-ink active:bg-bg"
-    >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
-        {icon}
-      </span>
-      {label}
-    </button>
-  );
-}
-
-function PlanningTypePicker({ value, onChange }: {
-  value: Extract<ScheduleType, "practice" | "meet" | "time_trial">;
-  onChange: (value: Extract<ScheduleType, "practice" | "meet" | "time_trial">) => void;
-}) {
-  const guardChange = useFormChangeGuard();
-  return <SegmentedControl
-    items={[{ key: "practice", label: "練習" }, { key: "meet", label: "大会・行事" }, { key: "time_trial", label: "記録会" }]}
-    value={value}
-    onChange={(next) => { if (next !== value) guardChange(() => onChange(next)); }}
-  />;
 }

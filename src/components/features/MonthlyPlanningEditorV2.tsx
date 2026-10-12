@@ -2,7 +2,7 @@
 
 import { MENU_DRAFT_VISIBILITY_DESCRIPTION } from "@/lib/menu-copy";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LoaderCircle, Save } from "lucide-react";
 import { PersonPicker } from "@/components/features/PersonPicker";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,9 @@ import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select } from "@/components/ui/select";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { Textarea } from "@/components/ui/textarea";
-import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
 import { BLOCKS, EDITABLE_BLOCK_ORDER } from "@/lib/constants";
-import { monthlyPlanningDraftKey, pendingPlanningDrafts } from "@/lib/monthly-planning-draft";
-import { savePlanningBatch } from "@/lib/monthly-planning-save";
 import type { AuthorMini, Block, PracticeMenu, PracticeSchedule, VenueRow } from "@/types";
 
 type ScheduleDraft = {
@@ -51,8 +47,7 @@ function hasMenuValue(draft?: MenuDraft) { return !!draft && [draft.content, dra
 
 export type MonthlyPlanningEditorHandle = { save: () => Promise<boolean> };
 
-export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, { userId: string; initialTab?: "schedule" | "menu"; canSchedule?: boolean; canMenu?: boolean; onDirtyChange?: (dirty: boolean) => void; onSaved?: () => void }>(function MonthlyPlanningEditorV2({ userId, initialTab = "schedule", canSchedule = true, canMenu = true, onDirtyChange, onSaved }, ref) {
-  const newUi = useSystemGlass();
+export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, { initialTab?: "schedule" | "menu"; canSchedule?: boolean; canMenu?: boolean; onDirtyChange?: (dirty: boolean) => void; onDraftChange?: (draft: Parameters<typeof useFormDraft>[0] | null) => void; onSaved?: () => void; onClose?: () => void }>(function MonthlyPlanningEditorV2({ initialTab = "schedule", canSchedule = true, canMenu = true, onDirtyChange, onDraftChange, onSaved, onClose }, ref) {
   const now = new Date();
   const [tab, setTab] = useState<"schedule" | "menu">(initialTab === "menu" && !canMenu ? "schedule" : initialTab === "schedule" && !canSchedule ? "menu" : initialTab);
   const [year, setYear] = useState(now.getFullYear());
@@ -68,9 +63,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   const [menuDrafts, setMenuDrafts] = useState<Record<string, MenuDraft>>({});
   const [rowStates, setRowStates] = useState<Record<string, RowState>>({});
   const [savingAll, setSavingAll] = useState(false);
-  const [loadingSchedules, setLoadingSchedules] = useState(true);
-  const [loadingMenus, setLoadingMenus] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [uncertainSave, setUncertainSave] = useState(false);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedDates, setExpandedDates] = useState<string[]>([]);
@@ -79,19 +72,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
 
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
   const activeScheduleScope: ScheduleScope = tab === "menu" ? (block === "short" ? "short" : "middle_long") : scheduleScope;
-  const localDraftKey = monthlyPlanningDraftKey(userId, monthKey, `${tab}:${activeScheduleScope}`, targetIds);
-  const [receivedDraftKey, setReceivedDraftKey] = useState(localDraftKey);
-  if (receivedDraftKey !== localDraftKey) {
-    setReceivedDraftKey(localDraftKey);
-    setSchedules({}); setScheduleDrafts({}); setMenuDrafts({}); setRowStates({}); setExpandedDates([]); setError(null);
-    setLoadingSchedules(true); setLoadingMenus(false); setLoadFailed(false);
-  }
-  const persistDrafts = useCallback(() => {
-    try {
-      localStorage.setItem(localDraftKey, JSON.stringify({ schedules: pendingPlanningDrafts(scheduleDrafts, rowStates, "schedule"), menus: pendingPlanningDrafts(menuDrafts, rowStates, "menu") }));
-      return true;
-    } catch { setError("入力内容を端末に保持できませんでした。この画面で保存してから切り替えてください"); return false; }
-  }, [localDraftKey, scheduleDrafts, menuDrafts, rowStates]);
+  const localDraftKey = `track-app:monthly-planner:${monthKey}:${activeScheduleScope}`;
   const days = useMemo(() => Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => {
     const date = `${monthKey}-${String(index + 1).padStart(2, "0")}`;
     return { date, day: index + 1, weekday: WEEKDAYS[new Date(year, month - 1, index + 1).getDay()] };
@@ -109,7 +90,6 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       supabase.from("venues").select("*").order("pinned", { ascending: false }).order("sort"),
     ]).then(([scheduleResult, memberResult, venueResult]) => {
       if (!active) return;
-      if (scheduleResult.error || memberResult.error || venueResult.error) throw new Error("月次入力の情報を読み込めませんでした。画面を開き直してください");
       const allRows = (scheduleResult.data ?? []) as PracticeSchedule[];
       const rows = activeScheduleScope === "all"
         ? allRows.filter((row) => row.target_blocks.length === 0)
@@ -124,17 +104,13 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       rows.forEach((row) => { byDate[row.schedule_date] = row; drafts[row.schedule_date] = { id: row.id, time: row.meeting_time?.slice(0, 5) ?? "", venue: row.venue_name ?? row.location ?? "", note: row.note ?? "", scope: scopeOf(row.target_blocks) }; });
       const local = readStored<{ schedules?: Record<string, ScheduleDraft> }>(localDraftKey, {});
       setSchedules(byDate); setScheduleDrafts({ ...drafts, ...(local.schedules ?? {}) });
-      setLoadingMenus(rows.length > 0 && canMenu && tab === "menu");
-      setRowStates((current) => ({ ...current, ...Object.fromEntries(Object.keys(local.schedules ?? {}).map((date) => [stateKey("schedule", date), "dirty" as const])) }));
       setMembers((memberResult.data ?? []) as AuthorMini[]); setVenues((venueResult.data ?? []) as VenueRow[]);
-    }).catch(() => { if (active) { setLoadFailed(true); setError("月次入力の情報を読み込めませんでした。画面を開き直してください"); } })
-      .finally(() => { if (active) setLoadingSchedules(false); });
+    });
     return () => { active = false; };
-  }, [activeScheduleScope, localDraftKey, month, monthKey, year, canMenu, tab]);
+  }, [activeScheduleScope, localDraftKey, month, monthKey, year]);
 
   useEffect(() => {
     let active = true;
-    if (!canMenu || tab !== "menu") return;
     const scheduleRows = Object.values(schedules);
     const scheduleIds = scheduleRows.map((schedule) => schedule.id);
     if (!scheduleIds.length) return;
@@ -143,8 +119,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       const drafts: Record<string, MenuDraft> = {};
       if (sheetBackedCommonMenu) {
         const response = await fetch(`/api/middle-long-menus?months=${month}`, { cache: "no-store" });
-        if (!response.ok) throw new Error("menu_load_failed");
-        {
+        if (response.ok) {
           const snapshot = await response.json() as {
             rows: Array<{
               exactDate: string | null;
@@ -172,12 +147,11 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
           }
         }
       } else {
-        const { data, error: menuError } = await createClient()
+        const { data } = await createClient()
           .from("practice_menus")
           .select("*, targets:practice_menu_targets(user_id)")
           .in("schedule_id", scheduleIds)
           .eq("target_block", block);
-        if (menuError) throw new Error("menu_load_failed");
         const dateById = new Map(scheduleRows.map((schedule) => [schedule.id, schedule.schedule_date]));
         for (const menu of (data ?? []) as PracticeMenu[]) {
           const targets = menu.targets?.map((target) => target.user_id) ?? [];
@@ -196,7 +170,6 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       if (!active) return;
       const local = readStored<{ menus?: Record<string, MenuDraft> }>(localDraftKey, {});
       setMenuDrafts({ ...drafts, ...(local.menus ?? {}) });
-      setRowStates((current) => ({ ...current, ...Object.fromEntries(Object.keys(local.menus ?? {}).map((date) => [stateKey("menu", date), "dirty" as const])) }));
       if (sheetBackedCommonMenu) {
         setExpandedDates(Object.entries(drafts)
           .filter(([, draft]) => !!(draft.pace || draft.remark || draft.supplement))
@@ -204,23 +177,18 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       }
     }
 
-    void loadMenus().catch(() => { if (active) { setLoadFailed(true); setError("メニューを読み込めませんでした。画面を開き直してください"); } })
-      .finally(() => { if (active) setLoadingMenus(false); });
+    void loadMenus();
     return () => { active = false; };
-  }, [block, localDraftKey, month, schedules, sheetBackedCommonMenu, targetIds, canMenu, tab]);
+  }, [block, localDraftKey, month, schedules, sheetBackedCommonMenu, targetIds]);
   useEffect(() => {
-    if (loadingSchedules || loadingMenus || !Object.values(rowStates).some((state) => state === "dirty" || state === "error")) return;
+    if (!Object.values(rowStates).some((state) => state === "dirty" || state === "error")) return;
     const timer = window.setTimeout(() => {
-      persistDrafts();
+      localStorage.setItem(localDraftKey, JSON.stringify({ schedules: scheduleDrafts, menus: menuDrafts }));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [persistDrafts, rowStates, loadingSchedules, loadingMenus]);
+  }, [localDraftKey, menuDrafts, rowStates, scheduleDrafts]);
 
-  function changeContext(apply: () => void) {
-    if (savingAll || (hasDirtyChanges && !persistDrafts())) return;
-    apply();
-  }
-  function moveMonth(delta: number) { changeContext(() => { const next = new Date(year, month - 1 + delta, 1); setYear(next.getFullYear()); setMonth(next.getMonth() + 1); }); }
+  function moveMonth(delta: number) { const next = new Date(year, month - 1 + delta, 1); setYear(next.getFullYear()); setMonth(next.getMonth() + 1); setRowStates({}); setMenuDrafts({}); }
   function stateKey(kind: "schedule" | "menu", date: string) { return `${kind}:${date}`; }
   function markDirty(kind: "schedule" | "menu", date: string) { setRowStates((current) => ({ ...current, [stateKey(kind, date)]: "dirty" })); }
   function updateSchedule(date: string, patch: Partial<ScheduleDraft>) { setScheduleDrafts((current) => ({ ...current, [date]: { id: current[date]?.id, time: current[date]?.time ?? "", venue: current[date]?.venue ?? "", note: current[date]?.note ?? "", scope: current[date]?.scope, ...patch } })); markDirty("schedule", date); }
@@ -230,16 +198,31 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
     const draft = scheduleDrafts[date]; if (!isScheduleSavable(draft)) return schedules[date] ?? null;
     if (!canSchedule) return null;
     setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "saving" }));
-    const supabase = createClient(); const currentUserId = await getCurrentUserId(supabase); if (!currentUserId || currentUserId !== userId) { setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" })); return null; }
+    const supabase = createClient();
+    let userId: string | null;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      userId = authError ? null : user?.id ?? null;
+    } catch { userId = null; }
+    if (!userId) {
+      setError("ログインを確認できませんでした。もう一度お試しください");
+      setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" }));
+      return null;
+    }
     const scope = draft.scope ?? activeScheduleScope;
     // 対象を付け替えるときは、移動先に同じ日の予定が既にないか確かめる（同じ対象の重複を作らない）。
     if (draft.id && scope !== scopeOf(schedules[date]?.target_blocks ?? [])) {
-      const { data: sameDay, error: sameDayError } = await supabase
+      const check = await supabase
         .from("practice_schedules")
         .select("id,target_blocks")
-        .eq("schedule_date", date);
-      if (sameDayError) { setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" })); return null; }
-      const clash = (sameDay ?? []).some(
+        .eq("schedule_date", date)
+        .then((result) => result, () => ({ data: null, error: true }));
+      if (check.error || !check.data) {
+        setError("移動先の予定を確認できませんでした。もう一度お試しください");
+        setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" }));
+        return null;
+      }
+      const clash = check.data.some(
         (row) => row.id !== draft.id && scopeOf(row.target_blocks as Block[]) === scope,
       );
       if (clash) {
@@ -250,25 +233,31 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
     }
     const payload = { schedule_date: date, schedule_type: "practice", meeting_time: draft.time || null, venue_name: draft.venue || null, note: draft.note || null, target_blocks: blocksOf(scope) };
     const result = draft.id ? await supabase.from("practice_schedules").update(payload).eq("id", draft.id).select("*").single() : await supabase.from("practice_schedules").insert({ ...payload, created_by: userId }).select("*").single();
-    if (result.error || !result.data) { setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" })); return null; }
+    if ((result.error && !result.error.code) || (!result.error && !result.data)) throw new Error("Schedule save result unknown");
+    if (result.error) { setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" })); return null; }
     const saved = result.data as PracticeSchedule; setSchedules((current) => ({ ...current, [date]: saved })); setScheduleDrafts((current) => ({ ...current, [date]: { ...current[date], id: saved.id, scope: scopeOf(saved.target_blocks) } })); setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "saved" })); return saved;
   }
 
   async function ensureSchedule(date: string): Promise<PracticeSchedule | null> {
     if (schedules[date]) return schedules[date];
-    // A failed save may already have committed. Never substitute a second, blank insert.
+    // 入力した予定の保存が拒否・不明なら、別の新規作成へ進めない。
     if (isScheduleSavable(scheduleDrafts[date])) return saveSchedule(date);
-    if (!canSchedule) return null;
     const supabase = createClient();
-    const userId = await getCurrentUserId(supabase); if (!userId) return null;
+    let userId: string | null;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      userId = authError ? null : user?.id ?? null;
+    } catch { userId = null; }
+    if (!userId) return null;
     const targetBlock = tab === "menu" ? block : scheduleScope;
-    const { data } = await supabase.from("practice_schedules").insert({
+    const { data, error: createError } = await supabase.from("practice_schedules").insert({
       schedule_date: date,
       schedule_type: "practice",
       created_by: userId,
       target_blocks: targetBlock === "all" ? [] : [targetBlock],
     }).select("*").single();
-    if (!data) return null;
+    if ((createError && !createError.code) || (!createError && !data)) throw new Error("Schedule creation result unknown");
+    if (createError || !data) return null;
     const schedule = data as PracticeSchedule; setSchedules((current) => ({ ...current, [date]: schedule })); return schedule;
   }
 
@@ -295,6 +284,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
         }),
       });
       if (!response.ok) {
+        if (response.status >= 500) throw new Error("Menu save result unknown");
         setRowStates((current) => ({ ...current, [stateKey("menu", date)]: "error" }));
         return false;
       }
@@ -313,6 +303,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       menu_remark: draft.remark.trim() || undefined,
       menu_supplement: targetIds.length === 0 ? draft.supplement.trim() || undefined : undefined,
     });
+    if ((saveError && !saveError.code) || (!saveError && typeof data !== "string")) throw new Error("Menu save result unknown");
     if (saveError) {
       setRowStates((current) => ({ ...current, [stateKey("menu", date)]: "error" }));
       return false;
@@ -322,25 +313,38 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
     return true;
   }
   async function saveAll(): Promise<boolean> {
-    if (savingAll || loadingSchedules || loadingMenus || loadFailed) return false;
+    if (savingAll || uncertainSave) return false;
     setSavingAll(true); setError(null);
-    const scheduleDates = days.map((day) => day.date).filter((date) => ["dirty", "error"].includes(rowStates[stateKey("schedule", date)]) && isScheduleSavable(scheduleDrafts[date]));
-    const menuDates = days.map((day) => day.date).filter((date) => ["dirty", "error"].includes(rowStates[stateKey("menu", date)]) && (sheetBackedCommonMenu || hasMenuValue(menuDrafts[date])));
     try {
-    const failed = await savePlanningBatch({
-      scheduleDates, menuDates, saveSchedule, saveMenu,
-      markMenuFailed: (date) => setRowStates((current) => ({ ...current, [stateKey("menu", date)]: "error" })),
-    });
-    if (failed) setError(`${failed}件を保存できませんでした。赤い行を確認してください。`);
-    else { localStorage.removeItem(localDraftKey); }
-    return failed === 0;
+      const needsSave = (key: string) => rowStates[key] === "dirty" || rowStates[key] === "error";
+      const scheduleDates = days.map((day) => day.date).filter((date) => needsSave(stateKey("schedule", date)) && isScheduleSavable(scheduleDrafts[date]));
+      const menuDates = days.map((day) => day.date).filter((date) => needsSave(stateKey("menu", date)) && (sheetBackedCommonMenu || hasMenuValue(menuDrafts[date])));
+      const selectedKeys = new Set([...scheduleDates.map((date) => stateKey("schedule", date)), ...menuDates.map((date) => stateKey("menu", date))]);
+      const excludedKeys = Object.keys(rowStates).filter((key) => needsSave(key) && !selectedKeys.has(key));
+      let failed = excludedKeys.length;
+      if (excludedKeys.length) setRowStates((current) => ({ ...current, ...Object.fromEntries(excludedKeys.map((key) => [key, "error" as const])) }));
+      const failedScheduleDates = new Set<string>();
+      const savedSchedules = new Map<string, PracticeSchedule>();
+      for (const date of scheduleDates) {
+        const saved = await saveSchedule(date);
+        if (!saved) { failed++; failedScheduleDates.add(date); }
+        else savedSchedules.set(date, saved);
+      }
+      for (const date of menuDates) {
+        // 同じ一括保存内で予定保存が失敗した行をもう一度送らない。
+        if (failedScheduleDates.has(date) || !await saveMenu(date, savedSchedules.get(date))) failed++;
+      }
+      if (failed) setError(`${failed}件を保存できませんでした。赤い行を確認してください。`);
+      else { localStorage.removeItem(localDraftKey); }
+      return failed === 0;
     } catch {
-      setRowStates((current) => Object.fromEntries(Object.entries(current).map(([key, value]) => [key, value === "saving" ? "error" : value])));
-      setError("保存結果を確認できませんでした。入力を残して、画面を開き直して確認してください");
+      setUncertainSave(true);
+      setRowStates((current) => Object.fromEntries(Object.entries(current).map(([key, state]) => [key, state === "saving" ? "error" : state])));
       return false;
-    } finally { setSavingAll(false); }
+    } finally {
+      setSavingAll(false);
+    }
   }
-
 
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const visibleDays = (tab === "menu"
@@ -355,20 +359,26 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   });
   const dirtyCount = Object.values(rowStates).filter((state) => state === "dirty" || state === "error").length;
   const hasDirtyChanges = dirtyCount > 0;
-  useFormDraft({ dirty: hasDirtyChanges, busy: savingAll, onSave: async () => { if (await saveAll()) onSaved?.(); }, intent: "save" });
   useEffect(() => { onDirtyChange?.(hasDirtyChanges); }, [hasDirtyChanges, onDirtyChange]);
   useImperativeHandle(ref, () => ({ save: saveAll }));
+  const saveBatch = saveAll;
+  const busy = savingAll || uncertainSave;
+  useFormDraft({ dirty: hasDirtyChanges, busy, onSave: async () => { if (await saveBatch()) onSaved?.(); } });
+  useEffect(() => {
+    onDraftChange?.({ dirty: hasDirtyChanges, busy, onSave: async () => { if (await saveBatch()) onSaved?.(); } });
+  }, [onDraftChange, hasDirtyChanges, busy, saveBatch, onSaved]);
+  useEffect(() => () => onDraftChange?.(null), [onDraftChange]);
   function isExpanded(date: string) { return expandedDates.includes(date); }
   function toggleExpanded(date: string) { setExpandedDates((current) => current.includes(date) ? current.filter((item) => item !== date) : [...current, date]); }
 
-  return <fieldset disabled={savingAll || loadingSchedules || loadingMenus || loadFailed} className="min-w-0 space-y-4">
-    {tab === "schedule" && <SegmentedControl items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]} value={scheduleScope} onChange={(value) => { if (value !== scheduleScope) changeContext(() => setScheduleScope(value as ScheduleScope)); }} />}
-    <SegmentedControl items={[...(canSchedule ? [{ key: "schedule", label: "予定" }] : []), ...(canMenu ? [{ key: "menu", label: "メニュー" }] : [])]} value={tab} onChange={(value) => { if (value !== tab) changeContext(() => setTab(value as "schedule" | "menu")); }} />
-    <div className="flex items-center justify-between rounded-xl bg-bg px-2 py-1"><button data-ui-action="icon" type="button" aria-label="前の月" onClick={() => moveMonth(-1)} className={newUi ? "flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent" : "p-2"}><ChevronLeft aria-hidden="true" /></button><strong>{year}年{month}月</strong><button data-ui-action="icon" type="button" aria-label="次の月" onClick={() => moveMonth(1)} className={newUi ? "flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent" : "p-2"}><ChevronRight aria-hidden="true" /></button></div>
+  return <div className="space-y-4"><fieldset disabled={busy} className="min-w-0 space-y-4">
+    {tab === "schedule" && <SegmentedControl items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]} value={scheduleScope} onChange={(value) => { if (hasDirtyChanges) localStorage.setItem(localDraftKey, JSON.stringify({ schedules: scheduleDrafts, menus: menuDrafts })); setScheduleScope(value as ScheduleScope); setSchedules({}); setScheduleDrafts({}); setRowStates({}); }} />}
+    <SegmentedControl items={[...(canSchedule ? [{ key: "schedule", label: "予定" }] : []), ...(canMenu ? [{ key: "menu", label: "メニュー" }] : [])]} value={tab} onChange={(value) => setTab(value as "schedule" | "menu")} />
+    <div className="flex items-center justify-between rounded-xl bg-bg px-2 py-1"><button data-ui-action="icon" type="button" aria-label="前の月" onClick={() => moveMonth(-1)} className="flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent"><ChevronLeft aria-hidden="true" /></button><strong>{year}年{month}月</strong><button data-ui-action="icon" type="button" aria-label="次の月" onClick={() => moveMonth(1)} className="flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent"><ChevronRight aria-hidden="true" /></button></div>
     <div className="flex items-center justify-between gap-3">{tab === "schedule" ? <SegmentedControl className="w-52" items={[{ key: "all", label: "すべての日" }, { key: "active", label: "予定あり" }]} value={showActiveOnly ? "active" : "all"} onChange={(value) => setShowActiveOnly(value === "active")} /> : <span className="text-xs text-muted">予定がある日のみ表示</span>}<span className="shrink-0 text-xs text-muted">変更 {dirtyCount}件</span></div>
     {tab === "menu" && <div className="space-y-3 rounded-xl border border-separator bg-card p-3">
-      <Select value={block} onValueChange={(value) => { if (value !== block) changeContext(() => setBlock(value as Block)); }} ariaLabel="ブロック" options={EDITABLE_BLOCK_ORDER.map((item) => ({ value: item, label: BLOCKS[item].label }))} />
-      <PersonPicker people={members} value={targetIds} onChange={(ids) => { if ([...ids].sort().join(",") !== [...targetIds].sort().join(",")) changeContext(() => setTargetIds(ids)); }} label="個人指定（空ならブロック全体）" />
+      <Select value={block} onValueChange={(value) => setBlock(value as Block)} ariaLabel="ブロック" options={EDITABLE_BLOCK_ORDER.map((item) => ({ value: item, label: BLOCKS[item].label }))} />
+      <PersonPicker people={members} value={targetIds} onChange={setTargetIds} label="個人指定（空ならブロック全体）" />
       {sheetBackedCommonMenu ? (
         <p className="rounded-xl bg-accent/5 px-3 py-2 text-xs text-muted">
           中長距離のブロック全体メニューは、GASを通して月別スプレッドシートへ保存します。
@@ -441,8 +451,16 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       )}
     </section>)}</div>
     {error && <p className="text-center text-caption text-danger">{error}</p>}
-    <FormModalFooter><Button size="lg" className={`w-full ${savingAll ? "opacity-100" : ""}`} disabled={savingAll || loadingSchedules || loadingMenus || loadFailed || dirtyCount === 0} onClick={() => { void saveAll().then((ok) => { if (ok) onSaved?.(); }); }}>{savingAll ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : <><Save size={17} />変更をまとめて保存（{dirtyCount}件）</>}</Button></FormModalFooter>
-  </fieldset>;
+    <FormModalFooter><Button size="lg" className={`w-full ${savingAll ? "opacity-100" : ""}`} disabled={busy || dirtyCount === 0} onClick={() => { void saveAll().then((ok) => { if (ok) onSaved?.(); }); }}>{savingAll ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : <><Save size={17} />変更をまとめて保存（{dirtyCount}件）</>}</Button></FormModalFooter>
+    </fieldset>
+    {uncertainSave && <div role="alert" className="space-y-2 text-caption text-danger">
+      <p>保存結果を確認できませんでした。予定一覧の予定とメニューを確認してください</p>
+      <Button type="button" variant="outline" asChild><a href="/schedule" target="_blank" rel="noreferrer">予定一覧を確認</a></Button>
+      <Button type="button" variant="outline" onClick={() => {
+        localStorage.removeItem(localDraftKey); setRowStates({}); setUncertainSave(false); onClose?.();
+      }}>結果を確認して、今回の入力を終了</Button>
+    </div>}
+  </div>;
 });
 
 function RowStatus({ state }: { state?: RowState }) {

@@ -8,7 +8,6 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { FormModal } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
-import { safeDelete, safeUpdate } from "@/lib/safe-update";
 import type { AuthorMini, NoteArticleWithAuthor } from "@/types";
 
 export function NoteArticleActions({
@@ -29,20 +28,34 @@ export function NoteArticleActions({
   const [editing, setEditing] = useState(false);
 
   async function remove() {
-    const supabase = createClient();
-    const result = await safeDelete(supabase, "note_articles", { id: article.id, note_id: noteId });
-    if (!result.ok) {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("note_articles")
+        .delete()
+        .eq("id", article.id)
+        .eq("note_id", noteId)
+        .select("id");
+      if (error || !data || data.length !== 1) {
+        showToast("記事を削除できませんでした");
+        return false;
+      }
+      router.push(`/notes/${noteId}`);
+      router.refresh();
+      return true;
+    } catch {
       showToast("記事を削除できませんでした");
       return false;
     }
-    router.push(`/notes/${noteId}`);
-    router.refresh();
-    return true;
   }
 
   async function togglePin() {
-    const result = await safeUpdate(createClient(), "note_articles", { pinned: !article.pinned }, { id: article.id, note_id: noteId });
-    if (!result.ok) {
+    const { error } = await createClient()
+      .from("note_articles")
+      .update({ pinned: !article.pinned })
+      .eq("id", article.id)
+      .eq("note_id", noteId);
+    if (error) {
       showToast("\u30d4\u30f3\u7559\u3081\u3092\u5909\u66f4\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f");
       return;
     }

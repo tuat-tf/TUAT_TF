@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form-modal";
+import { FormDraftGuard, FormModal, FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { useToast } from "@/components/ui/toast";
@@ -19,8 +19,6 @@ import {
   type RecordFormat,
 } from "@/lib/competition-record";
 import type { CompetitionEvent } from "@/lib/competition-goals";
-import { saveCompetitionOrder } from "@/lib/competition-order";
-import { safeDelete } from "@/lib/safe-update";
 
 const selectClass =
   "w-full rounded-xl border border-separator bg-card p-3 text-base";
@@ -42,10 +40,6 @@ export function CompetitionEventManager({
   const { showToast } = useToast();
   const [items, setItems] = useState(initial);
   const [pending, setPending] = useState(unregistered);
-  const [receivedInitial, setReceivedInitial] = useState(initial);
-  const [receivedUnregistered, setReceivedUnregistered] = useState(unregistered);
-  if (receivedInitial !== initial) { setReceivedInitial(initial); setItems(initial); }
-  if (receivedUnregistered !== unregistered) { setReceivedUnregistered(unregistered); setPending(unregistered); }
   const [editing, setEditing] = useState<CompetitionEvent | null>(null);
   const [creating, setCreating] = useState(false);
   const [merging, setMerging] = useState<{ name: string; count: number } | null>(
@@ -54,70 +48,177 @@ export function CompetitionEventManager({
   const [mergeTo, setMergeTo] = useState("");
   const [busy, setBusy] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
+  const [reviewRequired, setReviewRequired] = useState(false);
+  const [operationError, setOperationError] = useState<string | null>(null);
+  const [catalogToCheck, setCatalogToCheck] = useState<CompetitionEvent | null>(null);
+  const [catalogRetryAllowed, setCatalogRetryAllowed] = useState(false);
 
   /** ドラッグした順に 10 刻みで振り直す（数字を手で入れなくてよいように） */
   async function reorder(next: CompetitionEvent[]) {
-    if (busy) return;
-    setBusy(true);
+    if (busy || reviewRequired) return;
+    const previous = items;
     const renumbered = next.map((e, index) => ({ ...e, sort_order: (index + 1) * 10 }));
+    setBusy(true);
     setItems(renumbered);
-    const saved = await saveCompetitionOrder(createClient(), "competition_events", next.map((row) => row.name));
+    const supabase = createClient();
+    const results = await Promise.allSettled(renumbered.map(async (event) =>
+      supabase.from("competition_events")
+        .update({ sort_order: event.sort_order })
+        .eq("name", event.name)
+        .select("name"),
+    ));
     setBusy(false);
-    if (!saved) showToast("一部の並び順を保存できませんでした。更新後の一覧を確認してください");
+    if (results.some(result => result.status === "rejected" || result.value.error || result.value.data?.length !== 1)) {
+      setItems(previous);
+      setReviewRequired(true);
+      setOperationError("並び順をすべて保存できたか確認できませんでした。画面を再読み込みして確認してください");
+      router.refresh();
+      return;
+    }
     router.refresh();
   }
 
   async function remove(event: CompetitionEvent) {
-    const result = await safeDelete(createClient(), "competition_events", { name: event.name });
-    if (!result.ok) {
-      showToast("目標が登録されている種目は削除できません");
+    if (busy || reviewRequired) return false;
+    try {
+      const { data, error } = await createClient()
+        .from("competition_events")
+        .delete()
+        .eq("name", event.name)
+        .select("name");
+      if (error || !data || data.length !== 1) {
+        showToast(error?.code === "23503" ? "目標が登録されている種目は削除できません" : "種目を削除できませんでした");
+        return false;
+      }
+      setItems((old) => old.filter((e) => e.name !== event.name));
+      router.refresh();
+      return true;
+    } catch {
+      showToast("種目を削除できませんでした");
       return false;
     }
-    setItems((old) => old.filter((e) => e.name !== event.name));
-    router.refresh();
-    return true;
   }
 
   async function addToCatalog(name: string) {
+    if (busy || reviewRequired) return;
     setBusy(true);
-    const { data, error } = await createClient()
-      .from("competition_events")
-      .insert({
-        name,
-        sort_order: Math.max(0, ...items.map((e) => e.sort_order)) + 10,
-        measure_type: "time",
-        time_format: "minutes",
-      })
-      .select("name,sort_order,measure_type,time_format")
-      .single();
-    setBusy(false);
-    if (error || !data) {
-      showToast("種目を追加できませんでした");
-      return;
+    const submitted: CompetitionEvent = { name, sort_order: Math.max(0, ...items.map((e) => e.sort_order)) + 10, measure_type: "time", time_format: "minutes" };
+    try {
+      const { data, error } = await createClient()
+        .from("competition_events")
+        .insert(submitted)
+        .select("name,sort_order,measure_type,time_format")
+        .single();
+      if (error || !data) {
+        if (!error?.code) {
+          setCatalogToCheck(submitted);
+          setReviewRequired(true);
+          setOperationError("種目を追加できたか確認できませんでした。保存結果を確認してください");
+        } else showToast("種目を追加できませんでした");
+        return;
+      }
+      setItems((old) => [...old, data as CompetitionEvent]);
+      setPending((old) => old.filter((e) => e.name !== name));
+      showToast("種目を追加しました。記録の測り方を確認してください", "success");
+      router.refresh();
+    } catch {
+      setCatalogToCheck(submitted);
+      setReviewRequired(true);
+      setOperationError("種目を追加できたか確認できませんでした。保存結果を確認してください");
+    } finally {
+      setBusy(false);
     }
-    setItems((old) => [...old, data as CompetitionEvent]);
-    setPending((old) => old.filter((e) => e.name !== name));
-    showToast("種目を追加しました。記録の測り方を確認してください", "success");
-    router.refresh();
   }
 
-  async function mergeInto(from: string, to: string) {
+  async function checkCatalogSave() {
+    if (!catalogToCheck || busy) return;
     setBusy(true);
-    const { data, error } = await createClient()
-      .from("pb_records")
-      .update({ event_name: to })
-      .eq("event_name", from)
-      .select("id");
-    setBusy(false);
-    if (error || !data) {
-      showToast("種目名をまとめられませんでした");
-      return;
+    setCatalogRetryAllowed(false);
+    try {
+      const { data, error } = await createClient().from("competition_events")
+        .select("name,sort_order,measure_type,time_format").eq("name", catalogToCheck.name).maybeSingle();
+      if (!error && !data) {
+        setCatalogRetryAllowed(true);
+        setOperationError("保存結果を確認できませんでした。同じ内容で保存を試すこともできます");
+        return;
+      }
+      if (error || !data || !Object.entries(catalogToCheck).every(([key, value]) => data[key as keyof CompetitionEvent] === value)) {
+        setOperationError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+        return;
+      }
+      setItems((old) => [...old.filter(event => event.name !== data.name), data]);
+      setPending((old) => old.filter(event => event.name !== data.name));
+      setCatalogToCheck(null);
+      setReviewRequired(false);
+      setOperationError(null);
+      router.refresh();
+    } catch {
+      setOperationError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } finally { setBusy(false); }
+  }
+
+  async function retryCatalogSave() {
+    if (busy || !catalogRetryAllowed || !catalogToCheck) return;
+    setBusy(true);
+    setCatalogRetryAllowed(false);
+    try {
+      const { data, error } = await createClient().from("competition_events")
+        .insert(catalogToCheck).select("name,sort_order,measure_type,time_format").single();
+      if (error || !data) {
+        setOperationError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+        return;
+      }
+      setItems((old) => [...old.filter(event => event.name !== data.name), data]);
+      setPending((old) => old.filter(event => event.name !== data.name));
+      setCatalogToCheck(null);
+      setReviewRequired(false);
+      setOperationError(null);
+      router.refresh();
+    } catch {
+      setOperationError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+    } finally { setBusy(false); }
+  }
+
+  async function mergeInto(from: string, to: string, expected: number) {
+    if (busy || reviewRequired || !to) return;
+    setBusy(true);
+    setOperationError(null);
+    let writing = false;
+    try {
+      const supabase = createClient();
+      const { count, error: countError } = await supabase.from("pb_records")
+        .select("id", { count: "exact", head: true }).eq("event_name", from);
+      if (countError || count === null) {
+        setOperationError("記録の件数を確認できませんでした。もう一度お試しください");
+        return;
+      }
+      if (count !== expected || expected === 0) {
+        setReviewRequired(true);
+        setOperationError("記録の件数が変わっています。画面を再読み込みして確認してください");
+        return;
+      }
+      writing = true;
+      const { data, error } = await supabase.from("pb_records")
+        .update({ event_name: to }).eq("event_name", from).select("id");
+      if (error || !data || data.length !== expected) {
+        setReviewRequired(true);
+        setOperationError("種目名をすべて変更できたか確認できませんでした。画面を再読み込みして確認してください");
+        router.refresh();
+        return;
+      }
+      setPending((old) => old.filter((e) => e.name !== from));
+      setMerging(null);
+      setMergeTo("");
+      showToast(`${data.length}件の記録を「${to}」に統一しました`, "success");
+      router.refresh();
+    } catch {
+      setReviewRequired(writing);
+      setOperationError(writing
+        ? "種目名を変更できたか確認できませんでした。画面を再読み込みして確認してください"
+        : "記録の件数を確認できませんでした。もう一度お試しください");
+    } finally {
+      setBusy(false);
     }
-    setPending((old) => old.filter((e) => e.name !== from));
-    setMerging(null);
-    setMergeTo("");
-    showToast(`${data.length}件の記録を「${to}」に統一しました`, "success");
-    router.refresh();
   }
 
   return (
@@ -125,6 +226,10 @@ export function CompetitionEventManager({
       <p className="text-caption">
         ここに登録した種目が、結果と目標の選択肢になります。種目名を変えると、登録済みの結果と目標の表記もまとめて変わります。
       </p>
+      {!merging && operationError && <p role="alert" className="text-caption text-danger">{operationError}</p>}
+      {!merging && reviewRequired && (catalogToCheck
+        ? <div className="space-y-2"><Button variant="outline" disabled={busy} onClick={() => void checkCatalogSave()}>保存結果を確認</Button>{catalogRetryAllowed && <Button disabled={busy} onClick={() => void retryCatalogSave()}>同じ内容で保存する</Button>}</div>
+        : <Button variant="outline" onClick={() => window.location.reload()}>画面を再読み込み</Button>)}
 
       {pending.length > 0 && (
         <section className="space-y-2">
@@ -139,7 +244,7 @@ export function CompetitionEventManager({
                 <Button
                   size="sm"
                   variant="secondary"
-                  disabled={busy}
+                  disabled={busy || reviewRequired}
                   onClick={() => void addToCatalog(e.name)}
                 >
                   種目に追加
@@ -147,7 +252,7 @@ export function CompetitionEventManager({
                 <Button
                   size="sm"
                   variant="ghost"
-                  disabled={busy || items.length === 0}
+                  disabled={busy || reviewRequired || items.length === 0}
                   onClick={() => {
                     setMerging(e);
                     setMergeTo("");
@@ -168,7 +273,7 @@ export function CompetitionEventManager({
             type="button"
             size="sm"
             variant={reorderMode ? "primary" : "outline"}
-            disabled={busy || items.length < 2}
+            disabled={busy || reviewRequired || items.length < 2}
             onClick={() => setReorderMode((value) => !value)}
           >
             <SlidersHorizontal size={16} />
@@ -177,7 +282,7 @@ export function CompetitionEventManager({
         </div>
         <ReorderList
           items={items.map((e) => ({ ...e, id: e.name }))}
-          enabled={reorderMode && !busy}
+          enabled={reorderMode && !busy && !reviewRequired}
           onReorder={(next) =>
             void reorder(
               next.map(({ name, sort_order, measure_type, time_format }) => ({
@@ -199,6 +304,7 @@ export function CompetitionEventManager({
                 </div>
                 {!reorderMode && (
                   <ActionMenu
+                    disabled={busy || reviewRequired}
                     onEdit={() => setEditing(e)}
                     onDelete={() => remove(e)}
                     deleteTitle={`「${e.name}」を削除しますか？`}
@@ -215,6 +321,7 @@ export function CompetitionEventManager({
       <Button
         variant="outline"
         size="lg"
+        disabled={busy || reviewRequired}
         onClick={() => setCreating(true)}
         className="gap-2"
       >
@@ -257,7 +364,10 @@ export function CompetitionEventManager({
           onOpenChange={(open) => !open && setMerging(null)}
           title="種目をまとめる"
         >
-          <div className="space-y-4 pb-4">
+          {operationError && <p role="alert" className="mb-3 text-caption text-danger">{operationError}</p>}
+          {reviewRequired && <Button variant="outline" className="mb-3" onClick={() => window.location.reload()}>画面を再読み込み</Button>}
+          <fieldset disabled={busy || reviewRequired} className="min-w-0 space-y-4 pb-4">
+            <FormDraftGuard dirty={!!mergeTo && !reviewRequired} busy={busy} onSave={() => mergeInto(merging.name, mergeTo, merging.count)} />
             <p className="text-body">
               「{merging.name}」で入力された{merging.count}
               件の結果を、選んだ種目に付け替えます。
@@ -277,13 +387,13 @@ export function CompetitionEventManager({
             <FormModalFooter>
               <Button
                 size="lg"
-                disabled={busy || !mergeTo}
-                onClick={() => void mergeInto(merging.name, mergeTo)}
+                disabled={busy || reviewRequired || !mergeTo}
+                onClick={() => void mergeInto(merging.name, mergeTo, merging.count)}
               >
                 {busy ? "変更中…" : "この種目にまとめる"}
               </Button>
             </FormModalFooter>
-          </div>
+          </fieldset>
         </FormModal>
       )}
     </>
@@ -305,51 +415,113 @@ function EventForm({
     event ? recordFormatOf([event], event.name) : "minutes",
   );
   const [saving, setSaving] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState<CompetitionEvent | null>(null);
+  const [retryAllowed, setRetryAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dirty = name !== (event?.name ?? "") || format !== (event ? recordFormatOf([event], event.name) : "minutes");
+  useFormDraft({
+    dirty: !!unconfirmed || name !== (event?.name ?? "") || format !== (event ? recordFormatOf([event], event.name) : "minutes"),
+    busy: saving,
+    intent: unconfirmed ? "check" : undefined,
+    onSave: unconfirmed ? checkSave : submit,
+  });
+
+  async function checkSave() {
+    if (saving || !unconfirmed) return;
+    setSaving(true);
+    setRetryAllowed(false);
+    try {
+      const { data, error: readError } = await createClient().from("competition_events")
+        .select("name,sort_order,measure_type,time_format").eq("name", unconfirmed.name).maybeSingle();
+      if (!readError && data && Object.entries(unconfirmed).every(([key, value]) => data[key as keyof CompetitionEvent] === value)) {
+        onSaved(data, event?.name);
+        return;
+      }
+      if (!readError) {
+        let original = data;
+        let originalReadFailed = false;
+        if (!data && event && event.name !== unconfirmed.name) {
+          const result = await createClient().from("competition_events")
+            .select("name,sort_order,measure_type,time_format").eq("name", event.name).maybeSingle();
+          original = result.data;
+          originalReadFailed = !!result.error;
+        }
+        if (!originalReadFailed && (!original ? !event : !!event && Object.keys(unconfirmed).every(key => original![key as keyof CompetitionEvent] === event[key as keyof CompetitionEvent]))) {
+          setRetryAllowed(true);
+          setError("保存結果を確認できませんでした。同じ内容で保存を試すこともできます");
+          return;
+        }
+      }
+      setError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } catch {
+      setError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } finally { setSaving(false); }
+  }
+  async function retrySave() {
+    if (saving || !retryAllowed || !unconfirmed) return;
+    setSaving(true);
+    setRetryAllowed(false);
+    try {
+      const supabase = createClient();
+      let query = event ? supabase.from("competition_events").update(unconfirmed).eq("name", event.name) : supabase.from("competition_events").insert(unconfirmed);
+      if (event) {
+        for (const key of Object.keys(unconfirmed)) {
+          const value = event[key as keyof CompetitionEvent];
+          if (value === undefined) { setError("変更前の内容を確認できませんでした。もう一度保存結果を確認してください"); return; }
+          query = value === null ? query.is(key, null) : query.eq(key, value);
+        }
+      }
+      const { data, error: saveError } = await query.select("name,sort_order,measure_type,time_format").single();
+      if (saveError || !data) {
+        setError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+        return;
+      }
+      onSaved(data, event?.name);
+    } catch {
+      setError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+    } finally { setSaving(false); }
+  }
 
   async function submit() {
-    if (saving) return;
+    if (saving || unconfirmed) return;
     if (!name.trim()) {
       setError("種目名を入力してください");
       return;
     }
     setSaving(true);
     setError(null);
-    const supabase = createClient();
-    const payload = {
-      name: name.trim(),
-      ...fromRecordFormat(format),
-    };
+    const payload: CompetitionEvent = { name: name.trim(), sort_order: sort, ...fromRecordFormat(format) };
     try {
-    const { data, error: saveError } = event
-      ? await supabase
-          .from("competition_events")
-          .update(payload)
-          .eq("name", event.name)
-          .select("name,sort_order,measure_type,time_format")
-          .single()
-      : await supabase
-          .from("competition_events")
-          .insert({ ...payload, sort_order: sort })
-          .select("name,sort_order,measure_type,time_format")
-          .single();
-    if (saveError || !data) {
-      setError("保存できませんでした。同じ名前の種目がないか確認してください");
-      setSaving(false);
-      return;
-    }
-    onSaved(data as CompetitionEvent, event?.name);
+      const supabase = createClient();
+      const { data, error: saveError } = event
+        ? await supabase
+            .from("competition_events")
+            .update(payload)
+            .eq("name", event.name)
+            .select("name,sort_order,measure_type,time_format")
+            .single()
+        : await supabase
+            .from("competition_events")
+            .insert(payload)
+            .select("name,sort_order,measure_type,time_format")
+            .single();
+      if (saveError || !data) {
+        if (!saveError?.code) {
+          setUnconfirmed(payload);
+          setError("保存できたか確認できませんでした。保存結果を確認してください");
+        } else setError("保存できませんでした。もう一度お試しください");
+        return;
+      }
+      onSaved(data as CompetitionEvent, event?.name);
     } catch {
-      setError("保存結果を確認できませんでした。入力を残して、画面を開き直して確認してください");
+      setUnconfirmed(payload);
+      setError("保存できたか確認できませんでした。保存結果を確認してください");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
-      <FormDraftGuard dirty={dirty} busy={saving} onSave={submit} />
+    <fieldset disabled={saving || !!unconfirmed} className="min-w-0 space-y-4 pb-4">
       <div>
         <p className="section-label mb-1.5">種目名</p>
         <Input
@@ -382,9 +554,11 @@ function EventForm({
       </div>
       {error && <p className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
-        <Button size="lg" onClick={submit} disabled={saving}>
-          {saving ? "保存中…" : event ? "更新する" : "追加する"}
-        </Button>
+        {unconfirmed
+          ? <div className="space-y-2"><Button size="lg" disabled={saving} onClick={() => void checkSave()}>保存結果を確認</Button>{retryAllowed && <Button size="lg" disabled={saving} onClick={() => void retrySave()}>同じ内容で保存する</Button>}</div>
+          : <Button size="lg" onClick={submit} disabled={saving}>
+              {saving ? "保存中…" : event ? "更新する" : "追加する"}
+            </Button>}
       </FormModalFooter>
     </fieldset>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Check, Download, Link2, RefreshCw, Upload } from "lucide-react";
 import { Step, SummaryCount } from "@/components/features/sheet-import/ImportFeedback";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select } from "@/components/ui/select";
+import { useFormDraft } from "@/components/ui/form-modal";
 import { SCHEDULE_TYPE_OPTIONS } from "@/lib/constants";
 import type { ScheduleSheetBlock, ScheduleSheetKind } from "@/types";
 import { useScheduleSheetImport } from "./schedule-sheets/useScheduleSheetImport";
@@ -19,7 +21,9 @@ const BLOCK_OPTIONS: { value: ScheduleSheetBlock; label: string }[] = [
   { value: "short", label: "短距離" },
 ];
 
-export function ScheduleSheetsManager() {
+export function ScheduleSheetsManager({ onDraftChange }: {
+  onDraftChange?: (draft: Parameters<typeof useFormDraft>[0] | null) => void;
+} = {}) {
   const {
     year, setYear, month, setMonth, kind,
     setKind, block, setBlock, inputMode, setInputMode,
@@ -30,10 +34,20 @@ export function ScheduleSheetsManager() {
     deleting, downloadTemplate, selectFile, previewImport,
     apply, undoLastApply, deleteSelectedCandidates, validateEditedRows, updatePreviewCell,
     applicable, errorCount, dirtyCount,
+    existingError, existingLoading,
+    uncertainOperation, retryReads, finishUncertainOperation,
   } = useScheduleSheetImport();
+  const draftDirty = !!sheetUrl.trim() || !!csv || !!preview;
+  const draftBusy = loading || applying || undoing || deleting || !!uncertainOperation;
+  const saveDraft = preview ? apply : previewImport;
+  useFormDraft({ dirty: draftDirty, busy: draftBusy, onSave: saveDraft });
+  useEffect(() => {
+    onDraftChange?.({ dirty: draftDirty, busy: draftBusy, onSave: saveDraft });
+  }, [onDraftChange, draftDirty, draftBusy, saveDraft]);
+  useEffect(() => () => onDraftChange?.(null), [onDraftChange]);
 
   return (
-    <div className="space-y-5 pb-4">
+    <fieldset disabled={loading || applying || undoing || deleting} className="min-w-0 space-y-5 pb-4">
       {lastApplied.length > 0 && (
         <Card data-ui-tone="danger" className="space-y-2 border-danger/30 bg-danger/5 p-3">
           <p className="text-caption">
@@ -43,7 +57,7 @@ export function ScheduleSheetsManager() {
             type="button"
             variant="outline"
             size="lg"
-            disabled={undoing}
+            disabled={undoing || !!uncertainOperation}
             onClick={undoLastApply}
             className="border-danger text-danger"
           >
@@ -118,7 +132,7 @@ export function ScheduleSheetsManager() {
             setSelectedIds(value === "edit" ? existing.map((s) => s.id) : []);
           }}
         />
-        {inputMode === "edit" && existing.length > 0 && (
+        {inputMode === "edit" && !existingLoading && !existingError && existing.length > 0 && (
           <div className="flex items-center justify-between px-1">
             <span className="text-caption tabular-nums">
               {selectedIds.length} / {existing.length} 件を編集対象
@@ -141,7 +155,14 @@ export function ScheduleSheetsManager() {
         )}
         {inputMode === "edit" && (
           <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-separator bg-card p-1">
-            {existing.length === 0 ? (
+            {existingLoading ? (
+              <p role="status" className="p-3 text-caption">予定を読み込んでいます…</p>
+            ) : existingError ? (
+              <div role="alert" className="space-y-2 p-3">
+                <p className="text-caption text-danger">{existingError}</p>
+                <Button type="button" variant="outline" onClick={retryReads}>もう一度読み込む</Button>
+              </div>
+            ) : existing.length === 0 ? (
               <EmptyState title="条件に合う予定はありません" className="min-h-24 py-4" />
             ) : (
               existing.map((schedule) => {
@@ -159,9 +180,8 @@ export function ScheduleSheetsManager() {
                           : [...ids, schedule.id],
                       )
                     }
-                    className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left ${
-                      active ? "bg-accent/10" : "active:bg-bg"
-                    }`}
+                    className={`flex min-h-12 w-full items-center gap-3 rounded-lg px-3 text-left ${active ? "bg-accent/10" : "active:bg-bg"
+                      }`}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13px] font-semibold">
@@ -199,7 +219,7 @@ export function ScheduleSheetsManager() {
           type="button"
           variant="outline"
           size="lg"
-          disabled={inputMode === "edit" && selectedIds.length === 0}
+          disabled={inputMode === "edit" && (selectedIds.length === 0 || existingLoading || !!existingError)}
           onClick={downloadTemplate}
         >
           <Download size={17} />
@@ -294,25 +314,29 @@ export function ScheduleSheetsManager() {
             type="button"
             variant="outline"
             size="lg"
-            disabled={loading}
+            disabled={loading || applying}
             onClick={() => void validateEditedRows(preview.rows)}
           >
             <RefreshCw size={17} />
             {loading ? "再確認中…" : "編集内容を再確認"}
           </Button>
           {preview.deletions.length > 0 && (
-            <DeletionCandidates
-              deletions={preview.deletions}
-              selectedIds={deletionIds}
-              onChange={setDeletionIds}
-              onDelete={deleteSelectedCandidates}
-              deleting={deleting}
-            />
+            <fieldset disabled={!!uncertainOperation}>
+              <DeletionCandidates
+                deletions={preview.deletions}
+                selectedIds={deletionIds}
+                onChange={setDeletionIds}
+                onDelete={deleteSelectedCandidates}
+                deleting={deleting}
+              />
+            </fieldset>
           )}
           <Button
             size="lg"
             disabled={
               applying ||
+              loading ||
+              !!uncertainOperation ||
               preview.rows.length === 0 ||
               (applicable === 0 && dirtyCount === 0)
             }
@@ -333,6 +357,17 @@ export function ScheduleSheetsManager() {
       )}
 
       {error && <p className="text-center text-caption text-danger">{error}</p>}
-    </div>
+      {uncertainOperation && (
+        <div role="alert" className="space-y-2 text-caption text-danger">
+          <p>{"予定の変更結果を確認できませんでした。予定一覧を確認してください"}</p>
+          <Button type="button" variant="outline" asChild>
+            <a href="/schedule" target="_blank" rel="noreferrer">
+              予定一覧を確認
+            </a>
+          </Button>
+          <Button type="button" variant="outline" onClick={finishUncertainOperation}>結果を確認して、今回の入力を終了</Button>
+        </div>
+      )}
+    </fieldset>
   );
 }

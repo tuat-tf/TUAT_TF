@@ -4,7 +4,6 @@ import * as React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { glassDialogOpener } from "@/components/layout/glass/glass-press";
 
 /**
@@ -32,7 +31,6 @@ export function SheetContent({
   /** 上部のハンドルを下へドラッグして閉じる。背の高いシート向け。 */
   swipeToClose?: boolean;
 }) {
-  const systemGlass = useSystemGlass();
   const openerRef = React.useRef<HTMLElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
@@ -46,7 +44,7 @@ export function SheetContent({
   function snapBack() {
     const content = contentRef.current;
     if (!content) return;
-    const duration = systemGlass && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180;
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180;
     content.style.transition = `transform ${duration}ms cubic-bezier(0.32, 0.72, 0, 1)`;
     content.style.transform = "translateY(0)";
     if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
@@ -66,7 +64,7 @@ export function SheetContent({
     const fast = drag.offset > 32 && drag.offset / elapsed > 0.55;
     const far = drag.offset > Math.min(120, content.clientHeight * 0.18);
     if (!canceled && (far || fast)) {
-      if (systemGlass && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         closeButtonRef.current?.click();
         return;
       }
@@ -98,9 +96,9 @@ export function SheetContent({
   }
   return (
     <Dialog.Portal>
-      <Dialog.Overlay data-new-ui-surface={systemGlass || undefined} className="sheet-overlay fixed inset-0 z-50 bg-black/30" />
+      <Dialog.Overlay data-new-ui-surface className="sheet-overlay fixed inset-0 z-50 bg-black/30" />
       <Dialog.Content
-        data-new-ui-surface={systemGlass || undefined}
+        data-new-ui-surface
         ref={contentRef}
         onOpenAutoFocus={(event) => {
           openerRef.current = glassDialogOpener();
@@ -108,7 +106,7 @@ export function SheetContent({
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          if (systemGlass && openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
+          if (openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
         }}
         className={cn(
           "sheet-content fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-md rounded-t-[20px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] outline-none md:max-w-xl",
@@ -130,20 +128,13 @@ export function SheetContent({
         >
           <div className="h-1 w-9 rounded-full bg-separator" />
         </div>
-        {systemGlass ? (
-          <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 px-4 pb-3">
+        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 px-4 pb-3">
             <span />
             <Dialog.Title data-new-ui-title className="text-title truncate text-center" title={title}>{title ?? "メニュー"}</Dialog.Title>
             <Dialog.Close aria-label="閉じる" data-system-glass data-glass-control className="flex h-11 w-11 items-center justify-center rounded-full">
               <X size={20} aria-hidden="true" />
             </Dialog.Close>
-          </div>
-        ) : title && (
-          <Dialog.Title className="text-title text-center pb-2 pt-1">
-            {title}
-          </Dialog.Title>
-        )}
-        {!systemGlass && !title && <Dialog.Title className="sr-only">メニュー</Dialog.Title>}
+        </div>
         <div className={cn("px-4 pt-1", bodyClassName)}>{children}</div>
       </Dialog.Content>
     </Dialog.Portal>

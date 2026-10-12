@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -14,11 +14,9 @@ import type { MonthlyResult } from "@/lib/queries";
 import type { CompetitionRow } from "@/types";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { FormModal } from "@/components/ui/form-modal";
-import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
-import { safeDelete } from "@/lib/safe-update";
-import { ResultForm, type ResultFormHandle } from "@/components/post/ResultForm";
+import { ResultForm } from "@/components/post/ResultForm";
 import { shiftMonth } from "@/lib/date";
 
 const PATH = "/mypage/monthly-results";
@@ -58,20 +56,22 @@ export function MonthlyResultsView({
   const [block, setBlock] = useState<SimpleBlockFilter>("all");
   const [results, setResults] = useState(initialResults);
   const [editing, setEditing] = useState<MonthlyResult | null>(null);
-  const [dirty, setDirty] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
-  const formRef = useRef<ResultFormHandle>(null);
   const router = useRouter();
   const { showToast } = useToast();
   async function remove(id: string) {
-    const result = await safeDelete(createClient(), "pb_records", { id });
-    if (!result.ok) {
+    try {
+      const { data, error } = await createClient().from("pb_records").delete().eq("id", id).select("id");
+      if (error || !data || data.length !== 1) {
+        showToast("結果を削除できませんでした");
+        return false;
+      }
+      setResults((rows) => rows.filter((r) => r.id !== id));
+      router.refresh();
+      return true;
+    } catch {
       showToast("結果を削除できませんでした");
       return false;
     }
-    setResults((rows) => rows.filter((r) => r.id !== id));
-    router.refresh();
-    return true;
   }
   const visible = results.filter((r) => matchSimpleBlock(r.author?.blocks, block));
   const emptyTitle = block !== "all" ? "条件に合う結果はありません"
@@ -201,13 +201,12 @@ export function MonthlyResultsView({
       {editing && (
         <FormModal
           open
-          onOpenChange={(next) => { if (!next) { if (dirty) setConfirmClose(true); else setEditing(null); } }}
+          onOpenChange={(next) => !next && setEditing(null)}
+          intent="update"
           title={`${editing.author?.display_name ?? "部員"}さんの結果を編集`}
         >
           <ResultForm
-            ref={formRef}
             key={editing.id}
-            onDirtyChange={setDirty}
             userId={editing.user_id}
             events={events}
             competitions={competitions}
@@ -222,13 +221,11 @@ export function MonthlyResultsView({
                   : stays ? [{ ...r, ...saved, competition: competition ? { name: competition.name } : null }] : [])));
                 router.refresh();
               }
-              setDirty(false);
               setEditing(null);
             }}
           />
         </FormModal>
       )}
-      <UnsavedChangesDialog open={confirmClose} busy={false} intent="update" onContinue={() => setConfirmClose(false)} onDiscard={() => { setDirty(false); setConfirmClose(false); setEditing(null); }} onSave={() => { setConfirmClose(false); formRef.current?.save(); }} />
     </div>
   );
 }

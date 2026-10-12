@@ -8,7 +8,6 @@ import { SegmentedControl } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { NOTICE_CATEGORIES } from "@/lib/constants";
 import { jstToday } from "@/lib/date";
 import {
@@ -35,7 +34,6 @@ export function NoticesClient({
   notifications: AppNotificationWithActor[];
   canCreateNotice: boolean;
 }) {
-  const newUi = useSystemGlass();
   const [tab, setTab] = useState<"notice" | "for_you">("notice");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -102,9 +100,9 @@ export function NoticesClient({
     requestAnimationFrame(() => {
       document
         .getElementById(`notice-${id}`)
-        ?.scrollIntoView({ behavior: newUi && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        ?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
     });
-  }, [tab, expanded, newUi]);
+  }, [tab, expanded]);
 
   return (
     <div className="space-y-4">

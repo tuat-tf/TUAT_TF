@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { Copy, Share2 } from "lucide-react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { GlassMenu } from "@/components/ui/glass-menu";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 
 export async function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
@@ -40,7 +38,6 @@ export function ShareButton({
 }) {
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
-  const newUi = useSystemGlass();
 
   async function copyLink() {
     const url = new URL(path, window.location.origin).toString();
@@ -76,7 +73,7 @@ export function ShareButton({
       <button
         data-ui-action="icon"
         type="button"
-        onClick={newUi ? undefined : () => setOpen(true)}
+        onClick={undefined}
         aria-label={label}
         title={label}
         className={cn(
@@ -90,40 +87,11 @@ export function ShareButton({
 
   return (
     <>
-      {newUi ? <GlassMenu open={open} onOpenChange={setOpen} label="共有" trigger={trigger} items={[
+      <GlassMenu open={open} onOpenChange={setOpen} label="共有" trigger={trigger} items={[
         { key: "copy", label: "リンクをコピー", icon: <Copy size={20} />, immediate: true, onSelect: () => void copyLink() },
         { key: "share", label: "ほかのアプリで共有", icon: <Share2 size={20} />, immediate: true, onSelect: () => void shareExternally() },
-      ]} /> : trigger}
+      ]} />
 
-      {!newUi && <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent title={"\u5171\u6709"}>
-          <div className="space-y-2 pb-4">
-            <button
-              data-ui-row
-              type="button"
-              onClick={() => void copyLink()}
-              className="flex w-full items-center gap-3 rounded-xl border border-separator bg-card p-3.5 text-left active:bg-bg"
-            >
-              <Copy size={20} className="shrink-0 text-accent" />
-              <span className="min-w-0">
-                <span className="block text-headline">{"\u30ea\u30f3\u30af\u3092\u30b3\u30d4\u30fc"}</span>
-                <span className="mt-0.5 block text-caption">
-                  {"\u304a\u77e5\u3089\u305b\u306a\u3069\u306b\u8cbc\u308a\u4ed8\u3051\u3089\u308c\u307e\u3059"}
-                </span>
-              </span>
-            </button>
-            <button
-              data-ui-row
-              type="button"
-              onClick={() => void shareExternally()}
-              className="flex w-full items-center gap-3 rounded-xl border border-separator bg-card p-3.5 text-left active:bg-bg"
-            >
-              <Share2 size={20} className="shrink-0 text-accent" />
-              <span className="text-headline">{"\u307b\u304b\u306e\u30a2\u30d7\u30ea\u3067\u5171\u6709"}</span>
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>}
     </>
   );
 }

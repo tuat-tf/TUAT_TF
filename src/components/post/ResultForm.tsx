@@ -4,13 +4,11 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
-  useRef,
   useState,
 } from "react";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
@@ -39,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { competitionDays } from "@/lib/competition-days";
 import type { CompetitionEvent } from "@/lib/competition-goals";
 import type { CompetitionRow, PbRecord } from "@/types";
+import type { Database } from "@/types/database";
 
 const OTHER = "__other__";
 const selectClass =
@@ -195,11 +194,9 @@ export const ResultForm = forwardRef<
   const [isUb, setIsUb] = useState(initial?.is_ub ?? false);
   const [isOfficial, setIsOfficial] = useState(initial?.is_official ?? false);
   const [saving, setSaving] = useState(false);
-  const [unconfirmed, setUnconfirmed] = useState(false);
-  const [draftId] = useState(() => initial?.id ?? crypto.randomUUID());
-  const saveState = useRef({ uncertain: false });
-  const pendingValues = useRef<Omit<PbRecord, "id" | "user_id" | "created_at"> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unconfirmed, setUnconfirmed] = useState<Database["public"]["Tables"]["pb_records"]["Insert"] | null>(null);
+  const [retryAllowed, setRetryAllowed] = useState(false);
 
   const snapshot = JSON.stringify([
     stage,
@@ -231,8 +228,51 @@ export const ResultForm = forwardRef<
   useEffect(() => {
     onDirtyChange?.(snapshot !== baseline);
   }, [snapshot, baseline, onDirtyChange]);
-  useImperativeHandle(ref, () => ({ save: () => void submit() }));
-  useFormDraft({ dirty: false, busy: saving, onSave: submit });
+  useFormDraft({ dirty: snapshot !== baseline || !!unconfirmed, busy: saving, intent: unconfirmed ? "check" : undefined, onSave: unconfirmed ? checkSave : submit });
+  useImperativeHandle(ref, () => ({ save: () => void (unconfirmed ? checkSave() : submit()) }));
+
+  async function checkSave() {
+    if (saving || !unconfirmed) return;
+    setSaving(true);
+    setRetryAllowed(false);
+    try {
+      const { data, error: readError } = await createClient().from("pb_records").select().eq("id", unconfirmed.id!).maybeSingle();
+      if (!readError && data && Object.entries(unconfirmed).every(([key, value]) => data[key as keyof PbRecord] === value)) {
+        router.refresh();
+        onDone(data as PbRecord);
+        return;
+      }
+      if (!readError && (!data ? !initial : !!initial && Object.keys(unconfirmed).every(key => data[key as keyof PbRecord] === initial[key as keyof PbRecord]))) {
+        setRetryAllowed(true);
+        setError("保存結果を確認できませんでした。同じ内容で保存を試すこともできます");
+        return;
+      }
+      setError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } catch {
+      setError("保存結果を確認できませんでした。時間をおいてもう一度確認してください");
+    } finally { setSaving(false); }
+  }
+  async function retrySave() {
+    if (saving || !retryAllowed || !unconfirmed) return;
+    setSaving(true);
+    setRetryAllowed(false);
+    try {
+      const supabase = createClient();
+      let query = initial ? supabase.from("pb_records").update(unconfirmed).eq("id", initial.id) : supabase.from("pb_records").insert(unconfirmed);
+      if (initial) {
+        for (const key of Object.keys(unconfirmed)) { const value = initial[key as keyof PbRecord]; query = value === null ? query.is(key, null) : query.eq(key, value); }
+      }
+      const { data, error: saveError } = await query.select().single();
+      if (saveError || !data) {
+        setError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+        return;
+      }
+      router.refresh();
+      onDone(data as PbRecord);
+    } catch {
+      setError("保存結果を確認できませんでした。もう一度保存結果を確認してください");
+    } finally { setSaving(false); }
+  }
 
   function timeValue(format: ResultInputFormat): number | null {
     const secondsValue = seconds.trim() === "" ? 0 : parseDecimalSeconds(seconds);
@@ -326,7 +366,7 @@ export const ResultForm = forwardRef<
   }
 
   async function submit() {
-    if (saving) return;
+    if (saving || unconfirmed) return;
     if (!eventName) {
       setError("種目を選んでください");
       return;
@@ -353,63 +393,59 @@ export const ResultForm = forwardRef<
     }
     setSaving(true);
     setError(null);
-    try {
-      const date = normalizedDate();
-      const payload = pendingValues.current ?? {
-        event_name: eventName,
-        ...values,
-        result_status: status,
-        wind: windValue,
-        record: formatRecord({ ...values, result_status: status }, measure, timeFormat),
-        competition_id: meetMode === "catalog" ? competitionId || null : null,
-        meet_name:
-          meetMode === "catalog"
-            ? (competitions.find((c) => c.id === competitionId)?.name ?? null)
-            : meetOther.trim() || null,
-        stage,
-        ...date,
-        is_pb: isPb,
-        is_ub: stage === "university" && isUb,
-        is_official: isOfficial,
-      };
-      pendingValues.current = payload;
 
+    const date = normalizedDate();
+    const payload = {
+      event_name: eventName,
+      ...values,
+      result_status: status,
+      wind: windValue,
+      record: formatRecord({ ...values, result_status: status }, measure, timeFormat),
+      competition_id: meetMode === "catalog" ? competitionId || null : null,
+      meet_name:
+        meetMode === "catalog"
+          ? (competitions.find((c) => c.id === competitionId)?.name ?? null)
+          : meetOther.trim() || null,
+      stage,
+      ...date,
+      is_pb: isPb,
+      is_ub: stage === "university" && isUb,
+      is_official: isOfficial,
+    };
+
+    const submitted: Database["public"]["Tables"]["pb_records"]["Insert"] = { id: initial?.id ?? crypto.randomUUID(), user_id: userId, ...payload };
+    try {
       const supabase = createClient();
-      const result = await atomicSave(saveState.current, async () => {
-        const run = () => editing
-          ? supabase.from("pb_records").update(payload).eq("id", draftId).select().maybeSingle()
-          : supabase.from("pb_records").insert({ id: draftId, user_id: userId, ...payload }).select().single();
-        let response = await run();
-        if (editing && !response.error && !response.data) {
-          await supabase.auth.refreshSession();
-          response = await run();
-        }
-        return { data: response.data, error: response.error ?? (!response.data ? { code: "42501" } : null) };
-      }, async () => {
-        const { data, error: readError } = await supabase.from("pb_records").select().eq("id", draftId).single();
-        if (readError || !data || data.user_id !== (initial?.user_id ?? userId)) return null;
-        const saved = data as unknown as Record<string, unknown>;
-        return Object.entries(payload).every(([key, value]) => saved[key] === value) ? data : null;
-      });
-      if (!result.ok) {
-        setUnconfirmed(result.reason === "unknown");
-        if (result.reason !== "unknown") pendingValues.current = null;
-        setError(atomicSaveMessage(result.reason));
+      const { data, error: saveError } = editing
+        ? await supabase
+            .from("pb_records")
+            .update(payload)
+            .eq("id", initial!.id)
+            .select()
+            .single()
+        : await supabase
+            .from("pb_records")
+            .insert(submitted)
+            .select()
+            .single();
+
+      if (saveError || !data) {
+        if (!saveError?.code) {
+          setUnconfirmed(submitted);
+          setError("保存できたか確認できませんでした。保存結果を確認してください");
+        } else setError("保存できませんでした。もう一度お試しください");
         return;
       }
-      setUnconfirmed(false);
       router.refresh();
-      onDone(result.value as PbRecord);
+      onDone(data as PbRecord);
     } catch {
-      setError("保存できませんでした。もう一度お試しください");
-    } finally {
-      setSaving(false);
-    }
+      setUnconfirmed(submitted);
+      setError("保存できたか確認できませんでした。保存結果を確認してください");
+    } finally { setSaving(false); }
   }
 
   return (
-    <div className="min-w-0 space-y-4 pb-4">
-    <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-4">
+    <fieldset disabled={saving || !!unconfirmed} className="min-w-0 space-y-4 pb-4">
       <div>
         <p className="section-label mb-1.5">いつの記録か</p>
         <div data-ui-group="segmented" className="flex rounded-xl bg-separator/50 p-0.5">
@@ -746,24 +782,21 @@ export const ResultForm = forwardRef<
         PB・UB は種目ごとに1件だけ付きます。新しく付けると、同じ種目の前の記録からは外れます。UBは大学の記録だけに付きます。
       </p>
 
-      </fieldset>
       {error && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
-        <Button size="lg" onClick={submit} disabled={saving}>
+        {unconfirmed ? <div className="space-y-2"><Button size="lg" onClick={() => void checkSave()} disabled={saving}>保存結果を確認</Button>{retryAllowed && <Button size="lg" disabled={saving} onClick={() => void retrySave()}>同じ内容で保存する</Button>}</div> : <Button size="lg" onClick={submit} disabled={saving}>
           {saving ? (
             <>
               <LoaderCircle size={18} className="animate-spin" />
               保存中…
             </>
-          ) : unconfirmed ? (
-            "保存結果を確認"
           ) : editing ? (
             "更新する"
           ) : (
             "投稿する"
           )}
-        </Button>
+        </Button>}
       </FormModalFooter>
-    </div>
+    </fieldset>
   );
 });

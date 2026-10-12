@@ -7,7 +7,6 @@ import { Check, Plus } from "lucide-react";
 import { Avatar } from "@/components/common/Avatar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import type { TweetPollVoter } from "@/types";
 
 /**
@@ -44,7 +43,6 @@ function PollOptionTabs({
   onChange: (optionId: string) => void;
   panelId: string;
 }) {
-  const newUi = useSystemGlass();
   return (
     <div
       data-ui-group="segmented"
@@ -63,14 +61,14 @@ function PollOptionTabs({
             id={`${panelId}-tab-${option.id}`}
             aria-controls={panelId}
             aria-selected={active}
-            tabIndex={newUi ? (active ? 0 : -1) : undefined}
+            tabIndex={(active ? 0 : -1)}
             title={option.text}
             onClick={(event) => {
               onChange(option.id);
-              event.currentTarget.scrollIntoView({ behavior: newUi && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest", inline: "center" });
+              event.currentTarget.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest", inline: "center" });
             }}
             onKeyDown={(event) => {
-              if (!newUi || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
               event.preventDefault();
               const index = options.findIndex((item) => item.id === option.id);
               const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
@@ -82,7 +80,7 @@ function PollOptionTabs({
             }}
             className={cn(
               "h-8 min-w-24 max-w-44 shrink-0 snap-center truncate rounded-[8px] px-3 text-[13px] font-semibold transition-colors pressable",
-              newUi && "gap-1.5",
+              "gap-1.5",
               active ? "bg-white text-ink shadow-sm" : "text-muted2",
             )}
           >
@@ -117,7 +115,6 @@ export function PollView({
   anonymous: boolean;
   allowOptions: boolean;
 }) {
-  const newUi = useSystemGlass();
   const panelId = useId();
   const { showToast } = useToast();
   const pending = useRef(false);
@@ -248,7 +245,7 @@ export function PollView({
           >
             <span className="absolute inset-y-0 left-0 bg-accent/10" style={{ width: `${percent}%` }} />
             <span className="relative min-w-0 flex-1 whitespace-pre-wrap break-words py-2 text-[14px] font-medium">{option.text}</span>
-            {newUi && option.voted_by_me && <Check size={16} aria-hidden="true" className="relative ml-2 shrink-0" />}
+            {option.voted_by_me && <Check size={16} aria-hidden="true" className="relative ml-2 shrink-0" />}
             <span className="relative ml-3 text-[12px] tabular-nums">{percent}%</span>
           </button>
           </div>

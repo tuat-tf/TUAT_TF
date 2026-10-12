@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronRight, Plus, SlidersHorizontal } from "lucide-react";
@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form-modal";
+import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { SegmentedControl } from "@/components/ui/segmented";
@@ -16,9 +16,6 @@ import { Toggle } from "@/components/ui/toggle";
 import { useToast } from "@/components/ui/toast";
 import { formatRecordedOn } from "@/lib/competition-record";
 import { isCompetitionArchived, selectHomeCompetition } from "@/lib/competition-lifecycle";
-import { saveCompetitionOrder } from "@/lib/competition-order";
-import { safeDelete } from "@/lib/safe-update";
-import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import type { CompetitionRow } from "@/types";
 
 /**
@@ -37,16 +34,9 @@ export function CompetitionManager({
   const router = useRouter();
   const { showToast } = useToast();
   const [items, setItems] = useState(initial);
-  const [receivedInitial, setReceivedInitial] = useState(initial);
-  if (receivedInitial !== initial) { setReceivedInitial(initial); setItems(initial); }
   const [editing, setEditing] = useState<CompetitionRow | null>(null);
   const [creating, setCreating] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
-  const [reordering, setReordering] = useState(false);
-  const [savingCountdown, setSavingCountdown] = useState(false);
-  const [unconfirmedCountdown, setUnconfirmedCountdown] = useState(false);
-  const countdownAttempt = useRef<{ desiredId: string | null; expectedId: string | null } | null>(null);
-  const countdownSaveState = useRef({ uncertain: false });
   const [archiveTab, setArchiveTab] = useState(false);
   const [now, setNow] = useState(initialNow);
   useEffect(() => {
@@ -86,66 +76,67 @@ export function CompetitionManager({
 
   /** ドラッグした順に 10 刻みで振り直す（数字を手で入れなくてよいように） */
   async function reorder(next: CompetitionRow[]) {
-    if (reordering) return;
-    setReordering(true);
+    const previous = items;
     const renumbered = next.map((c, index) => ({
       ...c,
       sort_order: (index + 1) * 10,
     }));
     setItems(renumbered);
-    const saved = await saveCompetitionOrder(createClient(), "competitions", next.map((row) => row.id));
-    setReordering(false);
-    if (!saved) showToast("一部の並び順を保存できませんでした。更新後の一覧を確認してください");
+    const { error } = await createClient()
+      .from("competitions")
+      .upsert(renumbered);
+    if (error) {
+      setItems(previous);
+      showToast("並び順を更新できませんでした");
+      return;
+    }
     router.refresh();
   }
 
-  async function setCountdown(target?: CompetitionRow) {
-    if (savingCountdown) return;
-    if (!countdownAttempt.current && target) {
-      countdownAttempt.current = {
-        desiredId: target.is_countdown ? null : target.id,
-        expectedId: items.find((row) => row.is_countdown)?.id ?? null,
-      };
+  async function setCountdown(target: CompetitionRow) {
+    const previous = items;
+    const next = !target.is_countdown;
+    setItems((old) =>
+      old.map((c) => ({ ...c, is_countdown: next && c.id === target.id })),
+    );
+    const supabase = createClient();
+    // 同時に1つだけなので、先に全部おろしてから立てる。
+    const cleared = await supabase
+      .from("competitions")
+      .update({ is_countdown: false })
+      .eq("is_countdown", true);
+    const applied = next
+      ? await supabase
+          .from("competitions")
+          .update({ is_countdown: true })
+          .eq("id", target.id)
+      : { error: null };
+    if (cleared.error || applied.error) {
+      setItems(previous);
+      showToast("ホームに出す大会を変更できませんでした");
+      return;
     }
-    if (!countdownAttempt.current) return;
-    setSavingCountdown(true);
-    try {
-      const { desiredId, expectedId } = countdownAttempt.current;
-      const supabase = createClient();
-      const result = await atomicSave(countdownSaveState.current, async () => {
-        const response = await supabase.rpc("set_competition_countdown", { p_target_id: desiredId, p_expected_id: expectedId });
-        const data = response.data && typeof response.data === "object" && !Array.isArray(response.data) && response.data.countdown_id === desiredId ? true : null;
-        return { data, error: response.error };
-      }, async () => {
-        const { data, error } = await supabase.from("competitions").select("id").eq("is_countdown", true);
-        if (error || !data || data.length > 1 || (data[0]?.id ?? null) !== desiredId) return null;
-        return true;
-      });
-      if (!result.ok) {
-        setUnconfirmedCountdown(result.reason === "unknown");
-        if (result.reason !== "unknown") countdownAttempt.current = null;
-        showToast(atomicSaveMessage(result.reason));
-        if (result.reason === "conflict") router.refresh();
-        return;
-      }
-      setItems((old) => old.map((row) => ({ ...row, is_countdown: row.id === desiredId })));
-      setUnconfirmedCountdown(false);
-      countdownAttempt.current = null;
-      router.refresh();
-    } finally {
-      setSavingCountdown(false);
-    }
+    router.refresh();
   }
 
   async function remove(target: CompetitionRow) {
-    const result = await safeDelete(createClient(), "competitions", { id: target.id });
-    if (!result.ok) {
+    try {
+      const { data, error } = await createClient()
+        .from("competitions")
+        .delete()
+        .eq("id", target.id)
+        .select("id");
+      if (error || !data || data.length !== 1) {
+        showToast("大会を削除できませんでした。目標が登録されていないか確認してください");
+        return false;
+      }
+      setItems((old) => old.filter((c) => c.id !== target.id));
+      router.refresh();
+      return true;
+    } catch {
       showToast("大会を削除できませんでした。目標が登録されていないか確認してください");
       return false;
     }
-    setItems((old) => old.filter((c) => c.id !== target.id));
-    router.refresh();
-    return true;
   }
 
   return (
@@ -153,11 +144,6 @@ export function CompetitionManager({
       <p className="text-caption">
         ここに登録した大会は、結果の入力で日付ごと選べるようになり、大会ごとの目標と結果をまとめて見られます。記録会などは結果の入力で自由に大会名を書けます。
       </p>
-      {unconfirmedCountdown && (
-        <Button disabled={savingCountdown} onClick={() => setCountdown()}>
-          保存結果を確認
-        </Button>
-      )}
 
       {items.length === 0 && (
         <Card className="p-4">
@@ -171,7 +157,6 @@ export function CompetitionManager({
             type="button"
             size="sm"
             variant={reorderMode ? "primary" : "outline"}
-            disabled={reordering}
             onClick={() => setReorderMode((value) => !value)}
           >
             <SlidersHorizontal size={16} />
@@ -190,7 +175,7 @@ export function CompetitionManager({
       {visibleItems.length === 0 && items.length > 0 && <p className="text-caption">{archiveTab ? "まだアーカイブはありません" : "表示する大会はありません"}</p>}
       <ReorderList
         items={visibleItems}
-        enabled={canManage && reorderMode && !reordering}
+        enabled={canManage && reorderMode}
         onReorder={(next) => void reorder(next)}
         renderItem={(c) => (
           <Card key={c.id} className="p-3">
@@ -236,7 +221,6 @@ export function CompetitionManager({
               <Toggle
                 label="ホームのカウントダウンに出す"
                 checked={c.is_countdown}
-                disabled={savingCountdown || unconfirmedCountdown}
                 onChange={() => setCountdown(c)}
                 className="mt-3 border-0 bg-transparent p-0"
               />
@@ -306,12 +290,8 @@ function CompetitionForm({
   const sort = sortOrder;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dirty = JSON.stringify([name, startsOn, endsOn, programSourceUrl]) !== JSON.stringify([
-    competition?.name ?? "", competition?.starts_on ?? "", competition?.ends_on ?? "", competition?.program_source_url ?? "",
-  ]);
 
   async function submit() {
-    if (saving) return;
     if (!name.trim() || !startsOn) {
       setError("大会名と初日を入力してください");
       return;
@@ -327,9 +307,9 @@ function CompetitionForm({
       name: name.trim(),
       starts_on: startsOn,
       ends_on: endsOn || null,
+      sort_order: Number.isInteger(sort) && sort >= 0 ? sort : 0,
       program_source_url: programSourceUrl.trim() || null,
     };
-    try {
     const { data, error: saveError } = competition
       ? await supabase
           .from("competitions")
@@ -339,7 +319,7 @@ function CompetitionForm({
           .single()
       : await supabase
           .from("competitions")
-          .insert({ id: crypto.randomUUID(), sort_order: Number.isInteger(sort) && sort >= 0 ? sort : 0, ...payload })
+          .insert({ id: crypto.randomUUID(), ...payload })
           .select()
           .single();
     if (saveError || !data) {
@@ -348,16 +328,10 @@ function CompetitionForm({
       return;
     }
     onSaved(data as CompetitionRow);
-    } catch {
-      setError("保存結果を確認できませんでした。入力を残して、画面を開き直して確認してください");
-    } finally {
-      setSaving(false);
-    }
   }
 
   return (
-    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
-      <FormDraftGuard dirty={dirty} busy={saving} onSave={submit} />
+    <div className="space-y-4 pb-4">
       <div>
         <p className="section-label mb-1.5">大会名</p>
         <Input
@@ -402,6 +376,6 @@ function CompetitionForm({
           {saving ? "保存中…" : competition ? "更新する" : "追加する"}
         </Button>
       </FormModalFooter>
-    </fieldset>
+    </div>
   );
 }

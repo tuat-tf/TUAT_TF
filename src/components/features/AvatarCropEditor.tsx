@@ -9,7 +9,6 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { glassDialogOpener } from "@/components/layout/glass/glass-press";
 import {
   AVATAR_MAX_PIXELS,
@@ -100,7 +99,6 @@ function AvatarCropEditorDialog({
   onOpenChange,
   onApply,
 }: AvatarCropEditorProps) {
-  const newUi = useSystemGlass();
   const contentRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -288,18 +286,16 @@ function AvatarCropEditorDialog({
         <Dialog.Overlay className="sheet-overlay fixed inset-0 z-[70] bg-black/45" />
         <Dialog.Content
           ref={contentRef}
-          data-new-ui-surface={newUi || undefined}
+          data-new-ui-surface
           data-ui-dialog
           onOpenAutoFocus={(event) => {
             event.preventDefault();
-            if (newUi) {
-              openerRef.current = glassDialogOpener();
-              contentRef.current?.focus({ preventScroll: true });
-            }
+            openerRef.current = glassDialogOpener();
+            contentRef.current?.focus({ preventScroll: true });
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            if (newUi && openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
+            if (openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
           }}
           className="fixed left-1/2 top-1/2 z-[70] w-[calc(100%-24px)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-[22px] bg-card px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-4 shadow-xl outline-none"
         >

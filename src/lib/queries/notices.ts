@@ -83,3 +83,4 @@ export async function getUnreadNotificationCount(userId: string): Promise<number
   if (error) throw error;
   return count ?? 0;
 }
+

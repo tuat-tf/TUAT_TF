@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 
 function hasAppBackEntry() {
   if (typeof window === "undefined" || window.history.length <= 1) return false;
@@ -34,7 +33,6 @@ export function BackButton({
   forceFallback?: boolean;
 }) {
   const router = useRouter();
-  const systemGlass = useSystemGlass();
 
   function back() {
     if (forceFallback) {
@@ -58,15 +56,13 @@ export function BackButton({
     <button
       type="button"
       data-glass-control
-      data-system-glass={systemGlass || undefined}
+      data-system-glass
       aria-label={label}
       onClick={back}
-      className={systemGlass
-        ? "justify-self-start flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink pressable"
-        : "justify-self-start h-9 pl-1 pr-2 flex items-center gap-0.5 text-accent pressable text-[15px]"}
+      className="justify-self-start flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink pressable"
     >
       <ChevronLeft size={24} aria-hidden="true" />
-      {!systemGlass && label}
+
     </button>
   );
 }

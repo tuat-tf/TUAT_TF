@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import type { CommentAuthor, CommentWithAuthor, TargetType } from "@/types";
 
 type CommentLike = { liked: boolean; count: number };
@@ -26,7 +25,6 @@ export function CommentSection({
   currentUser: CommentAuthor;
   onCountChange: (count: number) => void;
 }) {
-  const newUi = useSystemGlass();
   const [comments, setComments] = useState<CommentWithAuthor[]>([]);
   // コメントごとのいいね。件数と自分の状態を1回のRPCでまとめて読む。
   const [likeState, setLikeState] = useState<Record<string, CommentLike>>({});
@@ -126,7 +124,7 @@ export function CommentSection({
     });
     setText("");
     setSaving(false);
-    requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: newUi && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" }));
+    requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" }));
   }
 
   function beginEdit(comment: CommentWithAuthor) {

@@ -2,7 +2,7 @@
 import { OCTOBER_START, type SheetTransition } from "@/lib/sheet-period";
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, useId, useRef } from "react";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
+
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -108,7 +108,6 @@ function serializeRecordDraft(draft: RecordDraftValues): string {
 export type RecordFormHandle = { save: () => void };
 export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddleLong: boolean; record?: PracticeRecord; recordSource?: "app" | "sheet"; recordFields?: RecordFieldDef[]; sheetTransition?: SheetTransition | null; systemRecordForm?: boolean; onDone: () => void; onDirtyChange?: (dirty: boolean) => void }>(function RecordForm({ userId, isMiddleLong, record, recordFields, sheetTransition, systemRecordForm = false, onDone, onDirtyChange }, ref) {
   const router = useRouter();
-  const newUi = useSystemGlass();
   const formId = useId();
   const { showToast } = useToast();
   const editing = !!record;
@@ -475,14 +474,14 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
         };
         return <div key={field.key} data-ui-record-field>
           <label htmlFor={`${formId}-${field.key}`} className="section-label mb-1.5 block">{field.label}</label>
-          {field.type === "number" ? <Input id={`${formId}-${field.key}`} type="number" inputMode="decimal" placeholder="0" value={value} onChange={(event) => setValue(event.target.value)} /> : <Textarea id={`${formId}-${field.key}`} autoGrow={newUi} rows={field.key === "memo" ? 3 : 2} value={value} onChange={(event) => setValue(event.target.value)} />}
+          {field.type === "number" ? <Input id={`${formId}-${field.key}`} type="number" inputMode="decimal" placeholder="0" value={value} onChange={(event) => setValue(event.target.value)} /> : <Textarea id={`${formId}-${field.key}`} autoGrow={true} rows={field.key === "memo" ? 3 : 2} value={value} onChange={(event) => setValue(event.target.value)} />}
         </div>;
       })}
       {/* メニュー（短距離・跳躍・投擲） */}
       {!systemRecordForm && !isMiddleLong && fieldEnabled("menu_text") && (
         <div data-ui-record-field>
           <label htmlFor={`${formId}-menu_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "menu_text", "メニュー")}</label>
-          <Textarea id={`${formId}-menu_text`} autoGrow={newUi}
+          <Textarea id={`${formId}-menu_text`} autoGrow={true}
             rows={2}
             placeholder="メニューを入力"
             value={menuText}
@@ -495,7 +494,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {!systemRecordForm && !isMiddleLong && fieldEnabled("focus_text") && (
         <div data-ui-record-field>
           <label htmlFor={`${formId}-focus_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "focus_text", "目的・意識すること")}</label>
-          <Textarea id={`${formId}-focus_text`} autoGrow={newUi}
+          <Textarea id={`${formId}-focus_text`} autoGrow={true}
             rows={2}
             placeholder="例: このメニューの狙い、意識したポイント"
             value={focusText}
@@ -507,7 +506,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {/* 結果 */}
       {!systemRecordForm && fieldEnabled("result_text") && <div data-ui-record-field>
         <label htmlFor={`${formId}-result_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "result_text", isMiddleLong ? "結果" : "タイム")}</label>
-        <Textarea id={`${formId}-result_text`} autoGrow={newUi}
+        <Textarea id={`${formId}-result_text`} autoGrow={true}
           rows={2}
           placeholder={isMiddleLong ? "例: 5000m 16'20\"" : "例: 100m 11.2 (+1.5)"}
           value={resultText}
@@ -519,7 +518,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {!systemRecordForm && isMiddleLong && fieldEnabled("strength_text") && (
         <div data-ui-record-field>
           <label htmlFor={`${formId}-strength_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "strength_text", "補強")}</label>
-          <Textarea id={`${formId}-strength_text`} autoGrow={newUi}
+          <Textarea id={`${formId}-strength_text`} autoGrow={true}
             rows={2}
             placeholder="例: 腹筋・背筋・体幹"
             value={strengthText}
@@ -531,7 +530,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {/* 感想 */}
       {!systemRecordForm && fieldEnabled("memo") && <div data-ui-record-field>
         <label htmlFor={`${formId}-memo`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "memo", "感想・振り返り")}</label>
-        <Textarea id={`${formId}-memo`} autoGrow={newUi}
+        <Textarea id={`${formId}-memo`} autoGrow={true}
           rows={3}
           placeholder="今日の練習を記録"
           value={memo}
@@ -554,7 +553,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
               }
             />
           ) : (
-            <Textarea id={`${formId}-${f.key}`} autoGrow={newUi}
+            <Textarea id={`${formId}-${f.key}`} autoGrow={true}
               rows={2}
               value={customValues[f.key] ?? ""}
               onChange={(e) =>
@@ -613,3 +612,4 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
     </div>
   );
 });
+

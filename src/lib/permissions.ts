@@ -42,6 +42,6 @@ export function permissionsOf(roles: AppRole[] | undefined | null) {
 }
 
 /** 管理者によるコメント削除。本文の編集権限は投稿者だけに保持する。 */
-export function canModerateComments(roles: AppRole[] | undefined | null): boolean {
+export function canModerateComments(roles: Pick<AppRole, "name" | "permissions_suppressed">[] | undefined | null): boolean {
   return !!roles?.some(role => !role.permissions_suppressed && role.name === "管理者");
 }

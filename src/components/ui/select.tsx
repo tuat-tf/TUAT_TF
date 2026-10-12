@@ -3,7 +3,6 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 
 const EMPTY_VALUE = "__select_empty__";
 
@@ -30,7 +29,6 @@ export function Select({
   disabled?: boolean;
   className?: string;
 }) {
-  const newUi = useSystemGlass();
   const normalizedOptions = options.map((option) => ({
     ...option,
     value: option.value === "" ? EMPTY_VALUE : option.value,
@@ -58,7 +56,7 @@ export function Select({
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
-          data-new-ui-surface={newUi || undefined}
+          data-new-ui-surface
           data-ui-select-menu
           position="popper"
           sideOffset={6}

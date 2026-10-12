@@ -5,14 +5,11 @@ import { ja } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { NOTICE_CATEGORIES } from "@/lib/constants";
+import { jstToday } from "@/lib/date";
 import type { NoticeWithReactions } from "@/types";
 
-function tomorrowInJapan() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + 86_400_000));
-}
-
 export function HomeNotices({ notices }: { notices: NoticeWithReactions[] }) {
-  const tomorrow = tomorrowInJapan();
+  const tomorrow = jstToday(1);
   if (notices.length === 0) return null;
 
   return <section className="space-y-2">

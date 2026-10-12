@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Home, NotebookTabs, Newspaper, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSystemGlass } from "./glass/system-glass-state";
 
 const ITEMS = [
   { href: "/home", label: "ホーム", icon: Home },
@@ -15,11 +14,10 @@ const ITEMS = [
 ];
 
 export function DesktopNav() {
-  const newUi = useSystemGlass();
   const pathname = usePathname();
 
   return (
-    <aside data-new-ui-surface={newUi || undefined} data-ui-sidebar className="sticky top-4 hidden h-[calc(100dvh-32px)] w-20 shrink-0 self-start flex-col overflow-y-auto p-2 md:flex">
+    <aside data-new-ui-surface data-ui-sidebar className="sticky top-4 hidden h-[calc(100dvh-32px)] w-20 shrink-0 self-start flex-col overflow-y-auto p-2 md:flex">
       <nav aria-label="メインナビゲーション" className="space-y-1.5">
         {ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);

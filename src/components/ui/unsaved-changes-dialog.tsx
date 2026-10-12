@@ -2,7 +2,6 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 
 /**
  * 何をする画面から閉じようとしたのかで言葉を変える。
@@ -12,15 +11,15 @@ import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
  * のかが読み取れなかった（オーナー指摘 2026-09-19）。
  * 動詞は docs/WORDING-GUIDELINES.md §6-1（投稿する／更新する／保存する）に合わせる。
  */
-export type UnsavedIntent = "post" | "create" | "update" | "save";
+export type UnsavedIntent = "post" | "update" | "save" | "check";
 
 const COPY: Record<UnsavedIntent, { title: string; description: string; confirm: string; busy: string; discard: string }> = {
-  create: {
-    title: "作成しますか？",
-    description: "まだ作成していない内容があります。",
-    confirm: "作成する",
-    busy: "作成中…",
-    discard: "作成せずに閉じる",
+  check: {
+    title: "保存結果を確認しますか？",
+    description: "保存できたか確認できていません。閉じても、送信済みの操作は取り消されません。",
+    confirm: "保存結果を確認",
+    busy: "確認中…",
+    discard: "確認せずに閉じる",
   },
   post: {
     title: "投稿しますか？",
@@ -61,11 +60,10 @@ export function UnsavedChangesDialog({
   onSave: () => void;
 }) {
   const copy = COPY[intent];
-  const newUi = useSystemGlass();
   return <Dialog.Root open={open} onOpenChange={(next) => !next && !busy && onContinue()}>
     <Dialog.Portal>
-        <Dialog.Overlay data-new-ui-surface={newUi || undefined} className="sheet-overlay fixed inset-0 z-[60] bg-black/30" />
-      <Dialog.Content data-new-ui-surface={newUi || undefined} data-ui-dialog className="fixed left-1/2 top-1/2 z-[60] w-[calc(100%-32px)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-[18px] bg-card p-5 shadow-xl outline-none">
+        <Dialog.Overlay data-new-ui-surface className="sheet-overlay fixed inset-0 z-[60] bg-black/30" />
+      <Dialog.Content data-new-ui-surface data-ui-dialog className="fixed left-1/2 top-1/2 z-[60] w-[calc(100%-32px)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-[18px] bg-card p-5 shadow-xl outline-none">
         <Dialog.Title className="text-title">{copy.title}</Dialog.Title>
         <Dialog.Description className="mt-2 text-[14px] text-muted2">{copy.description}</Dialog.Description>
         <div className="mt-5 space-y-2">

@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FormDraftGuard, FormModal, FormModalFooter, useFormChangeGuard, useFormDraft } from "@/components/ui/form-modal";
+import { FormModal, FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
+import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 
 
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { RefreshStatus } from "@/components/ui/refresh-status";
 
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -37,11 +37,7 @@ const MENU_LAST_KIND_KEY = "track-app:menu-last-kind";
 
 function readLastMenuKind(): MenuKind {
   if (typeof window === "undefined") return "block";
-  try {
-    return localStorage.getItem(MENU_LAST_KIND_KEY) === "people" ? "people" : "block";
-  } catch {
-    return "block";
-  }
+  return localStorage.getItem(MENU_LAST_KIND_KEY) === "people" ? "people" : "block";
 }
 
 type UpcomingSchedule = {
@@ -93,23 +89,49 @@ function MenuCreatePanel({
   onDone: (saved?: MenuSaveResult) => void;
 }) {
   const [mode, setMode] = useState<"normal" | "sheets">("normal");
-  const guardChange = useFormChangeGuard();
+  const [pendingMode, setPendingMode] = useState<typeof mode | null>(null);
+  const importDraft = useRef<Parameters<typeof useFormDraft>[0] | null>(null);
+  const [draftFlags, setDraftFlags] = useState({ dirty: false, busy: false });
+  const onDraftChange = useCallback((draft: Parameters<typeof useFormDraft>[0] | null) => {
+    importDraft.current = draft;
+    const next = { dirty: !!draft?.dirty, busy: !!draft?.busy };
+    setDraftFlags((current) => current.dirty === next.dirty && current.busy === next.busy ? current : next);
+  }, []);
 
   return (
     <div className="space-y-5 pb-4">
-      <SegmentedControl
-        items={[
-          { key: "normal", label: "通常入力" },
-          { key: "sheets", label: "スプレッドシートから入力" },
-        ]}
-        value={mode}
-        onChange={(next) => { if (next !== mode) guardChange(() => setMode(next)); }}
-      />
+      <fieldset disabled={draftFlags.busy}>
+        <SegmentedControl
+          items={[
+            { key: "normal", label: "通常入力" },
+            { key: "sheets", label: "スプレッドシートから入力" },
+          ]}
+          value={mode}
+          onChange={(next) => {
+            if (next === mode || draftFlags.busy) return;
+            if (draftFlags.dirty) setPendingMode(next);
+            else setMode(next);
+          }}
+        />
+      </fieldset>
       {mode === "normal" ? (
-        <MenuEditor scheduleId={scheduleId} onDone={onDone} />
+        <MenuEditor scheduleId={scheduleId} onDone={onDone} onDraftChange={onDraftChange} />
       ) : (
-        <MenuSheetImportManager />
+        <MenuSheetImportManager onDraftChange={onDraftChange} />
       )}
+      <UnsavedChangesDialog
+        open={pendingMode !== null}
+        busy={draftFlags.busy}
+        onContinue={() => setPendingMode(null)}
+        onDiscard={() => {
+          if (draftFlags.busy || pendingMode === null) return;
+          setMode(pendingMode); setPendingMode(null);
+        }}
+        onSave={() => {
+          if (draftFlags.busy) return;
+          setPendingMode(null); void importDraft.current?.onSave();
+        }}
+      />
     </div>
   );
 }
@@ -147,11 +169,13 @@ function MenuEditor({
   scheduleId: fixedScheduleId,
   menu,
   onDone,
+  onDraftChange,
 }: {
   scheduleId?: string;
   menu?: PracticeMenu;
   allowedBlocks?: Block[];
   onDone: (saved?: MenuSaveResult) => void;
+  onDraftChange?: (draft: Parameters<typeof useFormDraft>[0] | null) => void;
 }) {
 
   const initialTargetIds = menu?.targets?.map((target) => target.user_id) ?? [];
@@ -159,8 +183,6 @@ function MenuEditor({
     fixedScheduleId ? [] : null,
   );
   const [members, setMembers] = useState<AuthorMini[] | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const [scheduleId, setScheduleId] = useState(fixedScheduleId ?? menu?.schedule_id ?? "");
   const [kind, setKind] = useState<MenuKind>(() => {
@@ -169,10 +191,14 @@ function MenuEditor({
     // 新規作成時は直近に使った種類で開く（チラつき防止のため初期値で確定）
     return readLastMenuKind();
   });
+  const [initialKind] = useState(kind);
   const [targetBlock, setTargetBlock] = useState<Block>(
     menu?.target_block ? normalizeBlock(menu.target_block) : "middle_long",
   );
   const [targetIds, setTargetIds] = useState<string[]>(initialTargetIds);
+  const [initialSelection, setInitialSelection] = useState({
+    scheduleId: fixedScheduleId ?? menu?.schedule_id ?? "", targetIds: initialTargetIds,
+  });
   const [content, setContent] = useState(menu?.content ?? "");
   const [pace, setPace] = useState(menu?.pace ?? "");
   const [remark, setRemark] = useState(menu?.remark ?? "");
@@ -183,9 +209,6 @@ function MenuEditor({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const draft = JSON.stringify([scheduleId, kind, targetBlock, [...targetIds].sort(), content, pace, remark, supplement, status]);
-  const [initialDraft, setInitialDraft] = useState(draft);
-  useFormDraft({ dirty: draft !== initialDraft, busy: saving, onSave: submit, intent: menu ? "update" : "create" });
 
   useEffect(() => {
     let active = true;
@@ -195,7 +218,7 @@ function MenuEditor({
       const userId = await getCurrentUserId(supabase);
       const [scheduleResult, memberResult, previousMenuResult] = await Promise.all([
         fixedScheduleId
-          ? Promise.resolve({ data: [], error: null })
+          ? Promise.resolve({ data: [] })
           : supabase
               .from("practice_schedules")
               .select("id, schedule_date, title, venue_name, schedule_type, meeting_time, target_blocks")
@@ -218,18 +241,13 @@ function MenuEditor({
           : Promise.resolve({ data: null }),
       ]);
       if (!active) return;
-      if (scheduleResult.error || memberResult.error) { setLoadFailed(true); return; }
 
       const scheduleRows = (scheduleResult.data ?? []) as UpcomingSchedule[];
       const memberRows = (memberResult.data ?? []) as AuthorMini[];
       setSchedules(scheduleRows);
       if (!fixedScheduleId && scheduleRows.length > 0) {
         setScheduleId((current) => current || scheduleRows[0].id);
-        if (!menu?.schedule_id) setInitialDraft((previous) => {
-          const values = JSON.parse(previous) as unknown[];
-          values[0] = scheduleRows[0].id;
-          return JSON.stringify(values);
-        });
+        setInitialSelection((current) => ({ ...current, scheduleId: current.scheduleId || scheduleRows[0].id }));
       }
       setMembers(memberRows);
 
@@ -245,23 +263,18 @@ function MenuEditor({
           const previousTargets = previousMenuTargets.filter((id) => validMemberIds.has(id));
           if (previousTargets.length > 0) {
             setTargetIds(previousTargets);
-            setInitialDraft((previous) => {
-              const values = JSON.parse(previous) as unknown[];
-              values[3] = [...previousTargets].sort();
-              return JSON.stringify(values);
-            });
+            setInitialSelection((current) => ({ ...current, targetIds: previousTargets }));
           }
         }
       }
     }
-    void load().catch(() => { if (active) setLoadFailed(true); });
+    void load();
     return () => {
       active = false;
     };
-  }, [fixedScheduleId, menu, loadAttempt]);
+  }, [fixedScheduleId, menu]);
 
-  async function submit() {
-    if (saving) return;
+  const submit = useCallback(async () => {
     if (!scheduleId) {
       setError("対象の予定を選択してください");
       return;
@@ -280,48 +293,51 @@ function MenuEditor({
 
     setSaving(true);
     setError(null);
-    try {
-      const supabase = createClient();
-      const { data: savedId, error: saveError } = await supabase.rpc("save_practice_menu", {
-        target_schedule_id: scheduleId,
-        menu_content: content.trim(),
-        menu_status: status,
-        // 個別メニューにもブロックを持たせる（同ブロックの部員が閲覧できるように）
-        menu_target_block: targetBlock,
-        target_user_ids: kind === "people" ? targetIds : [],
-        target_menu_id: menu?.id ?? undefined,
-        menu_pace: targetBlock === "middle_long" ? pace.trim() || undefined : undefined,
-        menu_remark:
-          targetBlock === "middle_long" || targetBlock === "short"
-            ? remark.trim() || undefined
-            : undefined,
-        menu_supplement: targetBlock === "middle_long" ? supplement.trim() || undefined : undefined,
-      });
+    const supabase = createClient();
+    const { data: savedId, error: saveError } = await supabase.rpc("save_practice_menu", {
+      target_schedule_id: scheduleId,
+      menu_content: content.trim(),
+      menu_status: status,
+      // 個別メニューにもブロックを持たせる（同ブロックの部員が閲覧できるように）
+      menu_target_block: targetBlock,
+      target_user_ids: kind === "people" ? targetIds : [],
+      target_menu_id: menu?.id ?? undefined,
+      menu_pace: targetBlock === "middle_long" ? pace.trim() || undefined : undefined,
+      menu_remark:
+        targetBlock === "middle_long" || targetBlock === "short"
+          ? remark.trim() || undefined
+          : undefined,
+      menu_supplement: targetBlock === "middle_long" ? supplement.trim() || undefined : undefined,
+    });
 
-      if (saveError || !savedId) {
-        setError("保存できませんでした。もう一度お試しください");
-        return;
-      }
-      // 次回の初期表示用に、選んだ種類を端末に保存
-      if (typeof window !== "undefined") {
-        // 端末の初期表示設定が保存できなくても、完了したメニューを再送しない。
-        try { localStorage.setItem(MENU_LAST_KIND_KEY, kind); } catch { /* optional preference */ }
-      }
-      const selectedTargets = kind === "people" ? (members ?? []).filter((member) => targetIds.includes(member.id)).map((member) => ({ menu_id: savedId as string, user_id: member.id, profile: member })) : [];
-      onDone({ id: savedId as string, schedule_id: scheduleId, content: content.trim(), target_block: targetBlock, status, pace: targetBlock === "middle_long" ? pace.trim() || null : null, remark: targetBlock === "middle_long" || targetBlock === "short" ? remark.trim() || null : null, supplement: targetBlock === "middle_long" ? supplement.trim() || null : null, targets: selectedTargets });
-    } catch {
-      setError("保存できませんでした。もう一度お試しください");
-    } finally {
+    if (saveError) {
+      setError("メニューを保存できませんでした");
       setSaving(false);
+      return;
     }
-  }
+    // 次回の初期表示用に、選んだ種類を端末に保存
+    if (typeof window !== "undefined") {
+      localStorage.setItem(MENU_LAST_KIND_KEY, kind);
+    }
+    const selectedTargets = kind === "people" ? (members ?? []).filter((member) => targetIds.includes(member.id)).map((member) => ({ menu_id: savedId as string, user_id: member.id, profile: member })) : [];
+    onDone({ id: savedId as string, schedule_id: scheduleId, content: content.trim(), target_block: targetBlock, status, pace: targetBlock === "middle_long" ? pace.trim() || null : null, remark: targetBlock === "middle_long" || targetBlock === "short" ? remark.trim() || null : null, supplement: targetBlock === "middle_long" ? supplement.trim() || null : null, targets: selectedTargets });
+  }, [scheduleId, targetBlock, pace, remark, supplement, content, kind, targetIds, status, menu?.id, members, onDone]);
 
   const loading = schedules === null || members === null;
-
-
+  const draftDirty = content !== (menu?.content ?? "") || pace !== (menu?.pace ?? "") ||
+    remark !== (menu?.remark ?? "") || supplement !== (menu?.supplement ?? "") ||
+    status !== (menu?.status ?? "published") ||
+    targetBlock !== (menu?.target_block ? normalizeBlock(menu.target_block) : "middle_long") ||
+    kind !== initialKind ||
+    scheduleId !== initialSelection.scheduleId ||
+    [...targetIds].sort().join(",") !== [...initialSelection.targetIds].sort().join(",");
+  useFormDraft({ dirty: draftDirty, busy: saving, onSave: submit });
+  useEffect(() => {
+    onDraftChange?.({ dirty: draftDirty, busy: saving, onSave: submit });
+  }, [onDraftChange, draftDirty, saving, submit]);
+  useEffect(() => () => onDraftChange?.(null), [onDraftChange]);
   return (
     <fieldset disabled={saving} className="min-w-0 space-y-5 pb-4">
-      <RefreshStatus failed={loadFailed} busy={false} hasData={!loading} label="予定・部員" retry={() => { setLoadFailed(false); setLoadAttempt((value) => value + 1); }} />
       {!fixedScheduleId && (
         <div>
           <p className="section-label mb-1.5">対象の予定</p>
@@ -519,7 +535,6 @@ export function SheetMenuEditModal({
 
 
   async function save() {
-    if (saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -548,8 +563,7 @@ export function SheetMenuEditModal({
 
   return (
     <FormModal open onOpenChange={onOpenChange} title="中長距離メニューを編集">
-      <FormDraftGuard dirty={content !== (menu.content ?? "") || pace !== (menu.pace ?? "") || remark !== (menu.remark ?? "") || supplement !== (menu.supplement ?? "")} busy={saving} onSave={save} intent="update" />
-      <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
+      <div className="space-y-4 pb-4">
         <p className="rounded-xl bg-accent/5 px-3 py-2 text-xs text-muted">
           保存すると月別スプレッドシートへ書き込まれます。
         </p>
@@ -575,7 +589,7 @@ export function SheetMenuEditModal({
             {saving ? "スプレッドシートへ保存中…" : "更新する"}
           </Button>
         </FormModalFooter>
-      </fieldset>
+      </div>
     </FormModal>
   );
 }

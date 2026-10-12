@@ -5,7 +5,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncVisualViewport } from "@/lib/viewport-sync";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { glassDialogOpener } from "@/components/layout/glass/glass-press";
 
 /**
@@ -36,7 +35,6 @@ export function FullScreenContent({
   className?: string;
   floatingAction?: React.ReactNode;
 }) {
-  const systemGlass = useSystemGlass();
   const openerRef = React.useRef<HTMLElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const autoFocusFrame = React.useRef<number | undefined>(undefined);
@@ -55,12 +53,12 @@ export function FullScreenContent({
   }, []);
   return (
     <Dialog.Portal>
-      <Dialog.Overlay data-new-ui-surface={systemGlass || undefined} className="sheet-overlay fixed inset-0 z-50 bg-black/30">
+      <Dialog.Overlay data-new-ui-surface className="sheet-overlay fixed inset-0 z-50 bg-black/30">
         {/* visualViewport でフォーム本体が移動しても、ステータスバー領域を透かさない。 */}
         <div aria-hidden="true" className="h-full w-full bg-bg" />
       </Dialog.Overlay>
       <Dialog.Content
-        data-new-ui-surface={systemGlass || undefined}
+        data-new-ui-surface
         ref={attachContent}
         onKeyDown={(event) => {
           // このモーダルは Portal で描画されるが、React の合成イベントは
@@ -84,7 +82,7 @@ export function FullScreenContent({
           openerRef.current = glassDialogOpener();
           event.preventDefault();
           if (!autoFocus) {
-            if (systemGlass) contentRef.current?.focus({ preventScroll: true });
+            contentRef.current?.focus({ preventScroll: true });
             return;
           }
 
@@ -105,7 +103,7 @@ export function FullScreenContent({
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          if (systemGlass && openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
+          if (openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
         }}
         // Select 等の Radix ポップアップや、入れ子の Sheet（Dialog.Root）は
         // Portal で Dialog 外（document.body直下）に描画されるため、その操作を
@@ -130,21 +128,17 @@ export function FullScreenContent({
         )}
       >
         {/* 新 UI の戻るはページと同じアイコンだけに揃え、閉じる処理は Dialog に任せる。 */}
-        <div className={cn("h-12 shrink-0 box-content grid items-center border-b border-separator bg-bg px-2 pt-[env(safe-area-inset-top)]", systemGlass
-          ? "grid-cols-[minmax(44px,1fr)_minmax(0,2fr)_minmax(44px,1fr)]"
-          : "grid-cols-[1fr_auto_1fr]")}>
+        <div className={cn("h-12 shrink-0 box-content grid items-center border-b border-separator bg-bg px-2 pt-[env(safe-area-inset-top)]", "grid-cols-[minmax(44px,1fr)_minmax(0,2fr)_minmax(44px,1fr)]")}>
           <Dialog.Close
             aria-label="戻る"
-            data-glass-control={systemGlass || undefined}
-            data-system-glass={systemGlass || undefined}
-            className={systemGlass
-              ? "justify-self-start flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink pressable"
-              : "justify-self-start h-9 pl-1 pr-2 flex items-center gap-0.5 text-accent pressable text-[15px]"}
+            data-glass-control
+            data-system-glass
+            className="justify-self-start flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink pressable"
           >
             <ChevronLeft size={24} aria-hidden="true" />
-            {!systemGlass && "戻る"}
+
           </Dialog.Close>
-          <Dialog.Title data-new-ui-title={systemGlass || undefined} className={cn("text-title text-center whitespace-nowrap", systemGlass && "min-w-0 truncate")} title={title}>{title}</Dialog.Title>
+          <Dialog.Title data-new-ui-title className={cn("text-title text-center whitespace-nowrap", "min-w-0 truncate")} title={title}>{title}</Dialog.Title>
           <div />
         </div>
 

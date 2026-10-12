@@ -171,3 +171,4 @@ export async function getGoalHub(userId: string) {
     myGoalCounts,
   };
 }
+

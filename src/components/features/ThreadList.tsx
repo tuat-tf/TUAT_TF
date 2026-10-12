@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -11,11 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
+import { FormModalFooter } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
-import { safeDelete, safeUpdate } from "@/lib/safe-update";
-import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import type { ThreadWithAuthor } from "@/types";
 
 /** スレッド一覧（掲示板スタイル・タスク17-b） */
@@ -43,18 +41,26 @@ export function ThreadList({
   }
 
   async function remove(id: string) {
-    const result = await safeDelete(createClient(), "threads", { id });
-    if (!result.ok) {
+    try {
+      const { data, error } = await createClient().from("threads").delete().eq("id", id).select("id");
+      if (error || !data || data.length !== 1) {
+        showToast("スレッドを削除できませんでした");
+        return false;
+      }
+      router.refresh();
+      return true;
+    } catch {
       showToast("スレッドを削除できませんでした");
       return false;
     }
-    router.refresh();
-    return true;
   }
 
   async function togglePin(thread: ThreadWithAuthor) {
-    const result = await safeUpdate(createClient(), "threads", { pinned: !thread.pinned }, { id: thread.id });
-    if (!result.ok) {
+    const { error } = await createClient()
+      .from("threads")
+      .update({ pinned: !thread.pinned })
+      .eq("id", thread.id);
+    if (error) {
       showToast("\u30d4\u30f3\u7559\u3081\u3092\u5909\u66f4\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f");
       return;
     }
@@ -108,39 +114,24 @@ export function ThreadComposer({ userId, folderId, onDone }: { userId: string; f
   const { showToast } = useToast();
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
-  const [creationId] = useState(() => crypto.randomUUID());
-  const creation = useRef({ uncertain: false });
-  const [uncertain, setUncertain] = useState(false);
-  useFormDraft({ dirty: title !== "" || uncertain, busy: saving, onSave: create, intent: "create" });
 
   async function create() {
     const trimmed = title.trim();
     if (!trimmed || saving) return;
     setSaving(true);
-    try {
-      const supabase = createClient();
-      const savedTitle = trimmed.slice(0, 100);
-      const result = await atomicSave(creation.current,
-        async () => {
-          const { data, error } = await supabase.from("threads")
-            .insert({ id: creationId, title: savedTitle, author_id: userId, folder_id: folderId }).select("id").single();
-          return { data: data?.id ?? null, error };
-        },
-        async () => {
-          const { data, error } = await supabase.from("threads").select("id,title,author_id,folder_id").eq("id", creationId).maybeSingle();
-          if (error) throw error;
-          return data?.title === savedTitle && data.author_id === userId && data.folder_id === folderId ? data.id : null;
-        });
-      setUncertain(creation.current.uncertain);
-      if (!result.ok) { showToast(atomicSaveMessage(result.reason)); return; }
-      onDone();
-      router.push(`/notes/threads/${result.value}`);
-      router.refresh();
-    } catch {
-      showToast("スレッドを作成できませんでした。入力は残っています");
-    } finally {
-      setSaving(false);
+    const { data, error } = await createClient()
+      .from("threads")
+      .insert({ title: trimmed.slice(0, 100), author_id: userId, folder_id: folderId })
+      .select("id")
+      .single();
+    setSaving(false);
+    if (error || !data) {
+      showToast("スレッドを作成できませんでした");
+      return;
     }
+    onDone();
+    router.push(`/notes/threads/${data.id}`);
+    router.refresh();
   }
 
   return (
@@ -151,14 +142,13 @@ export function ThreadComposer({ userId, folderId, onDone }: { userId: string; f
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           maxLength={100}
-          disabled={saving || uncertain}
           placeholder="例: 合宿の持ち物どうする？"
         />
       </div>
       <p className="text-caption">スレッドは部員全員が見てメッセージを送信できます。</p>
       <FormModalFooter>
         <Button type="button" className="w-full" disabled={!title.trim() || saving} onClick={create}>
-          {saving ? "作成中…" : uncertain ? "保存結果を確認" : "スレッドを立てる"}
+          スレッドを立てる
         </Button>
       </FormModalFooter>
     </div>

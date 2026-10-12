@@ -35,10 +35,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "シートを指定してください" }, { status: 400 });
   }
 
-  const [{ data: sheetData }, { data: venueData }] = await Promise.all([
+  let sheetResult;
+  let venueResult;
+  try {
+    [sheetResult, venueResult] = await Promise.all([
     supabase.from("schedule_sheets").select("*").eq("id", body.sheetId).maybeSingle(),
     supabase.from("venues").select("*"),
-  ]);
+    ]);
+  } catch {
+    return NextResponse.json({ error: "予定の確認に必要な情報を取得できませんでした。もう一度お試しください" }, { status: 500 });
+  }
+  if (sheetResult.error || venueResult.error) {
+    return NextResponse.json({ error: "予定の確認に必要な情報を取得できませんでした。もう一度お試しください" }, { status: 500 });
+  }
+  const { data: sheetData } = sheetResult;
+  const { data: venueData } = venueResult;
   const sheet = sheetData as ScheduleSheet | null;
   if (!sheet) {
     return NextResponse.json({ error: "シートを参照できません" }, { status: 404 });
@@ -90,7 +101,12 @@ export async function POST(request: Request) {
     }));
   }
 
-  const existing = await loadExistingSchedules(supabase, sheet);
+  let existing: PracticeSchedule[];
+  try {
+    existing = await loadExistingSchedules(supabase, sheet);
+  } catch {
+    return NextResponse.json({ error: "登録済みの予定を取得できませんでした。もう一度お試しください" }, { status: 500 });
+  }
   return NextResponse.json(
     validateScheduleImportRows({
       rows,
@@ -148,6 +164,7 @@ async function loadExistingSchedules(
       .gte("schedule_date", toDateStr(prevMonthDate))
       .lt("schedule_date", toDateStr(nextMonthDate));
   }
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw error;
   return (data ?? []) as PracticeSchedule[];
 }

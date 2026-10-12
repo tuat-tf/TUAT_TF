@@ -5,7 +5,6 @@ import { Users } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Avatar } from "@/components/common/Avatar";
 import { SegmentedControl } from "@/components/ui/segmented";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import { ATTENDANCE_BLOCK_ORDER, BLOCKS, GRADE_OPTIONS, PROFILE_BLOCK_ORDER, SIMPLE_BLOCK_ITEMS, attendanceSectionBlock, gradeShort, matchSimpleBlock, primarySimpleBlock } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { AttendanceDefaultBlock, Attendee } from "@/types";
@@ -54,7 +53,6 @@ export function AttendeesButton({
   attendees: Attendee[];
   defaultBlock: AttendanceDefaultBlock;
 }) {
-  const systemGlass = useSystemGlass();
   const [open, setOpen] = useState(false);
   const [block, setBlock] = useState<AttendanceDefaultBlock>(defaultBlock);
 
@@ -71,9 +69,9 @@ export function AttendeesButton({
     <>
       <button
         type="button"
-        data-system-glass={systemGlass || undefined}
-        data-glass-control={systemGlass || undefined}
-        data-glass-attendance={systemGlass ? "summary" : undefined}
+        data-system-glass
+        data-glass-control
+        data-glass-attendance={"summary"}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={(e) => {

@@ -1,17 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { safeDelete } from "@/lib/safe-update";
 import { FormModal } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { ResultsList } from "@/components/features/ResultsList";
-import { ResultForm, type ResultFormHandle } from "@/components/post/ResultForm";
-import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
+import { ResultForm } from "@/components/post/ResultForm";
 import { FloatingActionPosition, floatingActionButtonClass } from "@/components/ui/floating-action";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import type { CompetitionEvent } from "@/lib/competition-goals";
 import type { CompetitionRow, PbRecord } from "@/types";
 
@@ -29,15 +26,11 @@ export function PbManager({
   competitions: CompetitionRow[];
   addLabel?: string;
 }) {
-  const newUi = useSystemGlass();
   const router = useRouter();
   const { showToast } = useToast();
   const [items, setItems] = useState<PbRecord[]>(initial);
   const [open, setOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<PbRecord | null>(null);
-  const [dirty, setDirty] = useState(false);
-  const [confirmClose, setConfirmClose] = useState(false);
-  const formRef = useRef<ResultFormHandle>(null);
 
   function openAdd() {
     setEditTarget(null);
@@ -49,15 +42,19 @@ export function PbManager({
   }
 
   async function remove(id: string) {
-    const supabase = createClient();
-    const result = await safeDelete(supabase, "pb_records", { id, user_id: userId });
-    if (!result.ok) {
+    try {
+      const { data, error } = await createClient().from("pb_records").delete().eq("id", id).select("id");
+      if (error || !data || data.length !== 1) {
+        showToast("結果を削除できませんでした");
+        return false;
+      }
+      setItems((arr) => arr.filter((x) => x.id !== id));
+      router.refresh();
+      return true;
+    } catch {
       showToast("結果を削除できませんでした");
       return false;
     }
-    setItems((arr) => arr.filter((x) => x.id !== id));
-    router.refresh();
-    return true;
   }
 
   const addButton = (
@@ -66,7 +63,7 @@ export function PbManager({
       type="button"
       onClick={openAdd}
       aria-label={addLabel}
-      className={newUi ? floatingActionButtonClass : "fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-xl pressable"}
+      className={floatingActionButtonClass}
     >
       <Plus size={26} />
     </button>
@@ -79,17 +76,16 @@ export function PbManager({
       </div>
 
       {/* 追加は他の画面と同じくFABから。一覧の下にボタンを置かない（規約: 書く=FAB） */}
-      {newUi ? <FloatingActionPosition>{addButton}</FloatingActionPosition> : addButton}
+      {<FloatingActionPosition>{addButton}</FloatingActionPosition>}
 
       {open && (
         <FormModal
           open
-          onOpenChange={(next) => { if (!next) { if (dirty) setConfirmClose(true); else setOpen(false); } }}
+          onOpenChange={setOpen}
+          intent={editTarget ? "update" : "post"}
           title={editTarget ? "大会・記録会の結果を編集" : "大会・記録会の結果"}
         >
           <ResultForm
-            ref={formRef}
-            onDirtyChange={setDirty}
             key={editTarget?.id ?? "new"}
             userId={userId}
             events={events}
@@ -103,13 +99,11 @@ export function PbManager({
                     : [saved, ...arr],
                 );
               }
-              setDirty(false);
               setOpen(false);
             }}
           />
         </FormModal>
       )}
-      <UnsavedChangesDialog open={confirmClose} busy={false} intent={editTarget ? "update" : "post"} onContinue={() => setConfirmClose(false)} onDiscard={() => { setDirty(false); setConfirmClose(false); setOpen(false); }} onSave={() => { setConfirmClose(false); formRef.current?.save(); }} />
     </>
   );
 }

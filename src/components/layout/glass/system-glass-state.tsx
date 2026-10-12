@@ -7,9 +7,6 @@ import { attachGlassPress } from "./glass-press";
 // The marker only owns the shared press listener; it does not gate visuals.
 let owners = 0;
 let stopPress: (() => void) | undefined;
-export function useSystemGlass() {
-  return true;
-}
 export function SystemGlassMarker() {
   useEffect(() => {
     owners++;

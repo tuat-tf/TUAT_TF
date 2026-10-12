@@ -11,7 +11,6 @@ import { useToast } from "@/components/ui/toast";
 import { Toggle } from "@/components/ui/toggle";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import type { AttendanceStatusOrNone } from "@/types";
 
 const NEXT: Record<AttendanceStatusOrNone, AttendanceStatusOrNone> = {
@@ -57,7 +56,6 @@ export function AttendanceToggle({
   refreshOnChange?: boolean;
   onChanged?: (change: AttendanceChange) => void;
 }) {
-  const systemGlass = useSystemGlass();
   const { showToast } = useToast();
   const router = useRouter();
   const [status, setStatus] = useState(initial);
@@ -100,9 +98,9 @@ export function AttendanceToggle({
   return (
     <button
       type="button"
-      data-system-glass={systemGlass || undefined}
-      data-glass-control={systemGlass || undefined}
-      data-glass-attendance={systemGlass ? status : undefined}
+      data-system-glass
+      data-glass-control
+      data-glass-attendance={status}
       aria-busy={busy}
       onClick={toggle}
       disabled={busy}
@@ -251,7 +249,6 @@ export function LateAttendanceControl({
     </div>
   );
 }
-
 
 export function AbsenceAttendanceControl({ scheduleId, attendDate, userId, initialNote, onChanged }: { scheduleId: string; attendDate: string; userId: string; initialNote: string | null; onChanged?: (note: string | null) => void; }) {
   const { showToast } = useToast();
