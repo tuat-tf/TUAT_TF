@@ -68,26 +68,3 @@ export async function getAllRoleCategories(): Promise<RoleCategory[]> {
   if (error) throw error;
   return (data ?? []) as RoleCategory[];
 }
-/** 自分がお気に入り登録している部員IDの一覧 */
-export async function getMyFavoriteIds(userId: string): Promise<string[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("favorites")
-    .select("favorite_user_id")
-    .eq("user_id", userId);
-  if (error) throw error;
-  return (data ?? []).map((f) => f.favorite_user_id as string);
-}
-
-/** 自分が対象ユーザーをお気に入り登録しているか */
-export async function isFavorite(userId: string, targetId: string): Promise<boolean> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("favorites")
-    .select("favorite_user_id")
-    .eq("user_id", userId)
-    .eq("favorite_user_id", targetId)
-    .maybeSingle();
-  if (error) throw error;
-  return !!data;
-}

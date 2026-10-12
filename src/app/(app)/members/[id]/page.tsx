@@ -14,7 +14,6 @@ import { ResultsList } from "@/components/features/ResultsList";
 import { PbManager } from "@/components/features/PbManager";
 import type { CompetitionEvent } from "@/lib/competition-goals";
 import { TrainingChart } from "@/components/features/TrainingChart";
-import { FavoriteButton } from "@/components/features/FavoriteButton";
 import { MemberSkeleton, TrainingChartSkeleton } from "@/components/ui/page-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NoteList } from "@/components/features/NotesView";
@@ -27,7 +26,6 @@ import {
   getCompetitions,
   getPublishedPersonalNotes,
   getUserTweets,
-  isFavorite,
   sortFeedItems,
 } from "@/lib/queries";
 import { gradeShort } from "@/lib/constants";
@@ -55,18 +53,10 @@ async function MemberContent({
   ]);
   if (!profile) notFound();
 
-  const isSelf = viewer.id === id;
-
   return (
     <>
       <SubHeader
         title={profile.display_name || "部員"}
-        sideWidth={!isSelf ? 120 : undefined}
-        right={!isSelf ? (
-          <Suspense fallback={<Skeleton className="h-9 w-24 rounded-full" />}>
-            <MemberFavorite viewerId={viewer.id} targetId={id} />
-          </Suspense>
-        ) : undefined}
       />
 
       <div className="px-4 space-y-5 pt-1">
@@ -127,11 +117,6 @@ async function MemberContent({
       </div>
     </>
   );
-}
-
-async function MemberFavorite({ viewerId, targetId }: { viewerId: string; targetId: string }) {
-  const initial = await isFavorite(viewerId, targetId);
-  return <FavoriteButton targetId={targetId} initial={initial} />;
 }
 
 /** 履歴の取得が遅くても、部員名・プロフィールと戻る操作を先に使えるようにする。 */

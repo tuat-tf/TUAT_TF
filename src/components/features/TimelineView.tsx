@@ -1,16 +1,14 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { List, UserCheck } from "lucide-react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { List } from "lucide-react";
 import { RecordCard } from "@/components/cards/RecordCard";
 import { TweetCard } from "@/components/cards/TweetCard";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { CompactFeedRow } from "@/components/features/CompactFeedRow";
 import { SeenDivider, UnreadHeading } from "@/components/features/NewPostMarkers";
-import { FAVORITE_CHANGE_EVENT } from "@/components/features/FavoriteButton";
-import { createClient } from "@/lib/supabase/client";
 import { nextFeedCursor, type FeedCursor } from "@/lib/feed-pagination";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SIMPLE_BLOCK_ITEMS, matchSimpleBlock } from "@/lib/constants";
@@ -52,7 +50,7 @@ function isInteractiveFeedTarget(target: EventTarget | null, row: HTMLElement) {
 /**
  * タイムライン本体。カード表示と、一覧性を優先した2行表示を切り替えられる。
  * 前回開いたあとに増えた投稿を「新着の投稿」として先頭に数え、そこが終わる位置に区切りを出す。
- * ブロック・お気に入りの絞り込みはサーバー往復せず
+ * ブロックの絞り込みはサーバー往復せず
  * 読み込み済みアイテムをクライアント側でフィルタするため、タブ切替が即時。
  * 「もっと見る」のときだけサーバーから追加取得する。
  */
@@ -60,7 +58,6 @@ export function TimelineView({
   initialItems,
   initialFetchedAt,
   currentUser,
-  favoriteIds = [],
   initialCompact = false,
   initialBlock = "all",
   showRecordSource = false,
@@ -68,7 +65,6 @@ export function TimelineView({
   initialItems: FeedItem[];
   initialFetchedAt: number;
   currentUser: CommentAuthor;
-  favoriteIds?: string[];
   /** 一覧表示の初期値（Cookieから復元し、初期表示のちらつきを防ぐ） */
   initialCompact?: boolean;
   /** 最初に表示するブロックタブ（マイページの「タイムラインの初期表示」） */
@@ -104,47 +100,18 @@ export function TimelineView({
     [feedQuery.data.pages],
   );
   const [block, setBlock] = useState<string>(initialBlock);
-  const [favOnly, setFavOnly] = useState(false);
-  const { data: currentFavoriteIds } = useQuery({
-    queryKey: ["favorites", currentUser.id],
-    queryFn: async () => {
-      const { data, error } = await createClient().from("favorites").select("favorite_user_id").eq("user_id", currentUser.id);
-      if (error) throw error;
-      return (data ?? []).map((row) => row.favorite_user_id as string);
-    },
-    initialData: favoriteIds, initialDataUpdatedAt: initialFetchedAt,
-    staleTime: 60_000,
-  });
   const filterAutoLoadCount = useRef(0);
   const { compact, toggleCompact, toggleExpanded, isCompact } = useFeedDisplay({
     initialCompact,
     cookieName: "timeline-compact",
   });
 
-  useEffect(() => {
-    function handleFavoriteChange(event: Event) {
-      const { targetId, favorited } = (event as CustomEvent<{ targetId: string; favorited: boolean }>).detail;
-      queryClient.setQueryData<string[]>(["favorites", currentUser.id], (ids = []) => favorited
-        ? Array.from(new Set([...ids, targetId])) : ids.filter((id) => id !== targetId));
-    }
-    window.addEventListener(FAVORITE_CHANGE_EVENT, handleFavoriteChange);
-    return () => window.removeEventListener(FAVORITE_CHANGE_EVENT, handleFavoriteChange);
-  }, [currentUser.id, queryClient]);
-  useEffect(() => {
-    const key = ["favorites", currentUser.id];
-    if ((queryClient.getQueryState(key)?.dataUpdatedAt ?? 0) >= initialFetchedAt) return;
-    queryClient.setQueryData(key, favoriteIds, { updatedAt: initialFetchedAt });
-  }, [favoriteIds, initialFetchedAt, currentUser.id, queryClient]);
-
-  const favSet = useMemo(() => new Set(currentFavoriteIds), [currentFavoriteIds]);
-
   const filtered = useMemo(() => {
     return items.filter((item) => {
       if (!matchSimpleBlock(item.author?.blocks, block)) return false;
-      if (favOnly && !favSet.has(item.author?.id)) return false;
       return true;
     });
-  }, [items, block, favOnly, favSet]);
+  }, [items, block]);
 
   const groups = useMemo(() => groupFeedItemsByDate(filtered), [filtered]);
   // 既読の基準は「実際に画面へ出した投稿」。絞り込みで隠れている投稿は既読にしない。
@@ -155,11 +122,11 @@ export function TimelineView({
     [filtered, lastSeenAt],
   );
 
-  const hasActiveFilter = block !== "all" || favOnly;
+  const hasActiveFilter = block !== "all";
 
   useEffect(() => {
     filterAutoLoadCount.current = 0;
-  }, [block, favOnly]);
+  }, [block]);
 
   useEffect(() => {
     if (
@@ -223,20 +190,6 @@ export function TimelineView({
           >
             <List size={14} />
             <span>一覧</span>
-          </button>
-          <button
-            data-ui-action="icon"
-            type="button"
-            aria-pressed={favOnly}
-            onClick={() => setFavOnly((v) => !v)}
-            aria-label={favOnly ? "フォロー中のみを解除" : "フォロー中のみ表示"}
-            title="フォロー中"
-            className={cn(
-              "h-8 w-8 rounded-full border inline-flex items-center justify-center shrink-0 pressable",
-              favOnly ? "bg-accent text-white border-accent" : "bg-card border-separator text-muted2",
-            )}
-          >
-            <UserCheck size={14} />
           </button>
         </div>
       </div>

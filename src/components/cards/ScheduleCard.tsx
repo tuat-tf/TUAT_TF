@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { jstToday } from "@/lib/date";
 import { scheduleAttendanceDates } from "@/lib/schedule-days";
 import { ScheduleManageActions } from "@/components/post/ScheduleForm";
-import { CancelledBanner, WeatherStatusBanner, WeatherStatusControl, type AttendanceChange, type LateAttendanceChange } from "@/components/features/AttendanceToggle";
+import { CancelledBanner, WeatherStatusBanner, WeatherStatusControl, type AttendanceChange } from "@/components/features/AttendanceToggle";
 import { Linkify } from "@/components/common/Linkify";
 import { MenuCard } from "./schedule/PracticeMenuCard";
 import { ScheduleAttendance } from "./schedule/ScheduleAttendance";
@@ -104,31 +104,6 @@ export function ScheduleCard({
       };
       return [...others, mine];
     });
-  }
-
-  // 遅刻操作は出欠状態を変更しない。その日の出席行だけを局所更新する。
-  function handleLateChanged(attendDate: string, change: LateAttendanceChange) {
-    setAttendeesState((previous) =>
-      previous.map((attendee) =>
-        attendee.user_id === userId &&
-        attendee.attend_date === attendDate &&
-        attendee.status === "present"
-          ? { ...attendee, is_late: change.isLate, late_note: change.lateNote }
-          : attendee,
-      ),
-    );
-  }
-
-  function handleAbsenceNoteChanged(attendDate: string, note: string | null) {
-    setAttendeesState((previous) =>
-      previous.map((attendee) =>
-        attendee.user_id === userId &&
-        attendee.attend_date === attendDate &&
-        attendee.status === "absent"
-          ? { ...attendee, absence_note: note }
-          : attendee,
-      ),
-    );
   }
 
   useEffect(() => {
@@ -316,8 +291,6 @@ export function ScheduleCard({
           attendeesState={attendeesState}
           attendanceDefaultBlock={attendanceDefaultBlock}
           handleAttendanceChanged={handleAttendanceChanged}
-          handleAbsenceNoteChanged={handleAbsenceNoteChanged}
-          handleLateChanged={handleLateChanged}
         />
       )}
 

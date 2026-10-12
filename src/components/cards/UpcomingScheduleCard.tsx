@@ -78,7 +78,7 @@ export function UpcomingScheduleCard({
   }
 
   return (
-    <Card className="flex items-center gap-3 p-3">
+    <Card className="space-y-2 p-3">
       <Link data-ui-row
         href={`/schedule?open=${schedule.id}`}
         prefetch={false}
@@ -119,6 +119,9 @@ export function UpcomingScheduleCard({
         attendDate={attendDate}
         userId={userId}
         initial={status}
+        initialLate={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.is_late ?? false}
+        initialLateNote={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.late_note ?? null}
+        initialAbsenceNote={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.absence_note ?? null}
         onChanged={handleChanged}
       />
     </Card>

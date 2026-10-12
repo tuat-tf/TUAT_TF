@@ -1,8 +1,7 @@
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { AbsenceAttendanceControl, AttendanceToggle, LateAttendanceControl, type AttendanceChange, type LateAttendanceChange } from "@/components/features/AttendanceToggle";
+import { AttendanceToggle, type AttendanceChange } from "@/components/features/AttendanceToggle";
 import { AttendeesButton } from "@/components/features/AttendeesButton";
-import { jstToday } from "@/lib/date";
 import type { Attendee, AttendanceDefaultBlock } from "@/types";
 
 /** 各日の出欠を表示する。回答の状態と更新処理は予定カード側で保持する。 */
@@ -14,8 +13,6 @@ export function ScheduleAttendance({
   attendeesState,
   attendanceDefaultBlock,
   handleAttendanceChanged,
-  handleAbsenceNoteChanged,
-  handleLateChanged
 }: {
   scheduleId: string;
   userId: string;
@@ -24,8 +21,6 @@ export function ScheduleAttendance({
   attendeesState: Attendee[];
   attendanceDefaultBlock: AttendanceDefaultBlock;
   handleAttendanceChanged: (day: string, change: AttendanceChange) => void;
-  handleAbsenceNoteChanged: (day: string, note: string | null) => void;
-  handleLateChanged: (day: string, change: LateAttendanceChange) => void;
 }) {
   return (
     <div className="-mt-1 space-y-2 px-4 pb-3 lg:px-3 lg:pb-2.5">
@@ -51,29 +46,13 @@ export function ScheduleAttendance({
                     attendDate={day}
                     userId={userId}
                     initial={status}
+                    initialLate={mine?.is_late ?? false}
+                    initialLateNote={mine?.late_note ?? null}
+                    initialAbsenceNote={mine?.absence_note ?? null}
                     onChanged={(change) => handleAttendanceChanged(day, change)}
                   />
                   <AttendeesButton attendees={dayAttendees} defaultBlock={attendanceDefaultBlock} />
                 </div>
-                {status === "absent" && (
-                  <AbsenceAttendanceControl
-                    scheduleId={scheduleId}
-                    attendDate={day}
-                    userId={userId}
-                    initialNote={mine?.absence_note ?? null}
-                    onChanged={(note) => handleAbsenceNoteChanged(day, note)}
-                  />
-                )}
-                {day === jstToday() && status === "present" && (
-                  <LateAttendanceControl
-                    scheduleId={scheduleId}
-                    attendDate={day}
-                    userId={userId}
-                    initialLate={mine?.is_late ?? false}
-                    initialNote={mine?.late_note ?? null}
-                    onChanged={(change) => handleLateChanged(day, change)}
-                  />
-                )}
               </div>
             );
           })}

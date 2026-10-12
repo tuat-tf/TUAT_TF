@@ -142,6 +142,7 @@ function Group({ title, color, list, selectedBlock }: { title: string; color: st
                         <div className="min-w-0 flex-1 pt-0.5">
                           <p className={cn("flex items-center gap-1.5 truncate text-[14px] font-semibold", attendee.is_late && "text-warning")}>
                             <span className="truncate">{attendee.profile.display_name || "名無し"}</span>
+                            {attendee.is_late && <span className="shrink-0 text-caption text-warning">遅刻</span>}
                             {(attendee.profile.blocks ?? []).includes("manager") && (
                               <span
                                 className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
@@ -151,7 +152,7 @@ function Group({ title, color, list, selectedBlock }: { title: string; color: st
                               </span>
                             )}
                           </p>
-                          {attendee.is_late && attendee.late_note && (
+                          {attendee.late_note && (
                             <p className="mt-0.5 whitespace-pre-wrap break-words text-[12px] leading-5 text-muted2">{attendee.late_note}</p>
                           )}
                           {attendee.status === "absent" && attendee.absence_note && (
