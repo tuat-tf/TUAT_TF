@@ -71,8 +71,8 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
       <button type="button" data-system-glass data-glass-control data-glass-attendance={value.status}
         aria-label={style.label}
         aria-busy={busy} disabled={busy || unknown} onClick={toggleAttendance}
-        className={cn("inline-flex h-11 w-24 shrink-0 items-center justify-center gap-1 rounded-full border px-2 text-[13px] font-semibold whitespace-nowrap pressable disabled:opacity-60", style.cls)}>
-        {busy ? <LoaderCircle size={15} className="animate-spin" /> : <Icon size={15} />}{value.status === "none" ? "未回答" : style.label}
+        className={cn("inline-flex h-11 w-16 shrink-0 items-center justify-center gap-1 rounded-full border px-1 text-[13px] font-semibold whitespace-nowrap pressable disabled:opacity-60", style.cls)}>
+        {busy ? <LoaderCircle size={15} className="animate-spin" /> : value.status !== "none" ? <Icon size={15} /> : null}{value.status === "none" ? "未回答" : style.label}
       </button>
       {value.status === "present" && <Button variant={value.isLate ? "secondary" : "ghost"} size="sm" className="h-11 min-w-14 px-1" style={{ paddingInline: 4 }} disabled={busy || unknown} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
         onClick={() => void save({ ...value, isLate: !value.isLate })}>{value.isLate ? "遅刻中" : "遅刻"}</Button>}
