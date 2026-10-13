@@ -126,6 +126,23 @@
   opacity: 1;
 }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-row][aria-pressed="true"] { background-color: var(--ui-selected); color: #075db5; }
+/* Navigation rows share one outer card. Only the outside corners are rounded,
+   so the internal divider stays straight and focus remains inside the card. */
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-navigation-list] > [data-ui-row] {
+  min-height: 56px;
+  border-radius: 0;
+}
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-navigation-list] > [data-ui-row]:first-child {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-navigation-list] > [data-ui-row]:last-child {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-navigation-list] > [data-ui-row]:focus-visible {
+  outline-offset: -3px;
+}
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-choice-row] {
   border: 1px solid var(--ui-line);
   border-radius: 18px;

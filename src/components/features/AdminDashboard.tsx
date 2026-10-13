@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Activity, Bell, BookOpen, CalendarDays, ChevronRight, Flag, ListOrdered, MapPin, MessageCircle, NotebookPen, Settings, ShieldCheck, Users } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Activity, Bell, BookOpen, CalendarDays, Flag, ListOrdered, MapPin, MessageCircle, NotebookPen, Settings, ShieldCheck, Users } from "lucide-react";
+import { NavigationList, NavigationLink } from "@/components/ui/navigation-list";
 import { DashboardRefresh } from "@/components/features/DashboardRefresh";
 import { ServiceStatusPanel } from "@/components/features/ServiceStatusPanel";
 import { SystemSyncStatus } from "@/components/features/SystemSyncStatus";
@@ -36,18 +36,18 @@ export function AdminDashboard({ snapshot, permissions }: Props) {
 
     <section aria-labelledby="dashboard-management" className="space-y-2">
       <h2 id="dashboard-management" className="section-label">各機能の管理</h2>
-      <Card className="divide-y divide-separator/70 overflow-hidden">
-        {permissions.manageMembers && <ManagementLink href="/admin/members" label="部員・ロール" detail="所属・権限の確認と変更" icon={<ShieldCheck size={19} />} />}
-        <ManagementLink href="/competitions" label="大会" detail="大会・出場・プログラム・補助担当" icon={<Flag size={19} />} />
-        <ManagementLink href="/mypage/monthly-results" label="大会・記録会の結果" detail="月別・年別・新着の結果" icon={<Activity size={19} />} />
-        <ManagementLink href="/schedule" label="予定・出欠" detail="練習・イベントの予定と回答" icon={<CalendarDays size={19} />} />
-        {permissions.createSchedule && <ManagementLink href="/venues" label="練習場所" detail="集合場所・アクセスの管理" icon={<MapPin size={19} />} />}
-        <ManagementLink href="/notices" label="お知らせ" detail="お知らせ・通知の確認" icon={<Bell size={19} />} />
-        <ManagementLink href="/timeline" label="練習記録・つぶやき" detail="部員の投稿・コメントの確認" icon={<NotebookPen size={19} />} />
-        <ManagementLink href="/notes" label="ノート" detail="共有記事・スレッドの確認" icon={<BookOpen size={19} />} />
-        <ManagementLink href="/events" label="種目" detail="大会の種目一覧の管理" icon={<ListOrdered size={19} />} />
-        <ManagementLink href="/mypage/settings" label="システム設定" detail="表示の確認・一般部員プレビュー・旧アプリ" icon={<Settings size={19} />} />
-      </Card>
+      <NavigationList>
+        {permissions.manageMembers && <NavigationLink href="/admin/members" label="部員・ロール" description="所属・権限の確認と変更" icon={<ShieldCheck size={20} />} />}
+        <NavigationLink href="/competitions" label="大会" description="大会・出場・プログラム・補助担当" icon={<Flag size={20} />} />
+        <NavigationLink href="/mypage/monthly-results" label="大会・記録会の結果" description="月別・年別・新着の結果" icon={<Activity size={20} />} />
+        <NavigationLink href="/schedule" label="予定・出欠" description="練習・イベントの予定と回答" icon={<CalendarDays size={20} />} />
+        {permissions.createSchedule && <NavigationLink href="/venues" label="練習場所" description="集合場所・アクセスの管理" icon={<MapPin size={20} />} />}
+        <NavigationLink href="/notices" label="お知らせ" description="お知らせ・通知の確認" icon={<Bell size={20} />} />
+        <NavigationLink href="/timeline" label="練習記録・つぶやき" description="部員の投稿・コメントの確認" icon={<NotebookPen size={20} />} />
+        <NavigationLink href="/notes" label="ノート" description="共有記事・スレッドの確認" icon={<BookOpen size={20} />} />
+        <NavigationLink href="/events" label="種目" description="大会の種目一覧の管理" icon={<ListOrdered size={20} />} />
+        <NavigationLink href="/mypage/settings" label="システム設定" description="表示の確認・一般部員プレビュー・旧アプリ" icon={<Settings size={20} />} />
+      </NavigationList>
     </section>
 
     <section aria-labelledby="dashboard-sync" className="space-y-2">
@@ -67,13 +67,5 @@ function Metric({ label, value, unit, detail, href, icon }: { label: string; val
     <div className="mb-2 flex items-center gap-2 text-accent">{icon}<span className="text-micro font-medium text-muted">{label}</span></div>
     <p className="text-2xl font-bold tabular-nums">{value === null ? <span className="text-sm font-medium text-muted">取得できません</span> : <>{value.toLocaleString("ja-JP")}<span className="ml-1 text-sm font-medium text-muted">{unit}</span></>}</p>
     <p className="mt-1 text-micro text-muted">{detail}</p>
-  </Link>;
-}
-
-function ManagementLink({ href, label, detail, icon }: { href: string; label: string; detail: string; icon: React.ReactNode }) {
-  return <Link data-ui-row href={href} className="flex min-h-14 items-center gap-3 px-4 py-3 active:bg-bg">
-    <span className="shrink-0 text-accent">{icon}</span>
-    <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{label}</span><span className="block text-micro text-muted">{detail}</span></span>
-    <ChevronRight size={18} className="shrink-0 text-muted" />
   </Link>;
 }

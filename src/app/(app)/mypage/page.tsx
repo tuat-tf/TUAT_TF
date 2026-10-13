@@ -1,11 +1,11 @@
 import { canModerateComments } from "@/lib/permissions";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { Trophy, Medal, ChevronRight, Settings, Shield, ShieldCheck, Users, Target, MapPin, ListOrdered, Rss, Flag, CalendarDays } from "lucide-react";
+import { Trophy, Medal, Settings, Shield, ShieldCheck, Users, Target, MapPin, ListOrdered, Rss, Flag, CalendarDays } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
+import { NavigationList, NavigationLink } from "@/components/ui/navigation-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Avatar } from "@/components/common/Avatar";
 import { BlockPills } from "@/components/common/BlockPill";
@@ -93,26 +93,27 @@ export default async function MyPage({
         )}
 
         {/* リンク（1枚にまとめた区切り線リスト） */}
-        <Card className="divide-y divide-separator/70 overflow-hidden">
-          <RowLink href="/goals" icon={<Target size={20} className="text-accent" />} label="目標" />
+        <NavigationList>
+          <NavigationLink prefetch={false} href="/goals" icon={<Target size={20} className="text-accent" />} label="目標" />
           {/* 大会は全員に。追加・編集・並べ替えは大会画面の中で管理者にだけ出る */}
-          <RowLink href="/competitions" icon={<Flag size={20} className="text-accent" />} label="大会" />
-          <RowLink href="/mypage/pb" icon={<Medal size={20} className="text-warning" />} label="大会・記録会の結果" />
-          <RowLink href="/members" icon={<Users size={20} className="text-accent" />} label="メンバー一覧" />
-          <RowLink href="/blog" icon={<Rss size={20} className="text-accent" />} label="ブログ" />
-          <RowLink href="/mypage/settings" icon={<Settings size={20} className="text-muted2" />} label="設定" />
-        </Card>
+          <NavigationLink prefetch={false} href="/competitions" icon={<Flag size={20} className="text-accent" />} label="大会" />
+          <NavigationLink prefetch={false} href="/mypage/pb" icon={<Medal size={20} className="text-warning" />} label="大会・記録会の結果" />
+          <NavigationLink prefetch={false} href="/members" icon={<Users size={20} className="text-accent" />} label="メンバー一覧" />
+          <NavigationLink prefetch={false} href="/blog" icon={<Rss size={20} className="text-accent" />} label="ブログ" />
+          <NavigationLink prefetch={false} href="/mypage/settings" icon={<Settings size={20} className="text-muted2" />} label="設定" />
+        </NavigationList>
 
         {profile.blocks.includes("middle_long") && (
           <section className="space-y-2">
           <p className="section-label">中長距離</p>
-          <Card className="divide-y divide-separator/70 overflow-hidden">
-            <RowLink
+          <NavigationList>
+            <NavigationLink
+              prefetch={false}
               href="/ranking"
               icon={<Trophy size={20} className="text-warning" />}
               label="走行距離ランキング"
             />
-          </Card>
+          </NavigationList>
         </section>
         )}
 
@@ -120,23 +121,23 @@ export default async function MyPage({
         {showAdminMenu && (
           <section className="space-y-2">
             <p className="section-label">管理メニュー</p>
-            <Card className="divide-y divide-separator/70 overflow-hidden">
+            <NavigationList>
               {perms.manageSystem && (
-                <RowLink href="/admin" icon={<Shield size={20} className="text-accent" />} label="管理ダッシュボード" />
+                <NavigationLink prefetch={false} href="/admin" icon={<Shield size={20} className="text-accent" />} label="管理ダッシュボード" />
               )}
               {perms.manageMembers && (
-                <RowLink href="/admin/members" icon={<ShieldCheck size={20} className="text-accent" />} label="部員・ロール管理" />
+                <NavigationLink prefetch={false} href="/admin/members" icon={<ShieldCheck size={20} className="text-accent" />} label="部員・ロール管理" />
               )}
               {perms.createSchedule && (
-                <RowLink href="/venues" icon={<MapPin size={20} className="text-accent" />} label="練習場所" />
+                <NavigationLink prefetch={false} href="/venues" icon={<MapPin size={20} className="text-accent" />} label="練習場所" />
               )}
               {perms.manageSystem && (
                 <>
-                  <RowLink href="/mypage/monthly-results" icon={<CalendarDays size={20} className="text-accent" />} label="大会結果（月別・年別・新着）" />
-                  <RowLink href="/events" icon={<ListOrdered size={20} className="text-accent" />} label="種目" />
+                  <NavigationLink prefetch={false} href="/mypage/monthly-results" icon={<CalendarDays size={20} className="text-accent" />} label="大会結果（月別・年別・新着）" />
+                  <NavigationLink prefetch={false} href="/events" icon={<ListOrdered size={20} className="text-accent" />} label="種目" />
                 </>
               )}
-            </Card>
+            </NavigationList>
           </section>
         )}
 
@@ -183,15 +184,4 @@ async function MyActivity({
     return <EmptyState title="まだ投稿はありません" className="min-h-24 py-4" />;
   }
   return <ActivityFeed activity={activity} currentUser={currentUser} showRecordSource={showRecordSource} />;
-}
-
-/** 区切り線リスト内の1行リンク（カード枠は親のCardが持つ） */
-function RowLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  return (
-    <Link data-ui-row href={href} prefetch={false} className="flex items-center gap-3 p-4 active:bg-bg">
-      {icon}
-      <span className="flex-1 text-body font-medium">{label}</span>
-      <ChevronRight size={18} className="text-muted" />
-    </Link>
-  );
 }
