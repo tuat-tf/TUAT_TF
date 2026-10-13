@@ -9,7 +9,7 @@ const healthLabels = { none: "全体の稼働は正常", minor: "一部に影響
 const missing = { unconfigured: "連携設定が必要です", error: "取得できませんでした" };
 const gb = (n: number) => `${(n / 1_000_000_000).toLocaleString("ja-JP", { maximumFractionDigits: 3 })} GB`;
 
-export function ServiceStatusPanel() {
+export function ServiceStatusPanel({ embedded = false }: { embedded?: boolean }) {
   const query = useQuery<ServiceStatus>({
     queryKey: ["admin-service-status"],
     queryFn: async () => {
@@ -20,7 +20,7 @@ export function ServiceStatusPanel() {
     staleTime: 15 * 60 * 1000, gcTime: 0, retry: false, refetchOnWindowFocus: false,
   });
   const data = query.data;
-  return <div className="space-y-4 px-4 pb-8 pt-1">
+  return <div className={embedded ? "space-y-4" : "space-y-4 px-4 pb-8 pt-1"}>
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm text-muted">システム管理者だけが確認できます。障害情報は各サービス全体の状況です。</p>
       <button data-ui-action type="button" disabled={query.isFetching} onClick={() => void query.refetch()} className="flex shrink-0 items-center gap-1 rounded-lg border border-separator px-3 py-2 text-sm disabled:opacity-50">
@@ -30,9 +30,9 @@ export function ServiceStatusPanel() {
     {query.isPending && <p role="status" className="text-sm text-muted">確認中…</p>}
     {query.isError && <p role="alert" className="text-sm text-danger">{query.error.message}</p>}
     {data && <>
-      <p className="text-micro text-muted">取得日時: {new Date(data.checkedAt).toLocaleString("ja-JP")}<br />通信量を抑えるため、結果を15分間再利用します。</p>
+      <p className="text-micro text-muted">取得日時: {new Date(data.checkedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（日本時間）<br />通信量を抑えるため、結果を15分間再利用します。</p>
       <ServiceCard name="Supabase" health={data.health.supabase} statusUrl="https://status.supabase.com" usageUrl="https://supabase.com/dashboard/org/cctqtlkeltdpjkyyjmfl/usage">
-        <p className="text-sm">データベース・ログイン認証</p>
+        <p className="text-sm">ログイン認証・PC停止時の予備データ</p>
         <p className="text-sm text-muted">月間転送量・DB容量・無料枠の残量: 未取得</p>
         <p className="text-micro text-muted">正確な使用量と利用制限は「使用量を開く」で確認してください。全体の稼働が正常でも、このプロジェクトに利用制限がかかっている場合があります。</p>
       </ServiceCard>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, LoaderCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Health = {
@@ -26,7 +26,7 @@ export function SystemSyncStatus() {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/sheets/sync-status")
+    fetch("/api/sheets/sync-status", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error();
         return response.json() as Promise<Health>;
@@ -36,7 +36,18 @@ export function SystemSyncStatus() {
     return () => { active = false; };
   }, [refreshKey]);
 
-  const issue = health?.latest?.hasIssue || (health?.pendingPushCount ?? 0) > 0;
+  const latest = health?.latest;
+  const running = latest?.status === "running";
+  const pending = !!health && health.pendingPushCount > 0;
+  const issue = !!latest?.hasIssue || pending;
+  const successful = latest?.status === "success" && !!latest.finishedAt && !issue;
+  const label = error ? "状態を取得できません" : !health ? "確認中…"
+    : !latest ? "実行履歴はありません" : running ? "連携を実行中です"
+      : latest.hasIssue ? "最終実行に未解消のエラーがあります"
+        : !latest.finishedAt ? "最終実行の完了を確認できません"
+          : latest.status === "success" ? "最終実行は完了しました"
+            : latest.status === "error" ? "最終実行のエラーは解消済みです"
+              : "最終実行の結果を確認できません";
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between px-1">
@@ -47,15 +58,24 @@ export function SystemSyncStatus() {
       </div>
       <div data-ui-panel className="rounded-xl border border-separator bg-card p-3">
         <div className="flex items-center gap-2">
-          {error ? <AlertTriangle size={18} className="text-danger" /> : issue ? <AlertTriangle size={18} className="text-warning" /> : <CheckCircle2 size={18} className="text-success" />}
-          <span className="text-[14px] font-semibold">{error ? "状態を取得できません" : !health ? "確認中…" : issue ? "確認が必要です" : "連携は正常です"}</span>
+          {error ? <AlertTriangle size={18} className="shrink-0 text-danger" />
+            : !health ? <LoaderCircle size={18} className="shrink-0 animate-spin text-muted" />
+              : issue ? <AlertTriangle size={18} className="shrink-0 text-warning" />
+                : successful ? <CheckCircle2 size={18} className="shrink-0 text-success" />
+                  : <Activity size={18} className="shrink-0 text-muted" />}
+          <span role="status" className="text-[14px] font-semibold">{label}</span>
         </div>
+        {error && <p role="alert" className="mt-2 text-sm text-danger">時間をおいて再確認してください</p>}
+        {pending && <p className="mt-2 text-sm text-warning">未書き込みの記録があります</p>}
         {health && <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <Metric label="スプレッドシート連携" value={`${health.sheetProfileCount}人`} />
           <Metric label="未書き込み" value={`${health.pendingPushCount}件`} danger={health.pendingPushCount > 0} />
-          <Metric label="未解消エラー" value={`${health.latest?.failedCount ?? 0}人`} danger={(health.latest?.failedCount ?? 0) > 0} />
+          <Metric label="未解消エラー" value={latest ? `${latest.failedCount}人` : "—"} danger={!!latest && latest.failedCount > 0} />
         </div>}
-        {health?.latest && <p className="mt-3 flex items-center gap-1 text-micro text-muted"><Activity size={12} />最終確認 {new Date(health.latest.finishedAt ?? health.latest.startedAt).toLocaleString("ja-JP")}　取り込み {health.latest.pulledCount} / 書き込み {health.latest.pushedCount}</p>}
+        {latest && <div className="mt-3 space-y-1 text-micro text-muted">
+          <p>{running || !latest.finishedAt ? "開始日時" : "完了日時"}: {new Date(running || !latest.finishedAt ? latest.startedAt : latest.finishedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（日本時間）</p>
+          {!running && latest.finishedAt && <p>取り込み {latest.pulledCount}件 / 書き込み {latest.pushedCount}件</p>}
+        </div>}
       </div>
     </div>
   );

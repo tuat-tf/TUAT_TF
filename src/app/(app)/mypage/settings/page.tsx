@@ -12,7 +12,6 @@ import { SplashIntroSetting } from "@/components/features/SplashIntroSetting";
 import { NotificationSettings } from "@/components/features/NotificationSettings";
 import { RecordFieldsSetting } from "@/components/features/RecordFieldsSetting";
 import { RecordSourceSetting } from "@/components/features/RecordSourceSetting";
-import { SystemSyncStatus } from "@/components/features/SystemSyncStatus";
 import { MemberPreviewSetting } from "@/components/features/MemberPreviewSetting";
 
 import { EditProfileButton } from "@/components/features/MyPageActions";
@@ -79,7 +78,6 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {perms.manageSystem && (
           <SettingsGroup title="システム管理">
             <div className="space-y-2 p-3">
-            <SystemSyncStatus />
             <Card className="divide-y divide-separator/70 overflow-hidden">
               <Link data-ui-row href="/admin/sheets" prefetch={false} className="flex items-center gap-3 px-4 py-3 active:bg-bg">
                 <SlidersHorizontal size={19} className="shrink-0 text-muted2" />
@@ -89,11 +87,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 </span>
                 <ChevronRight size={18} className="shrink-0 text-muted" />
               </Link>
-              <Link data-ui-row href="/admin/services" prefetch={false} className="flex items-center gap-3 px-4 py-3 active:bg-bg">
+              <Link data-ui-row href="/admin" prefetch={false} className="flex items-center gap-3 px-4 py-3 active:bg-bg">
                 <Activity size={19} className="shrink-0 text-muted2" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-medium">サービスの状態</span>
-                  <span className="block text-micro text-muted">Vercel・Supabase・Cloudflare</span>
+                  <span className="block text-[14px] font-medium">管理ダッシュボード</span>
+                  <span className="block text-micro text-muted">全体の概況・連携・サービス使用量</span>
                 </span>
                 <ChevronRight size={18} className="shrink-0 text-muted" />
               </Link>

@@ -8,7 +8,7 @@ export default async function ServiceStatusPage() {
   const profile = await getCurrentProfile();
   if (!permissionsOf(profile.roles).manageSystem) redirect("/home");
   return <>
-    <SubHeader title="サービスの状態" backHref="/mypage/settings" />
+    <SubHeader title="サービスの状態" backHref="/admin" />
     <ServiceStatusPanel />
   </>;
 }

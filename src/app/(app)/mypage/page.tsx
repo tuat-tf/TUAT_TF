@@ -121,8 +121,11 @@ export default async function MyPage({
           <section className="space-y-2">
             <p className="section-label">管理メニュー</p>
             <Card className="divide-y divide-separator/70 overflow-hidden">
+              {perms.manageSystem && (
+                <RowLink href="/admin" icon={<Shield size={20} className="text-accent" />} label="管理ダッシュボード" />
+              )}
               {perms.manageMembers && (
-                <RowLink href="/admin" icon={<ShieldCheck size={20} className="text-accent" />} label="ロール管理" />
+                <RowLink href="/admin/members" icon={<ShieldCheck size={20} className="text-accent" />} label="部員・ロール管理" />
               )}
               {perms.createSchedule && (
                 <RowLink href="/venues" icon={<MapPin size={20} className="text-accent" />} label="練習場所" />
