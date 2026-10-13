@@ -23,9 +23,9 @@ BEGIN
  SELECT id,'ob-day-'||id||'@example.invalid','__ob_day_person_'||id,'{}','1','active',true FROM unnest(ARRAY[actor,outsider,sysactor]) id
  ON CONFLICT(id) DO UPDATE SET display_name=excluded.display_name,blocks=excluded.blocks,grade=excluded.grade,status=excluded.status,approved=excluded.approved;
  DELETE FROM public.profile_roles WHERE profile_id=ANY(ARRAY[actor,outsider,sysactor]);
- SELECT id INTO staff_role FROM public.roles WHERE name='OB戦2026';
+ SELECT id INTO staff_role FROM public.roles WHERE can_manage_ob_meet AND NOT is_everyone ORDER BY id LIMIT 1;
  IF staff_role IS NULL THEN RAISE EXCEPTION 'OB staff role migration missing'; END IF;
- SELECT id INTO system_role FROM public.roles WHERE can_manage_system AND name<>'OB戦2026' ORDER BY id LIMIT 1;
+ SELECT id INTO system_role FROM public.roles WHERE can_manage_system AND NOT can_manage_ob_meet ORDER BY id LIMIT 1;
  IF system_role IS NULL THEN RAISE EXCEPTION 'system permission role migration missing'; END IF;
  INSERT INTO public.profile_roles(profile_id,role_id) VALUES(actor,staff_role),(sysactor,system_role);
  PERFORM set_config('request.jwt.claim.sub',actor::text,true);
@@ -47,15 +47,20 @@ BEGIN
   RAISE EXCEPTION 'FAIL duplicate was accepted';
  EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%entry_duplicate%' THEN RAISE; END IF; END;
  IF (SELECT count(*) FROM public.ob_meet_entries)<>before_count THEN RAISE EXCEPTION 'FAIL duplicate leaked registration'; END IF;
- -- A cancelled lane number remains reserved.
+ -- DNS releases its position while retaining the appearance and registration.
  latest:=first_result->'saved'; base_data:=latest->'data';
  SELECT jsonb_set(base_data,'{participants}',jsonb_agg(CASE WHEN value->>'entryId'=a::text THEN value||'{"status":"DNS"}'::jsonb ELSE value END ORDER BY ordinal))
  INTO draft FROM jsonb_array_elements(base_data->'participants') WITH ORDINALITY x(value,ordinal);
  saved:=public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,draft,base_data);
  retry_result:=public.add_ob_day_entry(gen_random_uuid(),event,NULL,NULL,'__ob_day_b_'||suffix,'B1',98);
  b:=(retry_result->>'entryId')::uuid;
- IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(retry_result->'saved'->'data'->'participants') p WHERE p->>'entryId'=b::text AND p->>'order'='2')
- THEN RAISE EXCEPTION 'FAIL DNS number reused'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(retry_result->'saved'->'data'->'participants') p
+   WHERE p->>'entryId'=a::text AND p->>'status'='DNS' AND p->'group'='null'::jsonb AND p->'order'='null'::jsonb)
+   OR NOT EXISTS(SELECT 1 FROM public.ob_meet_entries WHERE id=a AND events@>ARRAY[event]) THEN
+   RAISE EXCEPTION 'FAIL DNS position release lost the appearance or registration';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(retry_result->'saved'->'data'->'participants') p WHERE p->>'entryId'=b::text AND p->>'order'='1')
+ THEN RAISE EXCEPTION 'FAIL released DNS number was not reused'; END IF;
  -- Existing registration keeps unrelated events/qualifying marks and gets atomically placed.
  c:=public.create_ob_guest_registration('__ob_day_c_'||suffix,'B1',ARRAY['男子100m'],'{"男子100m":"11.50"}','未回答',NULL,NULL);
  SELECT revision INTO rev FROM public.ob_meet_entries WHERE id=c;
@@ -84,23 +89,28 @@ BEGIN
   GET STACKED DIAGNOSTICS detail=PG_EXCEPTION_DETAIL;
   IF detail::jsonb->'revision' IS DISTINCT FROM saved->'revision' THEN RAISE EXCEPTION 'FAIL conflict latest missing'; END IF;
  END;
- -- Started-group rejection rolls back registration/party/history as one unit.
+ -- Adding to a started group preserves every existing appearance and result.
  SELECT count(*) INTO before_count FROM public.ob_meet_entries;
- BEGIN
-  PERFORM public.add_ob_day_entry(gen_random_uuid(),event,NULL,NULL,'__ob_day_rejected_'||suffix,'B1',96);
-  RAISE EXCEPTION 'FAIL started group accepted';
- EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%operation_started%' THEN RAISE; END IF; END;
- IF (SELECT count(*) FROM public.ob_meet_entries)<>before_count THEN RAISE EXCEPTION 'FAIL rejected addition leaked'; END IF;
- -- DNF/DQ are already-run groups even if no numeric result was entered.
+ base_data:=saved->'data';
+ first_result:=public.add_ob_day_entry(gen_random_uuid(),event,NULL,NULL,'__ob_day_started_'||suffix,'B1',96);
+ saved:=first_result->'saved';
+ IF (SELECT count(*) FROM public.ob_meet_entries)<>before_count+1 OR EXISTS (
+   SELECT 1 FROM jsonb_array_elements(base_data->'participants') previous
+   WHERE NOT EXISTS(SELECT 1 FROM jsonb_array_elements(saved->'data'->'participants') current WHERE current.value=previous.value)
+ ) THEN RAISE EXCEPTION 'FAIL started-group addition changed existing appearances or results'; END IF;
+ -- DNF/DQ statuses and prior trials survive subsequent additions too.
  FOREACH status_test IN ARRAY ARRAY['DNF','DQ'] LOOP
   latest:=saved; base_data:=latest->'data';
   SELECT jsonb_set(base_data,'{participants}',jsonb_agg(CASE WHEN value->>'entryId'=a::text THEN value||jsonb_build_object('status',status_test) ELSE value END ORDER BY ordinal))
    INTO draft FROM jsonb_array_elements(base_data->'participants') WITH ORDINALITY x(value,ordinal);
   saved:=public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,draft,base_data);
-  BEGIN
-   PERFORM public.add_ob_day_entry(gen_random_uuid(),event,NULL,NULL,'__ob_day_'||status_test||'_'||suffix,'B1',98);
-   RAISE EXCEPTION 'FAIL DNF/DQ group accepted';
-  EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%operation_started%' THEN RAISE; END IF; END;
+  base_data:=saved->'data';
+  first_result:=public.add_ob_day_entry(gen_random_uuid(),event,NULL,NULL,'__ob_day_'||status_test||'_'||suffix,'B1',98);
+  saved:=first_result->'saved';
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(base_data->'participants') previous
+    WHERE NOT EXISTS(SELECT 1 FROM jsonb_array_elements(saved->'data'->'participants') current WHERE current.value=previous.value)) THEN
+    RAISE EXCEPTION 'FAIL addition changed prior DNF/DQ appearance or trials';
+  END IF;
  END LOOP;
  -- New entries arriving during a draft are added unassigned without disturbing old marks.
  d:=public.create_ob_guest_registration('__ob_day_d_'||suffix,'B1',ARRAY[event],'{}','未回答',NULL,NULL);
@@ -157,13 +167,23 @@ BEGIN
  latest:=saved; base_data:=latest->'data';
  SELECT jsonb_set(base_data,'{participants}',jsonb_agg(CASE WHEN value->>'entryId'=d::text THEN value||'{"group":95,"order":1}'::jsonb ELSE value END ORDER BY ordinal))
  INTO draft FROM jsonb_array_elements(base_data->'participants') WITH ORDINALITY x(value,ordinal);
- BEGIN
-  PERFORM public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,draft,base_data);
-  RAISE EXCEPTION 'FAIL absent competitor resumed';
- EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%operation_absent%' THEN RAISE; END IF; END;
- -- Explicit attendance restoration permits the same edit.
- PERFORM public.set_ob_attendance(d,rev,false);
  saved:=public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,draft,base_data);
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(saved->'data'->'participants') p
+   WHERE p->>'entryId'=d::text AND p->>'status'='DNS' AND p->'group'='null'::jsonb AND p->'order'='null'::jsonb
+     AND p->'trials'=(SELECT original->'trials' FROM jsonb_array_elements(base_data->'participants') original WHERE original->>'entryId'=d::text))
+   OR NOT (SELECT absent FROM public.ob_meet_entries WHERE id=d) THEN
+   RAISE EXCEPTION 'FAIL absent competitor was resumed or prior trials were lost';
+ END IF;
+ -- Explicit attendance restoration and status change permit resuming the appearance.
+ PERFORM public.set_ob_attendance(d,rev,false);
+ SELECT to_jsonb(o) INTO latest FROM public.ob_event_operations o WHERE meet_key='ob-2026' AND event_name=event;
+ base_data:=latest->'data';
+ SELECT jsonb_set(base_data,'{participants}',jsonb_agg(CASE WHEN value->>'entryId'=d::text THEN value||'{"status":"entered","group":95,"order":1}'::jsonb ELSE value END ORDER BY ordinal))
+ INTO draft FROM jsonb_array_elements(base_data->'participants') WITH ORDINALITY x(value,ordinal);
+ saved:=public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,draft,base_data);
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(saved->'data'->'participants') p WHERE p->>'entryId'=d::text AND p->>'status'='entered' AND p->>'group'='95' AND p->>'order'='1') THEN
+   RAISE EXCEPTION 'FAIL explicit attendance restore could not resume appearance';
+ END IF;
  -- Removing registration keeps past performance; the occupied time still prevents a new duty.
  SELECT slot_time,event_name INTO attempted_time,attempted_event FROM public.ob_duty_event_slots WHERE event_name='1500m' LIMIT 1;
  INSERT INTO public.ob_duty_roles(id,slot_time,event_name,name,abbreviation,required_count)
@@ -176,15 +196,23 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%entry_competing%' THEN RAISE; END IF; END;
  SELECT revision INTO rev FROM public.ob_meet_entries WHERE id=a;
  PERFORM public.save_ob_entry(a,NULL,rev,'{}','{}');
+ SELECT to_jsonb(o) INTO saved FROM public.ob_event_operations o WHERE meet_key='ob-2026' AND event_name=event;
+ -- A withdrawn empty appearance stays DNS even if an old draft proposes DNF/DQ.
  FOREACH status_test IN ARRAY ARRAY['DNF','DQ'] LOOP
   latest:=saved; base_data:=latest->'data';
   SELECT jsonb_set(base_data,'{participants}',jsonb_agg(CASE WHEN value->>'entryId'=a::text THEN value||jsonb_build_object('status',status_test) ELSE value END ORDER BY ordinal))
    INTO draft FROM jsonb_array_elements(base_data->'participants') WITH ORDINALITY x(value,ordinal);
   saved:=public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,draft,base_data);
-  BEGIN
-   PERFORM public.save_ob_entry_duty_roles(a,attempted_time,attempted_event,ARRAY[attempted_role],NULL);
-   RAISE EXCEPTION 'FAIL DNF/DQ cancelled competitor assigned duty';
-  EXCEPTION WHEN OTHERS THEN IF SQLERRM NOT LIKE '%entry_competing%' THEN RAISE; END IF; END;
+  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(saved->'data'->'participants') p
+    WHERE p->>'entryId'=a::text AND p->>'status'='DNS' AND p->'group'='null'::jsonb AND p->'order'='null'::jsonb AND p->'trials'='[]'::jsonb) THEN
+    RAISE EXCEPTION 'FAIL cancelled empty appearance was resumed by stale DNF/DQ draft';
+  END IF;
+  SELECT revision INTO rev FROM public.ob_entry_duties WHERE entry_id=a AND slot_time=attempted_time AND event_name=attempted_event;
+  rev:=public.save_ob_entry_duty_roles(a,attempted_time,attempted_event,ARRAY[attempted_role],rev);
+  IF NOT EXISTS(SELECT 1 FROM public.ob_entry_duties WHERE entry_id=a AND slot_time=attempted_time AND event_name=attempted_event AND attempted_role=ANY(role_ids)) THEN
+    RAISE EXCEPTION 'FAIL cancelled empty appearance incorrectly blocked duty';
+  END IF;
+  PERFORM public.save_ob_entry_duty_roles(a,attempted_time,attempted_event,'{}',rev);
  END LOOP;
  -- A cancelled empty placeholder does not occupy competition time forever.
  new_id:=public.create_ob_guest_registration('__ob_day_cancel_empty_'||suffix,'B1',ARRAY[event],'{}','未回答',NULL,NULL);
@@ -192,6 +220,7 @@ BEGIN
  SELECT revision INTO rev FROM public.ob_meet_entries WHERE id=new_id;
  PERFORM public.save_ob_entry(new_id,NULL,rev,'{}','{}');
  PERFORM public.save_ob_entry_duty_roles(new_id,attempted_time,attempted_event,ARRAY[attempted_role],NULL);
+ SELECT to_jsonb(o) INTO saved FROM public.ob_event_operations o WHERE meet_key='ob-2026' AND event_name=event;
  -- A confirmed event rejects an addition before creating any entry.
  latest:=saved; base_data:=latest->'data';
  SELECT jsonb_build_object('confirmed',true,'participants',jsonb_agg(value||'{"status":"DNS"}'::jsonb ORDER BY ordinal))
@@ -212,12 +241,14 @@ BEGIN
   RAISE EXCEPTION 'FAIL direct attendance UPDATE succeeded';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  PERFORM set_config('role',owner_role,true);
- -- Ordinary members cannot mutate operations, another entrant's attendance, or day registration.
+ -- The legacy recorder permits active members' result saves, but not attendance/day registration.
  PERFORM set_config('request.jwt.claim.sub',outsider::text,true);
  IF public.can_manage_ob_meet() OR public.can_manage_system() THEN RAISE EXCEPTION 'ordinary fixture is not isolated'; END IF;
  BEGIN PERFORM public.set_ob_attendance(d,rev,true); RAISE EXCEPTION 'FAIL ordinary attendance'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  BEGIN PERFORM public.add_ob_day_entry(gen_random_uuid(),event,d,rev,NULL,NULL,NULL); RAISE EXCEPTION 'FAIL ordinary registration'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
- BEGIN PERFORM public.save_ob_event_operation_checked(event,(saved->>'revision')::integer,saved->'data',saved->'data'); RAISE EXCEPTION 'FAIL ordinary operation'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ latest:=saved;
+ saved:=public.save_ob_event_operation_checked(event,(latest->>'revision')::integer,latest->'data',latest->'data');
+ IF saved->'data' IS DISTINCT FROM latest->'data' THEN RAISE EXCEPTION 'FAIL ordinary legacy result save changed existing data'; END IF;
  -- System-only operators can save event results, but do not gain registration/attendance rights.
  PERFORM set_config('request.jwt.claim.sub',sysactor::text,true);
  IF public.can_manage_ob_meet() OR NOT public.can_manage_system() THEN RAISE EXCEPTION 'system-only fixture is not isolated'; END IF;
@@ -231,6 +262,6 @@ BEGIN
  BEGIN PERFORM public.save_ob_event_operation_checked(event,(saved->>'revision')::integer,saved->'data',saved->'data'); RAISE EXCEPTION 'FAIL anonymous operation'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  PERFORM set_config('request.jwt.claim.sub',actor::text,true);
 END $test$;
-SELECT jsonb_build_object('ob_day_checks','passed','cases',ARRAY['idempotent retry','duplicate rollback','DNS number reservation','existing event+marks preservation','different person+field merge','same-field conflict+latest','started group + DNF/DQ rollback','roster reconciliation','absence keeps audit+entry+duties','attendance lost-response retry + stale opposite/future refusal','absent duty + legacy refusal/removal','absent run refusal+explicit restore','confirmed addition rollback','anonymous authorization','staff-only/ordinary/system-only authorization','direct absent UPDATE denied','cancelled attempted competition blocks duties / empty cancellation allows']);
+SELECT jsonb_build_object('ob_day_checks','passed','cases',ARRAY['idempotent retry','duplicate rollback','DNS position release retains appearance and registration','existing event+marks preservation','different person+field merge','same-field conflict+latest','started group + DNF/DQ addition preserves previous appearances and trials','roster reconciliation','absence keeps audit+entry+duties','attendance lost-response retry + stale opposite/future refusal','absent duty + legacy refusal/removal','absent run refusal+explicit restore','confirmed addition rollback','anonymous authorization','staff attendance/registration plus legacy ordinary/system result saving','direct absent UPDATE denied','cancelled attempted competition blocks duties / empty cancellation allows']);
 
 ROLLBACK;

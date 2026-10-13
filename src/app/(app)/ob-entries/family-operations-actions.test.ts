@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks(); mocks.reads = [];
   mocks.user.mockResolvedValue({ data: { user: { id: "operator" } } });
   mocks.preview.mockResolvedValue(false);
-  mocks.roles.mockResolvedValue(new Map([["operator", [{ name: "OB戦2026", can_manage_system: false }]]]));
+  mocks.roles.mockResolvedValue(new Map([["operator", [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false }]]]));
   mocks.rpc.mockResolvedValue({ data: { operations: rows() }, error: null });
   mocks.read.mockResolvedValue({ data: rows(), error: null });
 });
@@ -57,7 +57,7 @@ it("confirms both frozen source changes with one authorized read and no write or
 });
 
 it("requires the unsuppressed OB staff role even for an approved member or system operator", async () => {
-  for (const roles of [[], [{ name: "system", can_manage_system: true }], [{ name: "OB戦2026", can_manage_system: false, permissions_suppressed: true }], [{ name: "OB戦2026", can_manage_system: true, permissions_suppressed: true }]]) {
+  for (const roles of [[], [{ name: "system", can_manage_system: true }], [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false, permissions_suppressed: true }], [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: true, permissions_suppressed: true }]]) {
     mocks.roles.mockResolvedValue(new Map([["operator", roles]]));
     expect((await saveObFamilyOperation(input())).ok).toBe(false);
     expect((await checkObFamilyOperation(input())).ok).toBe(false);

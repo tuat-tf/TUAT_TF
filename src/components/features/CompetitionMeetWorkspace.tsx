@@ -12,6 +12,7 @@ import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GRADE_OPTIONS } from "@/lib/constants";
+import { OB_MEET } from "@/lib/ob-meet";
 import { MeetEvent } from "@/lib/meet-operations";
 import { meetAppearancePositionLabel, meetDutyText, meetDutyConflict, meetEventCounts, meetRule, type CompetitionMeet, type ManagedMeetEvent, type MeetAppearance, type MeetCommand, type MeetParticipant } from "@/lib/competition-meet";
 import { mutateCompetitionMeet, checkCompetitionMeetMutation } from "@/app/(app)/competitions/meet-actions";
@@ -87,7 +88,9 @@ export function CompetitionMeetWorkspace({ meet, me, initialSection = "events", 
   }
   return <div className="space-y-4 px-4 pb-8 pt-2">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-headline">大会の運営</h2><Button variant="outline" disabled={mutation.locked||!meet.events.length||!mine&&!canRegister&&!meet.permissions.manage} onClick={() => mine ? setDetailId(mine.id) : setEditor({ kind: "participant",self:true })}>自分の登録</Button></div>
-    {meet.permissions.configure&&<Button variant="ghost" disabled={mutation.locked} onClick={()=>setEditor({kind:"staff"})}>大会の担当ロール</Button>}
+    {meet.permissions.configure && (meet.meetKey === OB_MEET.meetKey
+      ? <p className="text-caption">OB戦の担当者は、ロールの「OB戦の登録・運営管理」で設定できます。</p>
+      : <Button variant="ghost" disabled={mutation.locked} onClick={()=>setEditor({kind:"staff"})}>大会の担当ロール</Button>)}
     <ObLiveRefresh />
     <SegmentedControl items={[{ key: "events", label: "競技" }, { key: "participants", label: "参加者" }, { key: "duties", label: "補助担当" }]} value={section} onChange={setSection} />
     {mutation.message && <p role={mutation.uncertain ? "alert" : "status"} className="text-body">{mutation.message}</p>}

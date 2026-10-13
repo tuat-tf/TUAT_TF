@@ -32,7 +32,7 @@ export default async function AdminPage() {
         <section className="space-y-2">
           <p className="section-label">ロール</p>
           <p className="text-caption">
-            ロールを作成し、システム管理・部員管理・予定・メニュー・お知らせの権限を設定できます。1人に複数のロールを付与できます。
+            許可する操作を「管理」「日々の活動」にまとめて設定できます。メニューの編集範囲も指定でき、1人に複数のロールを付けられます。
           </p>
           <RoleManager
             roles={roles}

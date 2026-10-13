@@ -21,7 +21,7 @@ const checkRefresh = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.user.mockResolvedValue({ data: { user: { id: "operator" } } });
-  mocks.roles.mockResolvedValue(new Map([["operator", [{ name: "OB戦2026", can_manage_system: false }]]]));
+  mocks.roles.mockResolvedValue(new Map([["operator", [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false }]]]));
   mocks.preview.mockResolvedValue(false);
   mocks.rpc.mockImplementation(async (name: string) => ({ error: null, data: name === "get_ob_registration_details_snapshot" ? snapshot() : name === "save_ob_registration_checked" ? { entryId: id, conflicts: [] } : saved() }));
 });
@@ -61,12 +61,12 @@ it("denies anonymous, preview, system-only, suppressed staff and another user's 
   expect((await saveEntry(input(), party)).ok).toBe(false);
   mocks.preview.mockResolvedValueOnce(true);
   expect((await checkEntryDetails(input(), party)).ok).toBe(false);
-  for (const roles of [[], [{ name: "system", can_manage_system: true }], [{ name: "OB戦2026", can_manage_system: false, permissions_suppressed: true }]]) {
+  for (const roles of [[], [{ name: "system", can_manage_system: true }], [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false, permissions_suppressed: true }]]) {
     mocks.roles.mockResolvedValue(new Map([["operator", roles]]));
     expect((await saveEntry(input(), party)).ok).toBe(false);
     expect((await checkEntryDetails(input(), party)).ok).toBe(false);
   }
-  mocks.roles.mockResolvedValue(new Map([["other", [{ name: "OB戦2026", can_manage_system: false }]]]));
+  mocks.roles.mockResolvedValue(new Map([["other", [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false }]]]));
   expect((await saveEntry(input(), party)).ok).toBe(false);
   expect(mocks.roles).toHaveBeenLastCalledWith(expect.anything(), ["operator"]);
   expect(mocks.rpc).not.toHaveBeenCalled(); expect(mocks.from).not.toHaveBeenCalled();

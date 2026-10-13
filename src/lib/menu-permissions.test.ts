@@ -3,22 +3,25 @@ import type { AppRole } from "@/types";
 import { editableMenuBlocks, menuAccess } from "./menu-permissions";
 import { canModerateComments } from "./permissions";
 import { canManageObMeet } from "./ob-meet";
-import { namedRoleCapabilities } from "./role-capabilities";
 
-const role = (name: string, create = true, suppressed = false) => ({ name, can_create_menu: create, permissions_suppressed: suppressed } as AppRole);
+const role = (name: string, create = true, blocks: AppRole["editable_menu_blocks"] = [], suppressed = false) => ({
+  name, can_create_menu: create, editable_menu_blocks: blocks, permissions_suppressed: suppressed,
+  can_moderate_comments: false, can_manage_ob_meet: false, can_manage_system: false,
+}) as AppRole;
 describe("block menu editing", () => {
   it.each([
-    ["短距離ブロック長", "short"], ["投擲ブロック長", "short"], ["跳躍ブロック長", "short"],
-    ["中距離ブロック長", "middle_long"], ["長距離ブロック長", "middle_long"],
-  ])("maps %s to the current block", (name, block) => {
-    expect(editableMenuBlocks([role(name)])).toEqual([block]);
-    expect(namedRoleCapabilities(name)).toHaveLength(1);
+    ["改名した短距離担当", "short"], ["改名した中長距離担当", "middle_long"],
+  ] as const)("uses the explicit scope for %s", (name, block) => {
+    expect(editableMenuBlocks([role(name, true, [block])])).toEqual([block]);
+    expect(editableMenuBlocks([role("別の肩書き", true, [block])])).toEqual([block]);
   });
   it("requires creation permission, supports combined roles and suppresses preview", () => {
-    expect(editableMenuBlocks([role("短距離ブロック長", false)])).toEqual([]);
-    expect(editableMenuBlocks([role("短距離ブロック長", false), role("担当")])).toEqual(["short"]);
-    expect(editableMenuBlocks([role("短距離ブロック長", true, true), role("担当")])).toEqual([]);
-    expect(editableMenuBlocks([role("主将")])).toEqual([]);
+    expect(editableMenuBlocks([role("担当", false, ["short"])])).toEqual([]);
+    expect(editableMenuBlocks([role("担当", false, ["short"]), role("作成担当")])).toEqual(["short"]);
+    expect(editableMenuBlocks([role("担当", true, ["short"], true), role("作成担当")])).toEqual([]);
+    expect(editableMenuBlocks([role("作成担当", true, [], true), role("担当", false, ["short"])])).toEqual([]);
+    expect(editableMenuBlocks([role("短距離ブロック長"), role("長距離ブロック長")])).toEqual([]);
+    expect(editableMenuBlocks([role("担当", true, ["short", "middle_long"]), role("別担当", true, ["short"])])).toEqual(["short", "middle_long"]);
   });
   it("allows editing own block but not deleting another author's menu", () => {
     const access = { userId: "leader", authorId: "other", canCreate: true, canManageAll: false, editableBlocks: ["short" as const] };
@@ -31,10 +34,9 @@ describe("block menu editing", () => {
     expect(menuAccess({ ...access, canCreate: true })).toEqual({ canEdit: true, canDelete: true });
     expect(menuAccess({ ...access, authorId: "other", canManageAll: true })).toEqual({ canEdit: true, canDelete: true });
   });
-  it("hides name-based moderation and OB powers during preview", () => {
-    expect(canModerateComments([role("管理者", true, true)])).toBe(false);
-    expect(canManageObMeet([role("OB戦2026", true, true)])).toBe(false);
-    expect(namedRoleCapabilities("管理者")).toHaveLength(1);
-    expect(namedRoleCapabilities("OB戦2026")).toHaveLength(1);
+  it("hides explicit moderation and OB permissions during preview", () => {
+    const suppressed = { ...role("担当", true, [], true), can_moderate_comments: true, can_manage_ob_meet: true };
+    expect(canModerateComments([suppressed])).toBe(false);
+    expect(canManageObMeet([suppressed])).toBe(false);
   });
 });

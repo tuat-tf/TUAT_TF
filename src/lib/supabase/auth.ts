@@ -3,7 +3,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { AppRole, Profile } from "@/types";
+import type { AppRole, EditableMenuBlock, Profile } from "@/types";
 import { normalizeProfileRow } from "@/lib/profile-normalize";
 import { hasPermission } from "@/lib/permissions";
 import { MEMBER_PREVIEW_COOKIE } from "@/lib/member-preview";
@@ -127,8 +127,11 @@ export const getCurrentProfile = cache(async (): Promise<Profile> => {
       permissions_suppressed: true,
       can_manage_system: false,
       can_manage_members: false,
+      can_moderate_comments: false,
+      can_manage_ob_meet: false,
       can_create_schedule: false,
       can_create_menu: false,
+      editable_menu_blocks: [],
       can_create_notice: false,
       can_decide_practice: false,
     })),
@@ -142,7 +145,8 @@ export const getCurrentProfile = cache(async (): Promise<Profile> => {
 function loadRoles(supabase: SupabaseServer): Promise<AppRole[]> {
   return Promise.resolve(supabase.from("roles").select("*")).then(({ data, error }) => {
     if (error || !data) throw new Error("Failed to load role definitions");
-    return data;
+    return data.map(role => ({ ...role, editable_menu_blocks: (role.editable_menu_blocks ?? [])
+      .filter((block): block is EditableMenuBlock => block === "short" || block === "middle_long") }));
   });
 }
 

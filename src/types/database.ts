@@ -1713,10 +1713,13 @@ export type Database = {
           can_create_schedule: boolean
           can_decide_practice: boolean
           can_manage_members: boolean
+          can_manage_ob_meet: boolean
           can_manage_system: boolean
+          can_moderate_comments: boolean
           category: string | null
           color: string
           created_at: string
+          editable_menu_blocks: string[]
           id: string
           is_everyone: boolean
           is_system: boolean
@@ -1729,10 +1732,13 @@ export type Database = {
           can_create_schedule?: boolean
           can_decide_practice?: boolean
           can_manage_members?: boolean
+          can_manage_ob_meet?: boolean
           can_manage_system?: boolean
+          can_moderate_comments?: boolean
           category?: string | null
           color?: string
           created_at?: string
+          editable_menu_blocks?: string[]
           id?: string
           is_everyone?: boolean
           is_system?: boolean
@@ -1745,10 +1751,13 @@ export type Database = {
           can_create_schedule?: boolean
           can_decide_practice?: boolean
           can_manage_members?: boolean
+          can_manage_ob_meet?: boolean
           can_manage_system?: boolean
+          can_moderate_comments?: boolean
           category?: string | null
           color?: string
           created_at?: string
+          editable_menu_blocks?: string[]
           id?: string
           is_everyone?: boolean
           is_system?: boolean
@@ -2309,6 +2318,8 @@ export type Database = {
       can_edit_note: { Args: { target_note_id: string }; Returns: boolean }
       can_manage_members: { Args: never; Returns: boolean }
       can_manage_system: { Args: never; Returns: boolean }
+      can_manage_ob_meet: { Args: never; Returns: boolean }
+      can_moderate_comments: { Args: never; Returns: boolean }
       can_view_note: { Args: { target_note_id: string }; Returns: boolean }
       can_view_practice_menu: {
         Args: { target_menu_id: string }

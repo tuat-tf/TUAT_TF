@@ -4,11 +4,16 @@ BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '30s';
 SELECT set_config('test.menu_visibility_owner', current_user, true);
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
 
 INSERT INTO auth.users(id, email)
 SELECT ('a6100202-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   'menu-visibility-' || n || '@example.invalid'
 FROM generate_series(1, 13) n;
+INSERT INTO public.login_email_allowlist(email,created_by)
+SELECT 'menu-visibility-'||n||'@example.invalid',('a6100202-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid
+FROM generate_series(1,13) n;
 INSERT INTO public.profiles(id, email, display_name, blocks, menu_view_all_blocks)
 SELECT ('a6100202-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   'menu-visibility-' || n || '@example.invalid', 'Menu visibility fixture',
@@ -22,13 +27,12 @@ ON CONFLICT (id) DO UPDATE SET blocks = EXCLUDED.blocks,
 INSERT INTO public.roles(id, name, can_create_menu, can_manage_members) VALUES
   ('a6100202-0000-4000-8100-000000000001', 'Menu visibility fixture creator', true, false),
   ('a6100202-0000-4000-8100-000000000002', 'Menu visibility fixture manager', false, true);
--- A legacy leader role may no longer exist in the current catalog. Recreate it
--- only inside this rollback transaction so its supported mapping is still tested.
-INSERT INTO public.roles(id, name, can_create_menu)
-SELECT ('a6100202-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid, name, true
-FROM (VALUES (3, '短距離ブロック長'), (4, '長距離ブロック長'),
-  (5, '跳躍ブロック長'), (6, '投擲ブロック長'), (7, '中距離ブロック長')) fixture(n, name)
-WHERE NOT EXISTS (SELECT 1 FROM public.roles existing WHERE existing.name = fixture.name);
+-- Explicit scopes exercise current capabilities independently of display names.
+INSERT INTO public.roles(id, name, can_create_menu, editable_menu_blocks)
+SELECT ('a6100202-0000-4000-8100-' || lpad(n::text, 12, '0'))::uuid,
+  'Menu visibility fixture scope '||n, true, ARRAY[scope]
+FROM (VALUES (3, 'short'), (4, 'middle_long'), (5, 'short'),
+  (6, 'short'), (7, 'middle_long')) fixture(n, scope);
 INSERT INTO public.profile_roles(profile_id, role_id)
 SELECT ('a6100202-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
   'a6100202-0000-4000-8100-000000000001'::uuid
@@ -36,10 +40,9 @@ FROM unnest(ARRAY[6, 7, 10, 11, 12, 13]) n;
 INSERT INTO public.profile_roles(profile_id, role_id) VALUES
   ('a6100202-0000-4000-8000-000000000008', 'a6100202-0000-4000-8100-000000000002');
 INSERT INTO public.profile_roles(profile_id, role_id)
-SELECT ('a6100202-0000-4000-8000-' || lpad(actor.n::text, 12, '0'))::uuid, role.id
-FROM (VALUES (6, '短距離ブロック長'), (7, '長距離ブロック長'),
-  (11, '跳躍ブロック長'), (12, '投擲ブロック長'), (13, '中距離ブロック長')) actor(n, name)
-JOIN public.roles role ON role.name = actor.name;
+SELECT ('a6100202-0000-4000-8000-' || lpad(actor.n::text, 12, '0'))::uuid,
+  ('a6100202-0000-4000-8100-' || lpad(actor.role_n::text, 12, '0'))::uuid
+FROM (VALUES (6, 3), (7, 4), (11, 5), (12, 6), (13, 7)) actor(n, role_n);
 DO $$ BEGIN
   IF (SELECT count(*) FROM public.profile_roles WHERE profile_id::text LIKE 'a6100202-%') <> 12 THEN
     RAISE EXCEPTION 'fixture roles missing or unexpected automatic assignment';
@@ -99,6 +102,7 @@ BEGIN
   ) cases(n, expected) LOOP
     PERFORM set_config('request.jwt.claims', json_build_object(
       'sub', 'a6100202-0000-4000-8000-' || lpad(actor.n::text, 12, '0'),
+      'email', 'menu-visibility-'||actor.n||'@example.invalid',
       'role', 'authenticated')::text, true);
     SET LOCAL ROLE authenticated;
     PERFORM pg_temp.assert_menu_visibility(actor.expected);
@@ -110,11 +114,11 @@ SELECT set_config('request.jwt.claims', '{}', true);
 UPDATE public.profiles SET menu_view_all_blocks = false
 WHERE id = 'a6100202-0000-4000-8000-000000000005';
 DELETE FROM public.profile_roles WHERE profile_id = 'a6100202-0000-4000-8000-000000000006';
-SELECT set_config('request.jwt.claims', '{"sub":"a6100202-0000-4000-8000-000000000005","role":"authenticated"}', true);
+SELECT set_config('request.jwt.claims', '{"sub":"a6100202-0000-4000-8000-000000000005","email":"menu-visibility-5@example.invalid","role":"authenticated"}', true);
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.assert_menu_visibility(ARRAY[12]);
 SELECT set_config('role', current_setting('test.menu_visibility_owner'), true);
-SELECT set_config('request.jwt.claims', '{"sub":"a6100202-0000-4000-8000-000000000006","role":"authenticated"}', true);
+SELECT set_config('request.jwt.claims', '{"sub":"a6100202-0000-4000-8000-000000000006","email":"menu-visibility-6@example.invalid","role":"authenticated"}', true);
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.assert_menu_visibility(ARRAY[12]);
 SELECT set_config('role', current_setting('test.menu_visibility_owner'), true);

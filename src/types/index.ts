@@ -6,11 +6,15 @@ export type Block = "middle_long" | "short" | "manager" | "jump" | "throw";
 /** 旧・単一ロール（profiles.role 列。互換目的で残置） */
 export type Role = "admin" | "menu_staff" | "member";
 export type ProfileStatus = "active" | "graduated";
+/** 他人の練習メニューを編集できる現在のブロック区分。 */
+export type EditableMenuBlock = "short" | "middle_long";
 
 /** 権限の種類 */
 export type Permission =
   | "manage_system" // システム管理（最上位権限）
   | "manage_members" // 部員・ロール管理
+  | "moderate_comments" // アプリに投稿された他人のコメント・返信の削除
+  | "manage_ob_meet" // OB戦の登録・運営管理
   | "create_schedule" // 練習予定の作成
   | "create_menu" // 練習メニューの作成
   | "create_notice" // お知らせの作成
@@ -24,8 +28,12 @@ export interface AppRole {
   name: string;
   can_manage_system: boolean;
   can_manage_members: boolean;
+  can_moderate_comments: boolean;
+  can_manage_ob_meet: boolean;
   can_create_schedule: boolean;
   can_create_menu: boolean;
+  /** メニュー作成権限と併用する、他人のメニューの編集範囲。 */
+  editable_menu_blocks: EditableMenuBlock[];
   can_create_notice: boolean;
   can_decide_practice: boolean;
   is_system: boolean;

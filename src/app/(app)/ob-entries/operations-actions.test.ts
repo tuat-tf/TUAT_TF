@@ -19,7 +19,7 @@ const entryId = "10000000-0000-4000-8000-000000000001";
 const operationId = "20000000-0000-4000-8000-000000000001";
 const input = { event: "男子100m", revision: null, data: { confirmed: false, participants: [] } as MeetEventData };
 const stored = (data = input.data) => ({ meet_key: "ob-2026", event_name: input.event, revision: 0, data, updated_at: "2026-10-04T00:00:00Z" });
-const staff = [{ name: "OB戦2026", can_manage_system: false }];
+const staff = [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false }];
 const dayInput = { operationId, event: input.event, entryId, revision: 3, group: 1 };
 beforeEach(() => {
   vi.clearAllMocks();
@@ -34,7 +34,7 @@ beforeEach(() => {
 it("permits OB staff and system operators but rejects anonymous, unverified profiles and preview access", async () => {
   mocks.user.mockResolvedValueOnce({ data: { user: null } });
   expect((await saveObEventOperation(input)).ok).toBe(false);
-  for (const roles of [[], [{ name: "OB戦2026", permissions_suppressed: true }], [{ can_manage_system: true, permissions_suppressed: true }]]) {
+  for (const roles of [[], [{ name: "改名したOB戦担当", can_manage_ob_meet: true, permissions_suppressed: true }], [{ can_manage_system: true, permissions_suppressed: true }]]) {
     mocks.roles.mockResolvedValueOnce(new Map([["u", roles]]));
     expect((await saveObEventOperation(input)).ok).toBe(false);
   }
@@ -89,7 +89,14 @@ it("rejects malformed payloads and incomplete/unrelated success responses", asyn
   }
   expect(mocks.refresh).not.toHaveBeenCalled();
 });
-it("requires the OB staff role for attendance and day registration even with system permission", async () => {
+it("requires OB management permission for attendance and day registration even with system permission", async () => {
+  expect((await setObAttendance({ entryId, revision: 3, absent: true })).ok).toBe(false);
+  expect((await addObDayEntry(dayInput)).ok).toBe(false);
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+it("rejects a matching OB role name without explicit management permission before saving", async () => {
+  mocks.roles.mockResolvedValue(new Map([["u", [{ name: "OB戦2026", can_manage_ob_meet: false, can_manage_system: false }]]]));
+  expect((await saveObEventOperation(input)).ok).toBe(false);
   expect((await setObAttendance({ entryId, revision: 3, absent: true })).ok).toBe(false);
   expect((await addObDayEntry(dayInput)).ok).toBe(false);
   expect(mocks.rpc).not.toHaveBeenCalled();

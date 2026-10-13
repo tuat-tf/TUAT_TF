@@ -81,7 +81,7 @@ it("saves the entry and party response through one transaction",async()=>{
 
 beforeEach(() => {
   mocks.user.mockResolvedValue({ data: { user: { id: "system" } } });
-  mocks.roles.mockResolvedValue(new Map([["system", [{ name: "OB戦2026", can_manage_system: false, can_manage_members: false }]]]));
+  mocks.roles.mockResolvedValue(new Map([["system", [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false, can_manage_members: false }]]]));
   mocks.preview.mockResolvedValue(false);
   const chain = { update: mocks.update, eq: mocks.eq, select: () => chain, maybeSingle: mocks.result };
   mocks.from.mockReturnValue(chain);
@@ -120,7 +120,7 @@ it("saves helper membership in one RPC and retains revisions and authorization c
 
 it("rejects entry edits from preview sessions (ordinary members are limited to their own entry by the DB)", async () => {
   const input = { entryId: id, profileId: null, revision: 0, events: ["男子100m"], marks: {} };
-  mocks.roles.mockResolvedValue(new Map([["system", [{ name: "OB戦2026", can_manage_system: false, can_manage_members: false }]]]));
+  mocks.roles.mockResolvedValue(new Map([["system", [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false, can_manage_members: false }]]]));
   mocks.preview.mockResolvedValue(true);
   expect((await saveEntry(input)).ok).toBe(false);
   expect(mocks.rpc).not.toHaveBeenCalled();
@@ -194,7 +194,7 @@ it("refuses history reads by ordinary, anonymous, preview and suppressed session
   expect((await getObEntryHistory()).ok).toBe(false);
   mocks.preview.mockResolvedValueOnce(true);
   expect((await getObEntryHistory()).ok).toBe(false);
-  mocks.roles.mockResolvedValueOnce(new Map([["system", [{name:"OB戦2026",can_manage_system:true,can_manage_members:true,permissions_suppressed:true}]]]));
+  mocks.roles.mockResolvedValueOnce(new Map([["system", [{name: "改名したOB戦担当", can_manage_ob_meet: true,can_manage_system:true,can_manage_members:true,permissions_suppressed:true}]]]));
   expect((await getObEntryHistory()).ok).toBe(false);
   expect(mocks.from).not.toHaveBeenCalled();
 });
@@ -310,7 +310,7 @@ it("keeps guest addition and deletion staff-only, including preview mode", async
   mocks.roles.mockResolvedValue(new Map([["system",[{name:"システム",can_manage_system:true}]]]));
   expect((await createGuestEntry(guest)).ok).toBe(false);
   expect((await deleteEntry({entryId:id,revision:0})).ok).toBe(false);
-  mocks.roles.mockResolvedValue(new Map([["system",[{name:"OB戦2026",can_manage_system:false}]]]));
+  mocks.roles.mockResolvedValue(new Map([["system",[{name: "改名したOB戦担当", can_manage_ob_meet: true,can_manage_system:false}]]]));
   mocks.preview.mockResolvedValue(true);
   expect((await createGuestEntry(guest)).ok).toBe(false);
   expect((await deleteEntry({entryId:id,revision:0})).ok).toBe(false);

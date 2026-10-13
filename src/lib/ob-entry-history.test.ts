@@ -7,13 +7,13 @@ const person = { entryId: "entry", group: null, order: null, status: "entered", 
 
 describe("OB permissions and history", () => {
   it("allows staff history without granting administrators staff editing", () => {
-    const staff = [{ name: "OB戦2026", can_manage_system: false, can_manage_members: false }];
-    const admin = [{ name: "管理者", can_manage_system: false, can_manage_members: true }];
-    const system = [{ name: "システム", can_manage_system: true, can_manage_members: false }];
+    const staff = [{ name: "改名したOB戦担当", can_manage_ob_meet: true, can_manage_system: false, can_manage_members: false }];
+    const admin = [{ name: "管理者", can_manage_ob_meet: false, can_manage_system: false, can_manage_members: true }];
+    const system = [{ name: "システム", can_manage_ob_meet: false, can_manage_system: true, can_manage_members: false }];
     expect(canManageObMeet(staff)).toBe(true); expect(canViewObHistory(staff)).toBe(true);
     for (const roles of [admin, system]) { expect(canManageObMeet(roles)).toBe(false); expect(canViewObHistory(roles)).toBe(true); }
     for (const roles of [staff, admin, system]) expect(canViewObHistory(roles.map(role => ({ ...role, permissions_suppressed: true })))).toBe(false);
-    expect(canViewObHistory([{ name: "全員", can_manage_system: false, can_manage_members: false }])).toBe(false);
+    expect(canViewObHistory([{ name: "全員", can_manage_ob_meet: false, can_manage_system: false, can_manage_members: false }])).toBe(false);
     expect(canManageObMeet(null)).toBe(false); expect(canViewObHistory([])).toBe(false);
   });
   it("shows event removal/addition, mark differences and identity changes as before/after fields", () => {

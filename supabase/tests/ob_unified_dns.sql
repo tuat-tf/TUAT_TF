@@ -11,7 +11,7 @@ BEGIN
  VALUES(actor,'unified-'||actor||'@example.invalid',name,'{}','1','active',true)
  ON CONFLICT(id) DO UPDATE SET display_name=excluded.display_name,blocks='{}',grade='1',status='active',approved=true;
  DELETE FROM public.profile_roles WHERE profile_id=actor;
- SELECT id INTO staff_role FROM public.roles r WHERE r.name='OB戦2026';
+ SELECT id INTO staff_role FROM public.roles r WHERE r.can_manage_ob_meet AND NOT r.is_everyone ORDER BY r.id LIMIT 1;
  IF staff_role IS NULL THEN RAISE EXCEPTION 'staff fixture missing'; END IF;
  INSERT INTO public.profile_roles(profile_id,role_id) VALUES(actor,staff_role);
  PERFORM set_config('request.jwt.claim.sub',actor::text,true);

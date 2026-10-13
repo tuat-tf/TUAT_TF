@@ -1,5 +1,6 @@
 import { isAlumniEntry, type ObEntry } from "./ob-entries";
 import { entryGrade, type EntryMember } from "./entry-identity";
+import type { AppRole } from "@/types";
 
 /**
  * OB戦は大会一覧の「OB戦」と同じ大会として扱う。プログラム画面は
@@ -17,12 +18,12 @@ export function isObCompetition(competitionId: string): boolean {
   return competitionId === OB_MEET.competitionId;
 }
 
-/** 他人のOB戦回答を変更できるのは、この大会の担当ロールだけ。 */
-export const OB_STAFF_ROLE = "OB戦2026";
-export function canManageObMeet(roles: { name: string; can_manage_system: boolean; permissions_suppressed?: boolean }[] | null | undefined): boolean {
-  return !!roles?.some((r) => !r.permissions_suppressed && r.name === OB_STAFF_ROLE);
+type ObMeetRole = Pick<AppRole, "name" | "can_manage_ob_meet" | "can_manage_system" | "permissions_suppressed">;
+/** 他人のOB戦回答を変更できるのは、この大会の運営管理権限を持つ人だけ。 */
+export function canManageObMeet(roles: ObMeetRole[] | null | undefined): boolean {
+  return !!roles?.some((r) => !r.permissions_suppressed && r.can_manage_ob_meet);
 }
-export function canViewObHistory(roles: { name: string; can_manage_system: boolean; can_manage_members: boolean; permissions_suppressed?: boolean }[] | null | undefined): boolean {
+export function canViewObHistory(roles: (ObMeetRole & Pick<AppRole, "can_manage_members">)[] | null | undefined): boolean {
   return canManageObMeet(roles) || !!roles?.some((r) => !r.permissions_suppressed && (r.can_manage_system || r.can_manage_members));
 }
 /** 種目名（"男子100m" など）の開始時刻。プログラムを見ながらエントリーできるようにする。 */

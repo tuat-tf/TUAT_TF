@@ -6,16 +6,16 @@ BEGIN
  PERFORM set_config('request.jwt.claims','{"role":"authenticated"}',true);
  FOR system_actor IN SELECT id FROM public.profiles WHERE approved LOOP
   PERFORM set_config('request.jwt.claim.sub',system_actor::text,true);
-  IF public.can_manage_system() THEN EXIT; END IF;
+  IF public.can_manage_system() AND NOT public.can_manage_ob_meet() THEN EXIT; END IF;
  END LOOP;
- IF NOT public.can_manage_system() THEN RAISE EXCEPTION 'System fixture actor unavailable'; END IF;
+ IF NOT public.can_manage_system() OR public.can_manage_ob_meet() THEN RAISE EXCEPTION 'System-only fixture actor unavailable'; END IF;
  FOR actor IN SELECT id FROM public.profiles WHERE approved AND status='active' AND id<>system_actor LOOP
   PERFORM set_config('request.jwt.claim.sub',actor::text,true);
-  IF NOT public.can_manage_system() THEN EXIT; END IF;
+  IF NOT public.can_manage_system() AND NOT public.can_manage_ob_meet() THEN EXIT; END IF;
  END LOOP;
- IF actor IS NULL OR public.can_manage_system() THEN RAISE EXCEPTION 'Member fixture actor unavailable'; END IF;
+ IF actor IS NULL OR public.can_manage_system() OR public.can_manage_ob_meet() THEN RAISE EXCEPTION 'Member fixture actor unavailable'; END IF;
  PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
- INSERT INTO public.roles(id,name) VALUES(staff_role,'合成大会担当・一時検証');
+ INSERT INTO public.roles(id,name,can_manage_ob_meet) VALUES(staff_role,'合成大会担当・一時検証',true);
  INSERT INTO public.competitions(id,name,starts_on) VALUES(comp,'合成OB権限検証','2026-10-13'),(generic,'合成他大会権限検証','2026-10-13');
  INSERT INTO public.competition_meets(competition_id,meet_key,staff_role_id,legacy_source,ready) VALUES(comp,comp,staff_role,'ob-2026',true),(generic,generic,staff_role,NULL,true);
  INSERT INTO public.competition_meet_events(competition_id,name,family,division,starts_at,discipline,wind,capacity) VALUES(comp,'男子100m','100m','男子','10:00','track',true,8);
