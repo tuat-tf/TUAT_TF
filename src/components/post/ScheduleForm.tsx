@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoaderCircle, X } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
@@ -110,6 +110,10 @@ export function ScheduleForm({
   const [targetBlocks, setTargetBlocks] = useState<Block[]>(normalizeProfileBlocks(schedule?.target_blocks));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<"date" | "title" | null>(null);
+  const formId = useId();
+  const dateInput = useRef<HTMLInputElement>(null);
+  const titleInput = useRef<HTMLInputElement>(null);
   const meetingTimeTouched = useRef(false);
 
   const isPractice = type === "practice";
@@ -163,16 +167,23 @@ export function ScheduleForm({
   }, []);
 
   const submit = useCallback(async () => {
+    if (saving) return;
+    setErrorField(null);
     if (!date) {
       setError("日付を選択してください");
+      setErrorField("date");
+      dateInput.current?.focus();
       return;
     }
     if (!isPractice && !title.trim()) {
       setError("タイトルを入力してください");
+      setErrorField("title");
+      titleInput.current?.focus();
       return;
     }
     setSaving(true);
     setError(null);
+    try {
     const supabase = createClient();
     const userId = await getCurrentUserId(supabase);
     if (!userId) {
@@ -223,7 +234,10 @@ export function ScheduleForm({
     }
     router.refresh();
     onDone();
-  }, [date, isPractice, title, venueKey, venues, otherVenue, type, meetingTime, useEndDate, endDate, canEntry, useEntry, entryStart, entryEnd, note, targetBlocks, editing, schedule, router, onDone]);
+    } catch {
+      setError("保存できませんでした。入力は残っています。保存先を確認してください");
+    } finally { setSaving(false); }
+  }, [saving, date, isPractice, title, venueKey, venues, otherVenue, type, meetingTime, useEndDate, endDate, canEntry, useEntry, entryStart, entryEnd, note, targetBlocks, editing, schedule, router, onDone]);
 
   const selectedVenueName = venueKey === OTHER ? otherVenue : venues.find((venue) => venue.id === venueKey)?.name ?? "";
   const draftDirty = type !== (schedule?.schedule_type ?? initialType ?? "practice") ||
@@ -270,8 +284,9 @@ export function ScheduleForm({
 
       {/* 日付（選ぶだけで設定。追加ボタン不要） */}
       <div>
-        <p className="section-label mb-1.5">日付</p>
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <label htmlFor={`${formId}-date`} className="section-label mb-1.5 block">日付</label>
+        <Input ref={dateInput} id={`${formId}-date`} type="date" value={date} aria-invalid={errorField === "date" || undefined} aria-describedby={errorField === "date" ? `${formId}-date-error` : undefined} onChange={(e) => { setDate(e.target.value); if (errorField === "date") { setErrorField(null); setError(null); } }} />
+        {errorField === "date" && <p id={`${formId}-date-error`} role="alert" className="mt-1 text-caption text-danger">{error}</p>}
       </div>
 
       {/* 場所（選択式） */}
@@ -335,12 +350,17 @@ export function ScheduleForm({
         {!isPractice && (
           <>
             <div>
-              <p className="section-label mb-1.5">タイトル</p>
+              <label htmlFor={`${formId}-title`} className="section-label mb-1.5 block">タイトル</label>
               <Input
+                ref={titleInput}
+                id={`${formId}-title`}
+                aria-invalid={errorField === "title" || undefined}
+                aria-describedby={errorField === "title" ? `${formId}-title-error` : undefined}
                 placeholder={type === "meet" ? "例: 県選手権 / 合宿" : "例: 記録会"}
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => { setTitle(e.target.value); if (errorField === "title") { setErrorField(null); setError(null); } }}
               />
+              {errorField === "title" && <p id={`${formId}-title-error`} role="alert" className="mt-1 text-caption text-danger">{error}</p>}
             </div>
 
             {/* 終了日：複数日開催のときだけオン */}
@@ -407,7 +427,7 @@ export function ScheduleForm({
         />
       </div>
 
-      {error && <p className="text-caption text-danger text-center">{error}</p>}
+      {error && !errorField && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         <Button size="lg" onClick={submit} disabled={saving}>
           {saving ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : editing ? "更新する" : "作成する"}

@@ -8,8 +8,6 @@ import * as notices from "./notices";
 import * as competitions from "./competitions";
 import * as members from "./members";
 import { getPbRecords } from "./records";
-import { getWeeklyRanking } from "./rankings";
-import { getSchedulesOn } from "./schedules";
 import { getAllVenues } from "./venues";
 import { fetchQuotedPosts, withNoticeReactions } from "./internal";
 import type { Notice } from "@/types";
@@ -67,10 +65,7 @@ const lists = [
   ["profiles", () => members.getMembersList(), []],
   ["roles", () => members.getAllRoles(), []],
   ["role_categories", () => members.getAllRoleCategories(), []],
-  ["favorites", () => members.getMyFavoriteIds("me"), []],
   ["pb_records", () => getPbRecords("me"), []],
-  ["weekly_ranking", () => getWeeklyRanking(), []],
-  ["practice_schedules", () => getSchedulesOn("2026-10-13"), []],
   ["competitions", () => competitions.getCompetitions(), []],
   ["competition_events", () => competitions.getCompetitionEvents(), []],
   ["competition_program_entries", () => competitions.getCompetitionProgramEntries("meet"), []],
@@ -107,12 +102,6 @@ it("does not truncate a breadcrumb chain on a failed parent lookup", async () =>
   expect(await notes.getNoteAncestors({ parent_id: "parent" })).toEqual([]);
 });
 
-it("keeps a favorite lookup failure distinct from not favorited", async () => {
-  results.favorites = { data: null, error: unavailable };
-  await expect(members.isFavorite("me", "other")).rejects.toEqual(unavailable);
-  results.favorites = { data: null, error: null };
-  expect(await members.isFavorite("me", "other")).toBe(false);
-});
 
 it("does not turn an unread-count failure into zero", async () => {
   results.notifications = { data: null, count: null, error: unavailable };

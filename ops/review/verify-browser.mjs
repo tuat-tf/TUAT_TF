@@ -11,7 +11,7 @@ const state=JSON.parse(readFileSync(resolve(directory,'device.json'),'utf8'));
 if(config.project!=='tuat-quality-review')throw Error('Invalid review scope');
 const origin=state.publicOrigin;
 if(!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin))throw Error('Review HTTPS origin missing');
-const paths=['/home','/schedule','/timeline','/notices','/ranking','/members',`/members/${ids.owner}`,'/mypage','/mypage/settings','/mypage/settings/records','/mypage/pb','/mypage/monthly-results','/settings/sheet-setup','/competitions','/competitions/review-meet','/competitions/review-meet/entry','/competitions/review-meet/goals','/competitions/review-meet/program','/events','/goals','/goals/past','/venues','/notes',`/notes/${ids.note}`,`/notes/${ids.note}/articles/${ids.article}`,`/notes/threads/${ids.thread}`,'/ob-entries','/admin','/admin/services','/blog','/maintenance','/offline'];
+const paths=['/home','/schedule','/timeline','/notices','/ranking','/members',`/members/${ids.owner}`,'/mypage','/mypage/settings','/mypage/settings/records','/mypage/pb','/mypage/monthly-results','/settings/sheet-setup','/competitions','/competitions/review-meet','/competitions/review-meet/manage','/competitions/review-meet/goals','/competitions/review-meet/program','/events','/goals','/goals/past','/venues','/notes',`/notes/${ids.note}`,`/notes/${ids.note}/articles/${ids.article}`,`/notes/threads/${ids.thread}`,'/ob-entries','/admin','/admin/services','/blog','/maintenance','/offline'];
 const redirects={'/settings/sheet-setup':'/mypage/settings/records','/ob-entries':'/competitions/3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5/program'};
 for(const [table,kind] of [['practice_records','record'],['tweets','tweet']]) {
   const response=await fetch(`http://127.0.0.1:18002/${table}?select=id&limit=1`,{headers:{authorization:`Bearer ${config.serviceKey}`}});
@@ -115,6 +115,9 @@ for(const [name,engine,width] of [['Chrome',chromium,390],['WebKit',webkit,320]]
   const cookieNames=(await context.cookies()).map(cookie=>cookie.name);
   if(!cookieNames.some(name=>name.startsWith('sb-pc-trial-auth'))||cookieNames.includes('sb-tuat-auth'))throw Error('Review session cookie is not isolated');
   if(name==='Chrome') {
+    const unsupportedEntry=await context.request.get(origin+'/competitions/review-meet/entry',{maxRedirects:0});
+    if(unsupportedEntry.status()!==404)throw Error('Non-OB legacy entry unexpectedly redirected');
+    report.security.push({nonObLegacyEntryNotRedirected:true});
     const version=await (await context.request.get(origin+'/api/version')).json();
     if(version.version!==readFileSync(resolve(directory,'build-id.txt'),'utf8').trim())throw Error('Review version does not match its completed build');
     report.security.push({reviewBuildVersionVerified:true});

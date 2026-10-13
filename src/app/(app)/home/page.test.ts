@@ -149,9 +149,9 @@ it("shows participation retrieval failure while keeping the entry and program av
   const body=HomePage().props.children[1].props.children;
   const content=await body.type(body.props);
   const html=renderToStaticMarkup(content.props.children[2]);
-  expect(html).toContain("出場状態を取得できませんでした");
+  expect(html).toContain("組・出場状況を取得できませんでした");
   expect(html).toContain("男子100m");
-  expect(html).toContain("プログラム（タイムテーブル）");
+  expect(html).toContain("組分け・タイムテーブル・シフト表");
 });
 
 });

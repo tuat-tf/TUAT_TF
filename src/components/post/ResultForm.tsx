@@ -3,6 +3,8 @@
 import {
   forwardRef,
   useEffect,
+  useId,
+  useRef,
   useImperativeHandle,
   useState,
 } from "react";
@@ -195,6 +197,20 @@ export const ResultForm = forwardRef<
   const [isOfficial, setIsOfficial] = useState(initial?.is_official ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<"event" | "record" | "wind" | null>(null);
+  const formId = useId();
+  const eventInput = useRef<HTMLSelectElement>(null);
+  const otherEventInput = useRef<HTMLInputElement>(null);
+  const recordInputs = useRef<HTMLDivElement>(null);
+  const windInput = useRef<HTMLInputElement>(null);
+
+  function rejectInput(field: "event" | "record" | "wind", message: string) {
+    setError(message);
+    setErrorField(field);
+    const target = field === "event" ? (eventChoice === OTHER ? otherEventInput.current : eventInput.current)
+      : field === "wind" ? windInput.current : recordInputs.current?.querySelector("input");
+    target?.focus();
+  }
   const [unconfirmed, setUnconfirmed] = useState<Database["public"]["Tables"]["pb_records"]["Insert"] | null>(null);
   const [retryAllowed, setRetryAllowed] = useState(false);
 
@@ -283,6 +299,7 @@ export const ResultForm = forwardRef<
   }
 
   function changeFormat(format: ResultInputFormat) {
+    setErrorField(null);
     if (measureForResultInput(format) === "time" && format !== timeDraftFormat) {
       const value = timeValue(timeDraftFormat);
       if (value === null) {
@@ -368,7 +385,7 @@ export const ResultForm = forwardRef<
   async function submit() {
     if (saving || unconfirmed) return;
     if (!eventName) {
-      setError("種目を選んでください");
+      rejectInput("event", "種目を選んでください");
       return;
     }
     const values = buildValues();
@@ -377,18 +394,18 @@ export const ResultForm = forwardRef<
       values.value_cm === 0 ||
       values.value_points === 0;
     if (status === "ok" && (empty || Object.values(values).every((v) => v === null))) {
-      setError("記録を入力してください");
+      rejectInput("record", "記録を入力してください");
       return;
     }
     const windValue = status !== "ok" || !showWind || wind.trim() === ""
       ? null
       : Number(wind) * (windDirection === "headwind" ? -1 : 1);
     if (windValue !== null && !Number.isFinite(windValue)) {
-      setError("風速は数値で入力してください");
+      rejectInput("wind", "風速は数値で入力してください");
       return;
     }
     if (windValue !== null && (Math.abs(windValue) > 20 || !/^\d*(?:\.\d)?$/.test(wind))) {
-      setError("風速は20.0m/s以内、小数第1位までで入力してください");
+      rejectInput("wind", "風速は20.0m/s以内、小数第1位までで入力してください");
       return;
     }
     setSaving(true);
@@ -475,6 +492,9 @@ export const ResultForm = forwardRef<
         <p className="section-label mb-1.5">種目</p>
         <select data-ui-field
           aria-label="種目"
+          ref={eventInput}
+          aria-invalid={errorField === "event" || undefined}
+          aria-describedby={errorField === "event" ? `${formId}-event-error` : undefined}
           className={selectClass}
           value={eventChoice}
           onChange={(e) => chooseEvent(e.target.value)}
@@ -492,6 +512,9 @@ export const ResultForm = forwardRef<
           <div className="mt-2 space-y-3">
             <Input
               aria-label="種目名"
+              ref={otherEventInput}
+              aria-invalid={errorField === "event" || undefined}
+              aria-describedby={errorField === "event" ? `${formId}-event-error` : undefined}
               maxLength={50}
               placeholder="例: 2000mSC"
               value={eventOther}
@@ -533,7 +556,8 @@ export const ResultForm = forwardRef<
         )}
       </div>
 
-      {eventChoice && <div>
+      {errorField === "event" && <p id={`${formId}-event-error`} role="alert" className="text-caption text-danger">{error}</p>}
+      {eventChoice && <div ref={recordInputs} role="group" aria-label="記録" aria-invalid={errorField === "record" || undefined} aria-describedby={errorField === "record" ? `${formId}-record-error` : undefined}>
         <p className="section-label mb-1.5">記録</p>
         <select data-ui-field
           aria-label="記録の状態"
@@ -604,6 +628,9 @@ export const ResultForm = forwardRef<
               </span>
               <Input
                 aria-label="風速（m/s）"
+                ref={windInput}
+                aria-invalid={errorField === "wind" || undefined}
+                aria-describedby={errorField === "wind" ? `${formId}-wind-error` : undefined}
                 inputMode="decimal"
                 placeholder="1.2"
                 value={wind}
@@ -618,8 +645,10 @@ export const ResultForm = forwardRef<
               />
               <span aria-hidden="true" className="shrink-0 text-caption">m/s</span>
             </label>
+            {errorField === "wind" && <p id={`${formId}-wind-error`} role="alert" className="text-caption text-danger">{error}</p>}
           </fieldset>
         )}
+      {errorField === "record" && <p id={`${formId}-record-error`} role="alert" className="text-caption text-danger">{error}</p>}
       </div>}
 
       <div>
@@ -782,7 +811,7 @@ export const ResultForm = forwardRef<
         PB・UB は種目ごとに1件だけ付きます。新しく付けると、同じ種目の前の記録からは外れます。UBは大学の記録だけに付きます。
       </p>
 
-      {error && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
+      {error && !errorField && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         {unconfirmed ? <div className="space-y-2"><Button size="lg" onClick={() => void checkSave()} disabled={saving}>保存結果を確認</Button>{retryAllowed && <Button size="lg" disabled={saving} onClick={() => void retrySave()}>同じ内容で保存する</Button>}</div> : <Button size="lg" onClick={submit} disabled={saving}>
           {saving ? (

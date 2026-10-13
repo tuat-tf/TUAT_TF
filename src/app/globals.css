@@ -17,8 +17,12 @@
   --color-success: #34c759;
   --color-warning: #ff9500;
   --color-danger: #ff3b30;
+  --color-accent-ink: #075db5;
+  --color-success-ink: #087438;
+  --color-warning-ink: #8a5200;
+  --color-danger-ink: #b4231c;
   --color-ink: #000000;
-  --color-muted: #8e8e93;
+  --color-muted: #6c6c70;
   --color-muted2: #6c6c70;
   --color-faint: #6c6c70;
 
@@ -46,6 +50,12 @@
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Yu Gothic", "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
 }
+
+/* Text uses a darker foreground; fills, graph colors and focus borders keep their hues. */
+.text-accent { color: var(--color-accent-ink); }
+.text-success { color: var(--color-success-ink); }
+.text-warning { color: var(--color-warning-ink); }
+.text-danger { color: var(--color-danger-ink); }
 
 html {
   height: 100%;

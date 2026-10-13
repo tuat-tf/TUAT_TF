@@ -7,18 +7,6 @@ import { normalizeScheduleRow } from "@/lib/query-normalize";
 import { normalizeAuthorRow } from "@/lib/profile-normalize";
 import type { Block } from "@/types";
 import { isPresent } from "./internal";
-
-/** ある日付の練習予定を取得 */
-export async function getSchedulesOn(date: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("practice_schedules")
-    .select("*")
-    .eq("schedule_date", date)
-    .order("meeting_time", { ascending: true });
-  if (error) throw error;
-  return data ?? [];
-}
 /** 今日以降の練習予定（メニュー込み）を取得 */
 function upcomingScheduleFilter(
   today: string,
@@ -40,38 +28,6 @@ function upcomingScheduleFilter(
  */
 export function stillRunningOrUpcoming(today: string) {
   return `schedule_date.gte.${today},end_date.gte.${today}`;
-}
-
-export async function getUpcomingSchedules(
-  viewerBlocks: Block[],
-  canManage: boolean,
-  type?: string,
-) {
-  const supabase = await createClient();
-  const today = jstToday();
-  let q = supabase
-    .from("practice_schedules")
-    .select(`
-      *,
-      menus:practice_menus(
-        *,
-        author:profiles!author_id(id, display_name),
-        targets:practice_menu_targets(
-          menu_id,
-          user_id,
-          profile:profiles!user_id(id, display_name, avatar_url, blocks, grade)
-        )
-      )
-    `)
-    .or(upcomingScheduleFilter(today, viewerBlocks, canManage))
-    .order("schedule_date", { ascending: true })
-    .order("meeting_time", { ascending: true, nullsFirst: false });
-  if (type && type !== "all") q = q.eq("schedule_type", type);
-  const { data, error } = await q;
-  if (error) throw new Error("Failed to load upcoming schedules: " + error.message);
-  return (data ?? [])
-    .map(normalizeScheduleRow)
-    .filter(isPresent);
 }
 
 /** 予定一覧用。出欠を同じクエリに含め、一覧初期表示の往復を減らす。 */

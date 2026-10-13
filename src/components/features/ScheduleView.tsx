@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { ScheduleCard } from "@/components/cards/ScheduleCard";
 import { SCHEDULE_TYPE_OPTIONS } from "@/lib/constants";
 import type { ScheduleWithMenus, Attendee, AttendanceDefaultBlock, AttendanceStatusOrNone, AuthorMini, Block } from "@/types";
@@ -86,7 +87,11 @@ export function ScheduleView({
 
       <div data-schedule-grid className="px-4 pt-1 md:px-6 lg:grid lg:grid-cols-2 lg:gap-x-6">
         {filtered.length === 0 ? (
-          <EmptyState title="まだ今後の予定はありません" className="lg:col-span-2" />
+          <EmptyState
+            title={schedules.length === 0 ? "まだ今後の予定はありません" : "条件に合う予定はありません"}
+            action={schedules.length > 0 ? <Button variant="secondary" onClick={() => { setType("all"); setBlock("all"); }}>絞り込みを解除</Button> : undefined}
+            className="lg:col-span-2"
+          />
         ) : (
           filtered.map((s, index) => {
             const monthKey = s.schedule_date.slice(0, 7);

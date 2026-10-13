@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useSystemGlass } from "@/components/layout/glass/system-glass-state";
 import type { AttendanceStatusOrNone } from "@/types";
 
 export type { AttendanceChange } from "@/lib/attendance-save";
@@ -26,7 +25,7 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
   initialLate?: boolean; initialLateNote?: string | null; initialAbsenceNote?: string | null;
   refreshOnChange?: boolean; onChanged?: (change: AttendanceChange) => void;
 }) {
-  const systemGlass = useSystemGlass();
+  const systemGlass = true;
   const router = useRouter();
   const [value, setValue] = useState<AttendanceChange>({ status: initial, isLate: initialLate, lateNote: initialLateNote, absenceNote: initialAbsenceNote });
   const [note, setNote] = useState(initial === "absent" ? initialAbsenceNote ?? "" : initialLateNote ?? "");

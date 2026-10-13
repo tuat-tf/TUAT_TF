@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ChevronRight, Folder, Pin } from "lucide-react";
 import { searchNoteArticles, type NoteArticleSearchResult } from "@/app/(app)/notes/actions";
 import { folderContentsLabel } from "@/lib/note-contents";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented";
 import type {
   AuthorMini,
@@ -43,11 +45,28 @@ export function NotesView({
   initialScope?: NotesTab;
 }) {
   const [scope, setScope] = useState<NotesTab>(initialScope);
-  const [query, setQuery] = useState("");
-  const [articleResults, setArticleResults] = useState<NoteArticleSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState(false);
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
+  const [searchAttempt, setSearchAttempt] = useState(0);
+  const [searchResult, setSearchResult] = useState<{
+    query: string;
+    attempt: number;
+    articles: NoteArticleSearchResult[];
+    failed: boolean;
+  } | null>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase("ja");
+  const searching = !!normalizedQuery && (searchResult?.query !== normalizedQuery || searchResult.attempt !== searchAttempt);
+  const searchError = !searching && searchResult?.failed === true;
+
+  function changeQuery(next: string) {
+    setQuery(next);
+    const url = new URL(window.location.href);
+    if (next) url.searchParams.set("q", next);
+    else url.searchParams.delete("q");
+    // Next's native history integration keeps this entry for detail -> back,
+    // without refetching the route or adding one history entry per keystroke.
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
 
   function changeScope(next: NotesTab) {
     setScope(next);
@@ -80,36 +99,32 @@ export function NotesView({
 
   const matchingArticles = useMemo(
     () =>
-      articleResults.filter((article) => {
+      (searching || searchError ? [] : searchResult?.articles ?? []).filter((article) => {
         const note = article.note;
         if (!note || note.scope !== scope) return false;
         if (mine && note.author_id !== currentUser.id) return false;
         if (!mine && !canViewAllFolders && note.author_id !== currentUser.id && note.status !== "published") return false;
         return true;
       }),
-    [articleResults, canViewAllFolders, currentUser.id, mine, scope],
+    [searching, searchError, searchResult, canViewAllFolders, currentUser.id, mine, scope],
   );
 
   useEffect(() => {
     if (!normalizedQuery) return;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setSearching(true);
-      setSearchError(false);
       try {
         const results = await searchNoteArticles(normalizedQuery);
-        if (!cancelled) setArticleResults(results);
+        if (!cancelled) setSearchResult({ query: normalizedQuery, attempt: searchAttempt, articles: results, failed: false });
       } catch {
-        if (!cancelled) setSearchError(true);
-      } finally {
-        if (!cancelled) setSearching(false);
+        if (!cancelled) setSearchResult({ query: normalizedQuery, attempt: searchAttempt, articles: [], failed: true });
       }
     }, 250);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [normalizedQuery]);
+  }, [normalizedQuery, searchAttempt]);
 
   return (
     <div className="space-y-4 px-4 pt-1 md:px-6 lg:space-y-3">
@@ -128,7 +143,7 @@ export function NotesView({
       <Input
         type="search"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => changeQuery(event.target.value)}
         placeholder="検索"
         aria-label="ノートと記事を検索"
       />
@@ -143,6 +158,7 @@ export function NotesView({
           mine={mine}
           searching={searching}
           error={searchError}
+          retry={() => setSearchAttempt((attempt) => attempt + 1)}
         />
       ) : scope === "threads" ? (
         <ThreadList threads={threads} currentUserId={currentUser.id} isAdmin={isAdmin} />
@@ -244,6 +260,7 @@ function NoteSearchResults({
   mine,
   searching,
   error,
+  retry,
 }: {
   folders: NoteWithRelations[];
   articles: NoteArticleSearchResult[];
@@ -252,18 +269,20 @@ function NoteSearchResults({
   mine: boolean;
   searching: boolean;
   error: boolean;
+  retry: () => void;
 }) {
   if (error) {
-    return <EmptyState title="検索できませんでした" description="通信状態を確認してから、もう一度お試しください。" />;
+    return <EmptyState title="検索できませんでした" description="通信状態を確認してから、もう一度お試しください。" action={<Button variant="secondary" onClick={retry}>再試行</Button>} />;
   }
   if (searching && folders.length === 0 && articles.length === 0) {
-    return <p className="py-8 text-center text-caption">検索中…</p>;
+    return <p role="status" className="py-8 text-center text-caption">検索中…</p>;
   }
   if (folders.length === 0 && articles.length === 0) {
     return <EmptyState title="条件に合うノート・記事はありません" description="条件を変えてみてください。" />;
   }
   return (
     <div className="space-y-5">
+      {searching && <p role="status" className="text-caption">検索中…</p>}
       {folders.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-caption font-semibold">{"\u30ce\u30fc\u30c8"}</h2>

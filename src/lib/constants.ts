@@ -3,13 +3,13 @@ import type { Block, Role, Condition, Intensity, ScheduleType, NoticeCategory } 
 /** ブロック定義 */
 export const BLOCKS: Record<
   Block,
-  { label: string; short: string; color: string; bg: string }
+  { label: string; short: string; color: string; textColor: string; bg: string }
 > = {
-  middle_long: { label: "中長距離", short: "中長", color: "#34c759", bg: "#e5f7f0" },
-  short: { label: "短距離", short: "短", color: "#ff9500", bg: "#fff4e5" },
-  manager: { label: "マネージャー", short: "マネ", color: "#007aff", bg: "#e5f0ff" },
-  jump: { label: "跳躍", short: "跳", color: "#af52de", bg: "#f2eeff" },
-  throw: { label: "投擲", short: "投", color: "#ff3b30", bg: "#ffe5e5" },
+  middle_long: { label: "中長距離", short: "中長", color: "#34c759", textColor: "#087438", bg: "#e5f7f0" },
+  short: { label: "短距離", short: "短", color: "#ff9500", textColor: "#8a5200", bg: "#fff4e5" },
+  manager: { label: "マネージャー", short: "マネ", color: "#007aff", textColor: "#075db5", bg: "#e5f0ff" },
+  jump: { label: "跳躍", short: "跳", color: "#af52de", textColor: "#7c329f", bg: "#f2eeff" },
+  throw: { label: "投擲", short: "投", color: "#ff3b30", textColor: "#b4231c", bg: "#ffe5e5" },
 };
 
 export const BLOCK_ORDER: Block[] = ["middle_long", "short", "jump", "throw"];
@@ -163,11 +163,11 @@ export const CONDITIONS: Record<Condition, { label: string; symbol: string; colo
 export const CONDITION_ORDER: Condition[] = ["great", "normal", "bad"];
 
 /** 練習予定の種別（大会と行事は「大会・行事」に統合） */
-export const SCHEDULE_TYPES: Record<ScheduleType, { label: string; color: string }> = {
-  practice: { label: "練習", color: "#007aff" },
-  meet: { label: "大会・行事", color: "#ff3b30" },
-  event: { label: "大会・行事", color: "#ff3b30" }, // 旧データ互換（UIには出さない）
-  time_trial: { label: "記録会", color: "#af52de" },
+export const SCHEDULE_TYPES: Record<ScheduleType, { label: string; color: string; textColor: string }> = {
+  practice: { label: "練習", color: "#007aff", textColor: "#075db5" },
+  meet: { label: "大会・行事", color: "#ff3b30", textColor: "#b4231c" },
+  event: { label: "大会・行事", color: "#ff3b30", textColor: "#b4231c" }, // 旧データ互換（UIには出さない）
+  time_trial: { label: "記録会", color: "#af52de", textColor: "#7c329f" },
 };
 
 /** 予定作成フォームで選べる種別 */
@@ -184,11 +184,11 @@ export const ATTENDANCE_TYPES: ScheduleType[] = ["practice", "meet", "event"];
 export const ENTRY_PERIOD_TYPES: ScheduleType[] = ["meet", "time_trial"];
 
 /** お知らせカテゴリ */
-export const NOTICE_CATEGORIES: Record<NoticeCategory, { label: string; color: string; bg: string }> = {
-  fee: { label: "部費", color: "#ff9500", bg: "#fff4e5" },
-  entry: { label: "エントリー", color: "#007aff", bg: "#e5f0ff" },
-  info: { label: "お知らせ", color: "#8e8e93", bg: "#f2f2f7" },
-  rule: { label: "ルール", color: "#af52de", bg: "#f2eeff" },
+export const NOTICE_CATEGORIES: Record<NoticeCategory, { label: string; color: string; textColor: string; bg: string }> = {
+  fee: { label: "部費", color: "#ff9500", textColor: "#8a5200", bg: "#fff4e5" },
+  entry: { label: "エントリー", color: "#007aff", textColor: "#075db5", bg: "#e5f0ff" },
+  info: { label: "お知らせ", color: "#8e8e93", textColor: "#6c6c70", bg: "#f2f2f7" },
+  rule: { label: "ルール", color: "#af52de", textColor: "#7c329f", bg: "#f2eeff" },
 };
 
 /** 学年（学部1〜4年 / 修士 M1・M2 / 博士 D1〜D3） */

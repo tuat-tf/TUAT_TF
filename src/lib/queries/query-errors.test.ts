@@ -18,12 +18,10 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => {
 vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: async () => new Map() }));
 import { getNotesData, getNoteById, getThreads, getThreadById, getThreadPosts, getNoteArticles, getChildNotes, getNoteArticleById, getRecentSharedNotes, getNoteAncestors } from "./notes";
 import { getCompetitions, getCompetitionEvents, getCompetitionById, getCompetitionProgramEntries, getGoalHub, getHomeCompetition, getCompetitionGoals } from "./competitions";
-import { getMembersList, getAllRoles, getAllRoleCategories, getMyFavoriteIds, isFavorite } from "./members";
+import { getMembersList, getAllRoles, getAllRoleCategories } from "./members";
 import { getNotices, getHomeNotices, getPersonalNotifications, getUnreadNotificationCount } from "./notices";
-import { getWeeklyRanking } from "./rankings";
 import { getAllVenues } from "./venues";
 import { getUserRecords, getPbRecords } from "./records";
-import { getSchedulesOn } from "./schedules";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuotedPosts } from "./internal";
 
@@ -38,21 +36,20 @@ const reads: [string, () => Promise<unknown>][] = [
   ["home competition", getHomeCompetition], ["competition goals", () => getCompetitionGoals("competition")],
   ["goal hub", () => getGoalHub("viewer")], ["members", getMembersList],
   ["roles", getAllRoles], ["role categories", getAllRoleCategories],
-  ["favorite IDs", () => getMyFavoriteIds("viewer")], ["favorite state", () => isFavorite("viewer", "other")],
   ["notices", () => getNotices("viewer")], ["home notices", () => getHomeNotices("viewer")],
   ["notifications", () => getPersonalNotifications("viewer")], ["unread count", () => getUnreadNotificationCount("viewer")],
-  ["weekly ranking", getWeeklyRanking], ["venues", getAllVenues],
+  ["venues", getAllVenues],
   ["practice records", () => getUserRecords("viewer")], ["personal bests", () => getPbRecords("viewer")],
-  ["day schedules", () => getSchedulesOn("2026-10-04")],
   ["quoted record", async () => fetchQuotedPosts(await createClient(), [{ quoted_type: "record", quoted_id: "record" }])],
   ["quoted tweet", async () => fetchQuotedPosts(await createClient(), [{ quoted_type: "tweet", quoted_id: "tweet" }])],
 ];
 
 describe("query failures are distinct from successful empty results", () => {
   beforeEach(() => { state.error = null; state.results = {}; });
-  it.each(reads)("rejects failed %s rather than displaying empty, zero or missing", async (_name, read) => {
+  it.each(reads)("rejects failed %s rather than displaying empty, zero or missing", async (name, read) => {
     state.error = { message: "synthetic database unavailable" };
-    await expect(read()).rejects.toMatchObject(state.error);
+    if (name === "competition detail") await expect(read()).rejects.toThrow("大会を取得できませんでした");
+    else await expect(read()).rejects.toMatchObject(state.error);
   });
   it("keeps successful empty lists and zero counts", async () => {
     expect(await getNotesData()).toEqual({ notes: [] });

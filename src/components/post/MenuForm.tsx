@@ -76,7 +76,7 @@ export function MenuForm({ scheduleId }: { scheduleId: string }) {
 }
 
 /** 通常入力とスプシ/CSVから一括登録を切り替えるパネル */
-function MenuCreatePanel({
+export function MenuCreatePanel({
   scheduleId,
   onDone,
 }: {
@@ -270,6 +270,7 @@ function MenuEditor({
   }, [fixedScheduleId, menu]);
 
   const submit = useCallback(async () => {
+    if (saving) return;
     if (!scheduleId) {
       setError("対象の予定を選択してください");
       return;
@@ -288,6 +289,7 @@ function MenuEditor({
 
     setSaving(true);
     setError(null);
+    try {
     const supabase = createClient();
     const { data: savedId, error: saveError } = await supabase.rpc("save_practice_menu", {
       target_schedule_id: scheduleId,
@@ -305,18 +307,21 @@ function MenuEditor({
       menu_supplement: targetBlock === "middle_long" ? supplement.trim() || undefined : undefined,
     });
 
-    if (saveError) {
+    if (saveError || !savedId) {
       setError("メニューを保存できませんでした");
       setSaving(false);
       return;
     }
     // 次回の初期表示用に、選んだ種類を端末に保存
     if (typeof window !== "undefined") {
-      localStorage.setItem(MENU_LAST_KIND_KEY, kind);
+      try { localStorage.setItem(MENU_LAST_KIND_KEY, kind); } catch { /* optional preference */ }
     }
     const selectedTargets = kind === "people" ? (members ?? []).filter((member) => targetIds.includes(member.id)).map((member) => ({ menu_id: savedId as string, user_id: member.id, profile: member })) : [];
     onDone({ id: savedId as string, schedule_id: scheduleId, content: content.trim(), target_block: targetBlock, status, pace: targetBlock === "middle_long" ? pace.trim() || null : null, remark: targetBlock === "middle_long" || targetBlock === "short" ? remark.trim() || null : null, supplement: targetBlock === "middle_long" ? supplement.trim() || null : null, targets: selectedTargets });
-  }, [scheduleId, targetBlock, pace, remark, supplement, content, kind, targetIds, status, menu?.id, members, onDone]);
+    } catch {
+      setError("保存できませんでした。入力は残っています。保存先を確認してください");
+    } finally { setSaving(false); }
+  }, [saving, scheduleId, targetBlock, pace, remark, supplement, content, kind, targetIds, status, menu, members, onDone]);
 
   const loading = schedules === null || members === null;
   const draftDirty = content !== (menu?.content ?? "") || pace !== (menu?.pace ?? "") ||

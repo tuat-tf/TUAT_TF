@@ -194,7 +194,7 @@ export function ScheduleCard({
         className="w-full p-4 flex items-center gap-3 text-left transition-colors duration-100 enabled:active:bg-bg disabled:cursor-default motion-reduce:transition-none lg:gap-2.5 lg:p-3"
       >
         <div className="flex flex-col items-center w-12 shrink-0 lg:w-10">
-          <span className="text-[11px]" style={{ color: meta.color }}>
+          <span className="text-[11px]" style={{ color: meta.textColor }}>
             {format(date, "EEE", { locale: ja })}
           </span>
           <span className="text-2xl font-bold leading-tight tabular-nums lg:text-xl">{format(date, "d")}</span>
@@ -203,7 +203,7 @@ export function ScheduleCard({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <Badge style={{ backgroundColor: meta.color + "1a", color: meta.color }}>{meta.label}</Badge>
+            <Badge style={{ backgroundColor: meta.color + "1a", color: meta.textColor }}>{meta.label}</Badge>
             <span className="text-headline truncate">
               {schedule.title ?? venueShort(schedule.venue_name ?? schedule.location) ?? meta.label}
             </span>
@@ -238,7 +238,7 @@ export function ScheduleCard({
                 <span
                   key={block}
                   className="text-micro rounded-full px-2 py-0.5"
-                  style={{ color: BLOCKS[block].color, backgroundColor: BLOCKS[block].bg }}
+                  style={{ color: BLOCKS[block].textColor, backgroundColor: BLOCKS[block].bg }}
                 >
                   {BLOCKS[block].short}
                 </span>
@@ -316,7 +316,7 @@ export function ScheduleCard({
                   <div key={group.key} className="space-y-1.5">
                     <p
                       className="text-[11px] font-semibold"
-                      style={{ color: group.block ? BLOCKS[group.block].color : "#8e8e93" }}
+                      style={{ color: group.block ? BLOCKS[group.block].textColor : "#6c6c70" }}
                     >
                       {group.label}
                     </p>

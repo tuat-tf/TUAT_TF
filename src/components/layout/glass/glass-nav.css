@@ -19,11 +19,11 @@
 .ios-glass-nav .glass-bar .selection::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(ellipse at 30% 0%,#ffffff38,transparent 70%)}
 .ios-glass-nav .glass-bar .nav-button{color:#424a55;text-shadow:none;transition:color .16s;user-select:none;-webkit-user-select:none}
 .ios-glass-nav .glass-bar .nav-button svg{filter:none}
-.ios-glass-nav .glass-bar .nav-button[aria-current=page]{color:#007aff}
-.ios-glass-nav .glass-bar .nav-button:has([aria-busy=true]){color:#007aff}
+.ios-glass-nav .glass-bar .nav-button[aria-current=page]{color:var(--color-accent-ink)}
+.ios-glass-nav .glass-bar .nav-button:has([aria-busy=true]){color:var(--color-accent-ink)}
 .ios-glass-nav .glass-bar .nav-button:active{background:transparent}
 .ios-glass-nav .glass-bar[data-pressing=true] .nav-button[aria-current=page]{color:#424a55}
-.ios-glass-nav .glass-bar[data-pressing=true] .nav-button[data-preview=true]{color:#007aff}
+.ios-glass-nav .glass-bar[data-pressing=true] .nav-button[data-preview=true]{color:var(--color-accent-ink)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.ios-glass-nav .glass-bar{background:var(--color-card)}}
 @media(prefers-reduced-motion:reduce){.ios-glass-nav .glass-bar .nav-button,.ios-glass-nav .glass-bar .nav-button svg{transition:none}.ios-glass-nav .glass-bar[data-pressing=true] .nav-button[data-preview=true] svg{transform:none}}
 @media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.ios-glass-nav .glass-bar{background:var(--color-card);-webkit-backdrop-filter:none;backdrop-filter:none}.ios-glass-nav .glass-bar::before,.ios-glass-nav .glass-bar::after{display:none}}

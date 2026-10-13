@@ -9,9 +9,10 @@ vi.mock("react", async () => {
   const actual = await vi.importActual<typeof import("react")>("react");
   return { ...actual, useState<T>(initial: T | (() => T)) {
     const [value, setValue] = actual.useState(initial);
-    return [initial === "" ? search.query : Array.isArray(initial) ? search.articles : value, setValue];
+    return [initial === null && search.query ? { query: search.query.trim().toLocaleLowerCase("ja"), attempt: 0, articles: search.articles, failed: false } : value, setValue];
   } };
 });
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams({ q: search.query }) }));
 vi.mock("@/app/(app)/notes/actions", () => ({ searchNoteArticles: vi.fn() }));
 vi.mock("./FolderRowActions", () => ({ FolderRowActions: () => createElement("button", {}, "編集操作") }));
 vi.mock("./ThreadList", () => ({ ThreadList: () => null }));

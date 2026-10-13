@@ -3,36 +3,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import type { WeeklyRankingRow, Block } from "@/types";
-
-/** 週間ランキング（中長距離） */
-export async function getWeeklyRanking(): Promise<WeeklyRankingRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("weekly_ranking")
-    .select("*")
-    .order("total_km", { ascending: false });
-  if (error) throw error;
-  return (data ?? []).flatMap((row) => {
-    if (!row.id || !row.display_name || !row.period_start || !row.period_end) return [];
-    return [{
-      id: row.id,
-      display_name: row.display_name,
-      grade: row.grade,
-      blocks: (row.blocks ?? []).filter((block): block is Block =>
-        block === "middle_long" || block === "short" || block === "manager" || block === "jump" || block === "throw"
-      ),
-      avatar_url: row.avatar_url,
-      km_low: row.km_low ?? 0,
-      km_mid: row.km_mid ?? 0,
-      km_high: row.km_high ?? 0,
-      km_speed: row.km_speed ?? 0,
-      total_km: row.total_km ?? 0,
-      km_other: row.km_other ?? 0,
-      period_start: row.period_start,
-      period_end: row.period_end,
-    }];
-  });
-}
 export async function getMonthlyRanking(
   periodStart: string,
   periodEnd: string,
