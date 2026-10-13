@@ -31,6 +31,9 @@ const connected = request => {
 const approvedOrigin = request => {
   const host = request.headers.host ?? '';
   if (host === '127.0.0.1:18000' || host === 'localhost:18000') return `http://${host}`;
+  if (state.tunnelOrigin && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(state.tunnelOrigin) &&
+      /^https:\/\/tuat-review\.[a-z0-9-]+\.workers\.dev$/.test(state.publicOrigin ?? '') &&
+      host === new URL(state.tunnelOrigin).host && request.headers['x-tuat-review-public-origin'] === state.publicOrigin) return state.publicOrigin;
   return state.publicOrigin && host === new URL(state.publicOrigin).host ? state.publicOrigin : null;
 };
 const saveState = next => {

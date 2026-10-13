@@ -52,10 +52,10 @@
 }
 
 /* Text uses a darker foreground; fills, graph colors and focus borders keep their hues. */
-.text-accent { color: var(--color-accent-ink); }
-.text-success { color: var(--color-success-ink); }
-.text-warning { color: var(--color-warning-ink); }
-.text-danger { color: var(--color-danger-ink); }
+.text-accent:where(:not(svg)) { color: var(--color-accent-ink); }
+.text-success:where(:not(svg)) { color: var(--color-success-ink); }
+.text-warning:where(:not(svg)) { color: var(--color-warning-ink); }
+.text-danger:where(:not(svg)) { color: var(--color-danger-ink); }
 
 html {
   height: 100%;

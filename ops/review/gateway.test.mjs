@@ -15,7 +15,7 @@ const source = readFileSync(resolve(sourceDirectory, 'gateway.mjs'), 'utf8')
 const hash = value => createHash('sha256').update(value).digest('hex');
 const device = 'd'.repeat(64);
 
-function gateway({ connected = false, expired = false, loginDelay, authFailure = false, redirectTo, upstreamCookies = [], persistenceFailure, failSaves = 1 } = {}) {
+function gateway({ connected = false, expired = false, loginDelay, authFailure = false, redirectTo, upstreamCookies = [], persistenceFailure, failSaves = 1, fixedEntry = false } = {}) {
   const config = {
     project: 'tuat-quality-review', origin: 'http://127.0.0.1:18000',
     restPassword: 'r'.repeat(64), accessCode: 'a'.repeat(64),
@@ -24,6 +24,7 @@ function gateway({ connected = false, expired = false, loginDelay, authFailure =
     ownerId: '00000000-0000-4000-8000-000000000001',
   };
   let stored = { deviceHash: connected || expired ? hash(device) : null, expiresAt: expired ? Date.now() - 1 : connected ? Date.now() + 60_000 : 0, publicOrigin: 'https://review-only.example.invalid' };
+  if (fixedEntry) Object.assign(stored, { publicOrigin: 'https://tuat-review.track-app.workers.dev', tunnelOrigin: 'https://gateway-bridge.trycloudflare.com' });
   const temporaryFiles = new Map();
   let saveFailures = failSaves;
   const requests = [], logins = [];
@@ -95,6 +96,24 @@ function gateway({ connected = false, expired = false, loginDelay, authFailure =
 test('unknown Host is rejected and no upstream is contacted', async () => {
   const app = gateway();
   assert.equal((await app.request('/home', { headers: { host: 'tuat-tf.vercel.app' } })).status, 421);
+  assert.equal(app.requests.length, 0);
+});
+
+test('fixed entry uses only its pinned tunnel and retains browser authentication', async () => {
+  const app = gateway({ fixedEntry: true });
+  const headers = { host: 'gateway-bridge.trycloudflare.com', 'x-tuat-review-public-origin': 'https://tuat-review.track-app.workers.dev' };
+  const result = await app.request('/home', { headers });
+  assert.equal(result.status, 303);
+  assert.equal(result.headers.location, '/login');
+  assert.equal(app.requests.length, 0);
+  assert.equal((await app.request('/home', { headers: { ...headers, host: 'outside.trycloudflare.com' } })).status, 421);
+  assert.equal((await app.request('/home', { headers: { ...headers, 'x-tuat-review-public-origin': 'https://outside.invalid' } })).status, 421);
+});
+
+test('fixed entry rejects a foreign write before application dispatch', async () => {
+  const app = gateway({ fixedEntry: true, connected: true });
+  const result = await app.request('/notes', { method: 'POST', body: 'synthetic', headers: { host: 'gateway-bridge.trycloudflare.com', 'x-tuat-review-public-origin': 'https://tuat-review.track-app.workers.dev', origin: 'https://outside.invalid' } });
+  assert.equal(result.status, 403);
   assert.equal(app.requests.length, 0);
 });
 

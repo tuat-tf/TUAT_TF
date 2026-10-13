@@ -187,7 +187,7 @@ function RowLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
   return (
     <Link data-ui-row href={href} prefetch={false} className="flex items-center gap-3 p-4 active:bg-bg">
       {icon}
-      <span className="flex-1 text-headline">{label}</span>
+      <span className="flex-1 text-body font-medium">{label}</span>
       <ChevronRight size={18} className="text-muted" />
     </Link>
   );

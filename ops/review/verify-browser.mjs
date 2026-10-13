@@ -10,7 +10,7 @@ const ids=JSON.parse(readFileSync(resolve(directory,'seed.json'),'utf8'));
 const state=JSON.parse(readFileSync(resolve(directory,'device.json'),'utf8'));
 if(config.project!=='tuat-quality-review')throw Error('Invalid review scope');
 const origin=state.publicOrigin;
-if(!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(origin))throw Error('Review HTTPS origin missing');
+if(!/^https:\/\/(?:[a-z0-9-]+\.trycloudflare\.com|tuat-review\.[a-z0-9-]+\.workers\.dev)$/.test(origin))throw Error('Review HTTPS origin missing');
 const paths=['/home','/schedule','/timeline','/notices','/ranking','/members',`/members/${ids.owner}`,'/mypage','/mypage/settings','/mypage/settings/records','/mypage/pb','/mypage/monthly-results','/settings/sheet-setup','/competitions','/competitions/review-meet','/competitions/review-meet/manage','/competitions/review-meet/goals','/competitions/review-meet/program','/events','/goals','/goals/past','/venues','/notes',`/notes/${ids.note}`,`/notes/${ids.note}/articles/${ids.article}`,`/notes/threads/${ids.thread}`,'/ob-entries','/admin','/admin/services','/blog','/maintenance','/offline'];
 const redirects={'/settings/sheet-setup':'/mypage/settings/records','/ob-entries':'/competitions/3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5/program'};
 for(const [table,kind] of [['practice_records','record'],['tweets','tweet']]) {

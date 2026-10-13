@@ -40,7 +40,8 @@ export function ScheduleAttendance({
                     {format(new Date(`${day}T00:00:00`), "M/d (E)", { locale: ja })}
                   </p>
                 )}
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
                   <AttendanceToggle
                     scheduleId={scheduleId}
                     attendDate={day}
@@ -51,7 +52,8 @@ export function ScheduleAttendance({
                     initialAbsenceNote={mine?.absence_note ?? null}
                     onChanged={(change) => handleAttendanceChanged(day, change)}
                   />
-                  <AttendeesButton attendees={dayAttendees} defaultBlock={attendanceDefaultBlock} />
+                  </div>
+                  <AttendeesButton attendees={dayAttendees} defaultBlock={attendanceDefaultBlock} compact />
                 </div>
               </div>
             );
