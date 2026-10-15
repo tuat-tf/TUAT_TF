@@ -59,99 +59,20 @@ describe("home content loading", () => {
   });
 });
 
-describe("home OB entry card",()=>{
-  beforeEach(()=>{
-    mocks.profile.mockResolvedValue({id:"me",blocks:[],roles:[],display_name:"テスト"});
-    mocks.obEntry.mockResolvedValue(null);mocks.obDuties.mockResolvedValue([]);
-    mocks.participation.mockResolvedValue([]);
-    mocks.competition.mockResolvedValue(null);mocks.schedules.mockResolvedValue([]);
-    mocks.notes.mockResolvedValue([]);mocks.feed.mockResolvedValue([]);mocks.notices.mockResolvedValue([]);
-  });
-it("renders personal duty times and competition times in the home entry card",async()=>{
-  mocks.obEntry.mockResolvedValue({id:"my-entry",events:["男子100m"],qualification_marks:{"男子100m":"12.34"}});
-  mocks.obDuties.mockResolvedValue([{time:"13:00",event:"走り高跳び",assignment:"計測"}]);
-  const body=HomePage().props.children[1].props.children;
-  const content=await body.type(body.props);
-  const html=renderToStaticMarkup(content.props.children[2]);
-  expect(mocks.obDuties).toHaveBeenCalledWith("me","my-entry");
-  for(const text of ["11:00","13:00","計測","自分の補助担当","組分け・タイムテーブル・シフト表"])expect(html).toContain(text);
-  expect(html).not.toContain("12.34");
-  expect(html).not.toContain("プログラム（タイムテーブル）");
-});
-it("keeps the entry and program available when duty retrieval fails",async()=>{
-  mocks.obDuties.mockRejectedValue(new Error("unavailable"));
-  const body=HomePage().props.children[1].props.children;
-  const content=await body.type(body.props);
-  const html=renderToStaticMarkup(content.props.children[2]);
-  expect(html).toContain("補助担当を取得できませんでした");
-  expect(html).not.toContain("補助担当はまだ登録されていません");
-  expect(html).toContain("組分け・タイムテーブル・シフト表");
-});
-
-it("shows saved placement and keeps one registration link and one full program link", async () => {
-  mocks.obEntry.mockResolvedValue({id:"my-entry",events:["女子走り幅跳び","女子1500m","女子100m"],qualification_marks:{}});
-  mocks.participation.mockResolvedValue([
-    {event:"女子100m",status:"entered",placement:"混合2組・4レーン"},
-    {event:"女子1500m",status:"entered",placement:"女子1組・12番"},
-    {event:"女子走り幅跳び",status:"entered",placement:"試技順 9番"},
-  ]);
-  const body = HomePage().props.children[1].props.children;
-  const content = await body.type(body.props);
-  const html = renderToStaticMarkup(content.props.children[2]);
-  for (const text of ["混合2組・4レーン", "女子1組・12番", "試技順 9番", "登録を編集"]) expect(html).toContain(text);
-  expect(html.match(/<a /g)).toHaveLength(2);
-  expect(html).toContain("section=program");
-  expect(html.indexOf("女子1500m")).toBeLessThan(html.indexOf("女子100m"));
-});
-
-it("distinguishes unsaved placements from unavailable placements without hiding duties", async () => {
-  mocks.obEntry.mockResolvedValue({id:"my-entry",events:["男子100m","男子砲丸投げ"],qualification_marks:{}});
-  const render = async () => {
+describe("finished OB meet on home", () => {
+  it.each([{ roles: [] }, { roles: [{ name: "OB戦2026", can_manage_system: true }] }])("keeps only a compact results link for roles $roles", async ({ roles }) => {
+    mocks.profile.mockResolvedValue({ id: "me", blocks: [], roles, display_name: "テスト" });
     const body = HomePage().props.children[1].props.children;
     const content = await body.type(body.props);
-    return renderToStaticMarkup(content.props.children[2]);
-  };
-  const unset = await render();
-  expect(unset).toContain("組未定"); expect(unset).toContain("順番未定");
-  mocks.participation.mockRejectedValue(new Error("unavailable"));
-  mocks.obDuties.mockResolvedValue([{time:"13:00",event:"走り高跳び",assignment:"計測"}]);
-  const failed = await render();
-  expect(failed).toContain("組・出場状況を取得できませんでした");
-  expect(failed).not.toContain("組未定"); expect(failed).not.toContain("順番未定");
-  expect(failed).toContain("計測"); expect(failed).toContain("登録を編集");
-});
-
-it("keeps profile assignments and recovery links when registration retrieval fails", async () => {
-  mocks.obEntry.mockRejectedValue(new Error("unavailable"));
-  mocks.obDuties.mockResolvedValue([{time:"13:00",event:"走り高跳び",assignment:"計測"}]);
-  const body = HomePage().props.children[1].props.children;
-  const content = await body.type(body.props);
-  const html = renderToStaticMarkup(content.props.children[2]);
-  expect(html).toContain("出場登録を取得できませんでした");
-  expect(html).not.toContain("まだエントリーしていません");
-  expect(html).not.toContain("エントリーする");
-  expect(html).toContain("自分の登録を確認"); expect(html).toContain("計測");
-  expect(mocks.obDuties).toHaveBeenCalledWith("me",null);
-  expect(mocks.participation).not.toHaveBeenCalled();
-});
-it("makes whole-meet absence and event DNS visible without hiding assigned duties",async()=>{
-  mocks.obEntry.mockResolvedValue({id:"my-entry",events:["男子100m"],qualification_marks:{},absent:true});
-  mocks.participation.mockResolvedValue([{event:"男子100m",status:"DNS"}]);
-  mocks.obDuties.mockResolvedValue([{time:"13:00",event:"走り高跳び",assignment:"計測"}]);
-  const body=HomePage().props.children[1].props.children;
-  const content=await body.type(body.props);
-  const html=renderToStaticMarkup(content.props.children[2]);
-  expect(html).toContain("大会欠席");expect(html).toContain("DNS");expect(html).toContain("計測");
-});
-it("shows participation retrieval failure while keeping the entry and program available",async()=>{
-  mocks.obEntry.mockResolvedValue({id:"my-entry",events:["男子100m"],qualification_marks:{}});
-  mocks.participation.mockRejectedValue(new Error("unavailable"));
-  const body=HomePage().props.children[1].props.children;
-  const content=await body.type(body.props);
-  const html=renderToStaticMarkup(content.props.children[2]);
-  expect(html).toContain("組・出場状況を取得できませんでした");
-  expect(html).toContain("男子100m");
-  expect(html).toContain("組分け・タイムテーブル・シフト表");
-});
-
+    const html = renderToStaticMarkup(content.props.children[2]);
+    expect(html).toContain("OB戦");
+    expect(html).toContain("終了");
+    expect(html).toContain("結果を見る");
+    expect(html).toContain('href="/competitions/3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5/program"');
+    expect(html.match(/<a /g)).toHaveLength(1);
+    for (const text of ["エントリーする", "登録を編集", "自分の出場", "自分の補助担当"]) expect(html).not.toContain(text);
+    expect(mocks.obEntry).not.toHaveBeenCalled();
+    expect(mocks.obDuties).not.toHaveBeenCalled();
+    expect(mocks.participation).not.toHaveBeenCalled();
+  });
 });

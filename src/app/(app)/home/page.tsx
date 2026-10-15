@@ -5,14 +5,7 @@ import { cookies } from "next/headers";
 import { format, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 import { ChevronRight, Folder } from "lucide-react";
-import { entryAppearanceRows, obEventCount } from "@/lib/ob-entries";
-import { OB_PROGRAM_PATH, OB_MY_ENTRY_PATH, canManageObMeet, obEventTime } from "@/lib/ob-meet";
-import { obEventRule } from "@/lib/ob-operations";
-import { ObHomeSchedule } from "@/components/features/ObHomeSchedule";
-import { ObHomeIdentity } from "@/components/features/ObHomeIdentity";
-import { CompetitionMeetHomeCard } from "@/components/features/CompetitionMeetHomeCard";
-import { getCompetitionMeet } from "@/lib/queries/competition-meet";
-import { OB_MEET } from "@/lib/ob-meet";
+import { OB_PROGRAM_PATH } from "@/lib/ob-meet";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { HomeSkeleton } from "@/components/ui/page-skeletons";
@@ -26,7 +19,6 @@ import { getCurrentProfile, getCurrentUserId } from "@/lib/supabase/auth";
 import { jstNow, jstToday } from "@/lib/date";
 import { formatKm } from "@/lib/utils";
 import {
-  getMyObEntry, getMyObEntryCandidates, getMyObDuties, getMyObParticipation,
   getHomeCompetition,
   getAttendanceSchedules,
   getAttendancesForSchedules,
@@ -86,60 +78,18 @@ async function HomeContent({ nowJst }: { nowJst: Date }) {
   );
 }
 
-/** OB戦の自分のエントリー。全員に出し、未登録ならここからエントリーできる。 */
-async function ObEntrySection() {
-  const profile = await getCurrentProfile();
-  const normalized = await getCompetitionMeet(OB_MEET.competitionId).catch(()=>undefined);
-  if(normalized===undefined)return <section className="space-y-2"><p className="section-label">OB戦</p><Card className="space-y-3 p-4"><p className="text-caption">大会情報を取得できませんでした。画面を開き直してください。</p><Link data-ui-row className="flex min-h-11 items-center text-body text-accent" href={OB_PROGRAM_PATH}>結果を確認 →</Link></Card></section>;
-  if (normalized) return <CompetitionMeetHomeCard meet={normalized} profileId={profile.id} />;
-  const staff = canManageObMeet(profile.roles);
-  const entry = await getMyObEntry(profile.id).catch(() => undefined);
-  // 本人照合は係だけ（一般部員は未紐付けの回答を読めない）。
-  const [candidates, duties, participation] = await Promise.all([
-    entry !== null || !staff ? Promise.resolve([]) : getMyObEntryCandidates(profile.id).catch(() => null),
-    getMyObDuties(profile.id, entry?.id ?? null).catch(() => null),
-    entry ? getMyObParticipation(entry.id).catch(() => null) : Promise.resolve([]),
-  ]);
-  const rows = entry ? entryAppearanceRows(entry).sort((a, b) => (obEventTime(a.event) ?? "").localeCompare(obEventTime(b.event) ?? "")) : [];
+/** 終了したOB戦は結果への入口だけを残す。 */
+function ObEntrySection() {
   return (
-    <section className="space-y-2">
-      <p className="section-label">OB戦</p>
-      <Card className="p-4">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h3 className="text-headline">自分の出場</h3>
-          <Link data-ui-row href={`${OB_MY_ENTRY_PATH}?from=home`} prefetch={false} className="flex min-h-11 shrink-0 items-center gap-1 text-[14px] font-semibold text-accent">
-            {entry ? "登録を編集" : entry === undefined ? "自分の登録を確認" : "エントリーする"}<ChevronRight size={16} />
-          </Link>
-        </div>
-        {entry ? (
-          <>
-            {entry.absent&&<p className="mb-3 rounded-lg bg-bg p-3 text-body">大会欠席として登録されています</p>}
-            {participation === null && <p className="mb-2 text-caption">組・出場状況を取得できませんでした。画面を開き直してください。</p>}
-            {rows.length ? <ul className="space-y-2">{rows.map(row => {
-              const personal = participation?.find(value => value.event === row.event && (value.occurrence ?? 1) === row.occurrence);
-              const status = personal?.status;
-              return <li key={row.event + row.occurrence} className="flex items-baseline gap-3 text-body">
-                <span className="w-12 shrink-0 text-caption tabular-nums">{obEventTime(row.event) ?? ""}</span>
-                <div className="min-w-0 flex-1 break-words">
-                  <p className="font-medium">{row.event}{entry && obEventCount(entry.events, row.event) === 2 ? `（${row.occurrence}件目）` : ""}{status && status !== "entered" && <span className="ml-2 text-caption">{status === "DNS" ? "欠場（DNS）" : status}</span>}</p>
-                  <p className="text-caption">{participation === null ? "組・試技順を確認できません" : personal?.placement ?? (obEventRule(row.event).discipline === "track" ? "組未定" : "順番未定")}</p>
-                </div>
-              </li>;
-            })}</ul> : <p className="text-body text-muted">競技の出場登録なし</p>}
-          </>
-        ) : entry === undefined ? (
-          <p className="text-caption">出場登録を取得できませんでした。画面を開き直してください。</p>
-        ) : (
-          <>
-            {candidates === null ? <p className="text-caption">本人照合の候補を取得できませんでした。</p> : candidates.length
-              ? <ObHomeIdentity candidates={candidates} profileId={profile.id} />
-              : <p className="text-body text-muted">まだエントリーしていません</p>}
-            {staff && <Link data-ui-row href={`${OB_PROGRAM_PATH}?edit=identity`} prefetch={false} className="mt-2 block text-right text-caption text-accent">回答済みなら本人照合で探す →</Link>}
-          </>
-        )}
-        <ObHomeSchedule duties={duties} absent={entry?.absent} />
-      </Card>
-    </section>
+    <Card>
+      <Link data-ui-row href={OB_PROGRAM_PATH} prefetch={false} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className="text-headline">OB戦</span>
+          <span className="text-caption">終了</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-body text-accent">結果を見る<ChevronRight size={16} /></span>
+      </Link>
+    </Card>
   );
 }
 
