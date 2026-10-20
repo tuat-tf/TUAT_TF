@@ -38,9 +38,7 @@ export function Avatar({
     setImgError(false);
   }, [avatarUrl]);
 
-  const displayUrl = avatarDisplayUrl(
-    avatarUrl,
-  );
+  const displayUrl = avatarDisplayUrl(avatarUrl, "thumbnail");
 
   const primary = blocks && blocks.length > 0 ? blocks[0] : null;
   const color = primary ? BLOCKS[primary].textColor : "#6c6c70";

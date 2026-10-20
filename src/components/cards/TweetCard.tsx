@@ -39,6 +39,7 @@ export function TweetCard({
   const gradeLabel = gradeShort(author.grade);
   const [imageOpen, setImageOpen] = useState(false);
   const imageUrl = tweet.image_path ? tweetImageDisplayUrl(tweet.image_path) : null;
+  const thumbnailUrl = tweet.image_path ? tweetImageDisplayUrl(tweet.image_path, "thumbnail") : null;
 
   return (
     <>
@@ -116,7 +117,7 @@ export function TweetCard({
           onClick={(event) => { event.stopPropagation(); setImageOpen(true); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl!} alt="投稿画像" loading="lazy" decoding="async" className="max-h-[520px] w-full object-contain" />
+          <img src={thumbnailUrl!} alt="投稿画像" loading="lazy" decoding="async" className="max-h-[520px] w-full object-contain" />
         </button>
       )}
 

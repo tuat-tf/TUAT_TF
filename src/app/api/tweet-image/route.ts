@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const ttl=tweet.expires_at? Math.min(300,Math.floor((Date.parse(tweet.expires_at)-Date.now())/1000)):300;
     if(ttl<=0) return NextResponse.json({ error: "Image not found" },{ status: 404 });
     try {
-      return await authorizedImageResponse(request,supabase,TWEET_IMAGE_BUCKET,path,ttl,Math.min(240,Math.max(0,ttl-30)));
+      return await authorizedImageResponse(request,supabase,TWEET_IMAGE_BUCKET,path,ttl,Math.min(240,Math.max(0,ttl-30)),false,tweet.expires_at?Date.parse(tweet.expires_at):undefined);
     } catch(error) {
       if(error instanceof ImageNotFoundError) return NextResponse.json({ error: "Image not found" },{ status: 404,headers: { "Cache-Control": "private, no-store" } });
       throw error;

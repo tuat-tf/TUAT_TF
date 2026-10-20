@@ -2,7 +2,7 @@
   "version": 1,
   "mode": "integration",
   "owner": "codex-auth-db-review",
-  "generation": "a4a509f55df941e9b145dd70c543f533",
+  "generation": "f925d2c8aa124a669fe08d40fc254379",
   "image": "supabase/postgres:17.6.1.136",
   "imageId": "sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00",
   "authImage": "supabase/gotrue:v2.196.0",
@@ -1171,10 +1171,15 @@
       "name": "read-aggregates.sql",
       "sha256": "525b381aa1000a58daef0d2dba4d99d272b5349c271825c0e018d3abc9c684ca",
       "passed": true
+    },
+    {
+      "name": "legacy-meet-audit-test.sql",
+      "sha256": "204e3852078b7f8d82ffa4fcda51dfc5ded9979aab135e96dcff72ca99b98aea",
+      "passed": true
     }
   ],
   "cleanup": true,
-  "stage": "test:read-aggregates.sql",
+  "stage": "test:legacy-meet-audit-test.sql",
   "authMigrations": "77",
   "storageSourceSha256": "ba0bbde8317026d26032d3b310127eb74ed1cbb7900e20e087e28c664849351b",
   "storageMigrations": 67,
@@ -1287,6 +1292,11 @@
       }
     ]
   },
+  "legacyMeetAudit": {
+    "aggregateSnapshots": 3,
+    "followupSnapshots": 2,
+    "passed": true
+  },
   "meetFixtureSources": [
     {
       "name": "meet-fixture.sql",
@@ -1295,6 +1305,20 @@
     {
       "name": "integration-meets.sql",
       "sha256": "e4e168c84ba6e3b8e1f52e99373ebb3c75366dfff0779df2b8fd36aae79449ca"
+    }
+  ],
+  "legacyMeetAuditSources": [
+    {
+      "name": "legacy-meet-audit.sql",
+      "sha256": "e1637402f165b7e33e08613adb89c1cac947001df111b41191a2af9258d7abe4"
+    },
+    {
+      "name": "legacy-meet-missing-appearances.sql",
+      "sha256": "99398b414a384bb401a2ce919e74ad8a0dcfc02cf3e9c6384e91e20b0d8f1aa5"
+    },
+    {
+      "name": "validate-legacy-meet-audit.mjs",
+      "sha256": "cee676982e86e343afeb970188a2d4ab446cfbc30c3cb8f1091cf28ebc402ee8"
     }
   ],
   "meetTestSources": [
@@ -1332,5 +1356,5 @@
     "absent": 2
   },
   "cleanupDriverSha256": "de7c1ff32d6b9174ba5bdd62534603359f68acc49392f741d3f8c525dd532741",
-  "completedAt": "2026-10-20T14:16:17.8248557Z"
+  "completedAt": "2026-10-20T15:00:11.3363443Z"
 }

@@ -193,13 +193,24 @@ export function avatarStoragePathFromUrl(
 
 export function avatarDisplayUrl(
   avatarUrl: string | null | undefined,
+  variant: "original" | "thumbnail" = "original",
 ): string | null {
   if (!avatarUrl) return null;
   const path = avatarStoragePathFromUrl(avatarUrl, process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
   const version = process.env.NEXT_PUBLIC_IMAGE_DELIVERY_VERSION;
-  return path
-    ? `/api/avatar/image?path=${encodeURIComponent(path)}${version ? `&v=${encodeURIComponent(version)}` : ""}`
-    : avatarUrl;
+  if (path) {
+    return `/api/avatar/image?path=${encodeURIComponent(path)}${version ? `&v=${encodeURIComponent(version)}` : ""}${variant === "thumbnail" ? "&variant=thumbnail" : ""}`;
+  }
+  // An already authenticated local URL may also be used as the avatar value.
+  // External images, blob previews and unrecognized legacy URLs stay unchanged.
+  if (variant === "thumbnail" && avatarUrl.startsWith("/api/avatar/image?")) {
+    const url = new URL(avatarUrl, "https://avatar.invalid");
+    if (isSafeAvatarStoragePath(url.searchParams.get("path") ?? "")) {
+      url.searchParams.set("variant", "thumbnail");
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+  }
+  return avatarUrl;
 }
 
 export function avatarStoragePathFromPublicUrl(

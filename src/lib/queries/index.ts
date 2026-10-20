@@ -15,4 +15,3 @@ export * from "./competitions";
 export * from "./monthly-results";
 export * from "./admin-dashboard";
 export * from "./competition-meet";
-export { getMyObEntry, getMyObEntryCandidates, getMyObDuties, getMyObParticipation } from "./ob-entries";

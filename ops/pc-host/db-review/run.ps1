@@ -198,7 +198,7 @@ SELECT set_config('storage.install_roles','false',false),
       SqlFile 'tuat_rls_review' "/review/supabase/tests/$test" | Out-Null
       $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$test") -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
     }
-    foreach ($test in @('integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql')) {
+    foreach ($test in @('integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql', 'legacy-meet-audit-test.sql')) {
       $report.stage = "test:$test"
       $output = SqlFile 'tuat_rls_review' "/review/db-review/$test"
       if ($output -notmatch 'PASS:') { throw 'Integration SQL test did not produce its completion evidence' }
@@ -207,9 +207,17 @@ SELECT set_config('storage.install_roles','false',false),
         if ($LASTEXITCODE -ne 0) { throw 'Actual synthetic meet RPC validation failed' }
         $report.meetSnapshots = ($snapshotResult | Out-String).Trim() | ConvertFrom-Json
       }
+      if ($test -eq 'legacy-meet-audit-test.sql') {
+        $auditResult = $output | & $NodePath (Join-Path $PSScriptRoot 'validate-legacy-meet-audit.mjs')
+        if ($LASTEXITCODE -ne 0) { throw 'Actual synthetic legacy-meet audit failed' }
+        $report.legacyMeetAudit = ($auditResult | Out-String).Trim() | ConvertFrom-Json
+      }
       $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $test) -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
     }
     $report.meetFixtureSources = @('meet-fixture.sql', 'integration-meets.sql') | ForEach-Object {
+      [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
+    }
+    $report.legacyMeetAuditSources = @('legacy-meet-audit.sql', 'legacy-meet-missing-appearances.sql', 'validate-legacy-meet-audit.mjs') | ForEach-Object {
       [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
     $report.meetTestSources = @('meet-appearance-division.sql', 'meet-division-mirror.sql', 'competition-relay-results.sql', 'ob-results-operator-permissions.sql') | ForEach-Object {

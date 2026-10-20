@@ -1,6 +1,5 @@
 import { isAlumniEntry, type ObEntry } from "./ob-entries";
 import { entryGrade, type EntryMember } from "./entry-identity";
-import type { AppRole } from "@/types";
 
 /**
  * OB戦は大会一覧の「OB戦」と同じ大会として扱う。プログラム画面は
@@ -8,39 +7,11 @@ import type { AppRole } from "@/types";
  */
 export const OB_MEET = { competitionId: "3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5", meetKey: "ob-2026" } as const;
 export const OB_PROGRAM_PATH = `/competitions/${OB_MEET.competitionId}/program`;
-export const OB_MY_ENTRY_PATH = `/competitions/${OB_MEET.competitionId}/entry`;
-/** Recording does not depend on a helper assignment. Identity comes from the verified profile. */
-export function canRecordObMeet(profile: { approved: boolean; status: string; roles: Parameters<typeof canManageObMeet>[0] }): boolean {
-  return (profile.approved && profile.status === "active") || canManageObMeet(profile.roles)
-    || !!profile.roles?.some(role => role.can_manage_system && !role.permissions_suppressed);
-}
 export function isObCompetition(competitionId: string): boolean {
   return competitionId === OB_MEET.competitionId;
 }
 
-type ObMeetRole = Pick<AppRole, "name" | "can_manage_ob_meet" | "can_manage_system" | "permissions_suppressed">;
-/** 他人のOB戦回答を変更できるのは、この大会の運営管理権限を持つ人だけ。 */
-export function canManageObMeet(roles: ObMeetRole[] | null | undefined): boolean {
-  return !!roles?.some((r) => !r.permissions_suppressed && r.can_manage_ob_meet);
-}
-export function canViewObHistory(roles: (ObMeetRole & Pick<AppRole, "can_manage_members">)[] | null | undefined): boolean {
-  return canManageObMeet(roles) || !!roles?.some((r) => !r.permissions_suppressed && (r.can_manage_system || r.can_manage_members));
-}
-/** 種目名（"男子100m" など）の開始時刻。プログラムを見ながらエントリーできるようにする。 */
-export function obEventTime(event: string): string | undefined {
-  const name = event.replace(/^(男子|女子)/, "");
-  return OB_PROGRAM.find((slot) => slot.events.includes(name))?.time;
-}
-
-export const OB_PARTY = { time: "19:00〜", venue: "ミライザカ 府中並木通り店", fee: 3500 };
-export const PARTY_STATUSES = ["参加", "不参加", "未回答"] as const;
-export type PartyStatus = typeof PARTY_STATUSES[number];
-export type ObPartyResponse = { id: string; meet_key: string; submitted_name: string; group_label: string; status: PartyStatus; entry_id: string | null; revision: number; needs_review: boolean };
-export type PartyEdit = { id: string | null; revision: number | null; status: PartyStatus };
-export function validPartyEdit(value: PartyEdit): boolean {
-  return !!value && PARTY_STATUSES.includes(value.status) && (value.id === null ? value.revision === null :
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.id) && Number.isSafeInteger(value.revision) && value.revision! >= 0);
-}
+/** Fixed published-sheet schedule. Live app schedules and permissions come from the canonical meet snapshot. */
 export const OB_PROGRAM: { time: string; label: string; events: string[]; note?: string }[] = [
   { time: "09:00", label: "受付開始", events: [] },
   { time: "09:30", label: "開会式", events: [] },
@@ -94,12 +65,6 @@ export function dutyRows(entries: ObEntry[], members: EntryMember[]) {
     ...members.filter((m) => entries.some((e) => e.profile_id === m.id)).map((m) => { const entry = entries.find((e) => e.profile_id === m.id)!; return { id: m.id, name: entry.submitted_name, grade: entry.grade, entry, linked: true }; }),
     ...entries.filter((e) => !e.profile_id || !members.some((m) => m.id === e.profile_id)).map((e) => ({ id: e.profile_id ?? e.id, name: e.submitted_name, grade: e.grade, entry: e, linked: false })),
   ].sort(compareByGrade);
-}
-export function partyCounts(responses: ObPartyResponse[]) {
-  return { attending: responses.filter((p) => !p.needs_review && p.status === "参加").length,
-    absent: responses.filter((p) => !p.needs_review && p.status === "不参加").length,
-    unknown: responses.filter((p) => !p.needs_review && p.status === "未回答").length,
-    held: responses.filter((p) => p.needs_review).length };
 }
 export function obCsvCell(value: string): string {
   // Neutralise spreadsheet formula injection in user-authored names and marks.

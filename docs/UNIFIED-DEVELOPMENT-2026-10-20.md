@@ -197,3 +197,39 @@ DB内集計・Sheets・Jobs・backupの削減は、Cloudflareを通るブラウ�
 - 旧cloud/final fenceのDocker試験2本は明示実行の入口として保管し、今回は未実行。公開前build、実運用/実ブラウザ受入、実アカウントの通信量確認も未実施のまま区別する。
 
 変更は統合branchへローカル保存し、pushしない。root側は同じ記録と索引の案内だけを更新し、元のソース・未コミット成果・共有node_modules・本番状態を保全する。
+
+## 旧大会互換整理・サムネイル化の開始
+
+所有者から残した2項目も必要な確認後に進める指示を受けた。`1938a55` の統合版を継続し、再fetch後もorigin/masterは `39c525d`。公開保留を維持する。
+
+- 旧大会は現在の実正本の移行完了/ready・旧sourceの書込み拒否・未解決操作・欠落件数をread-onlyの集計で確認し、個人情報/成績本文は出力しない。移行済みと実証できた画面の互換経路だけを整理し、履歴/backup/現役RPCに必要な旧表や公開済みmigrationは削除しない。本番DBへの更新・migrationは行わない。
+- 一覧画像は縮小版、拡大・編集は元画像を使用する。avatarは最大64 CSS pxの3倍となる192px、写真は携帯の2倍/PC等倍表示を目安に長辺1024pxを起点として、合成画像のbytes・処理時間・細かい文字/線の見え方を比較する。実写真の可読性を確認したと誤記しない。
+- 画像の認証/RLS/期限/retirementと元画像の存在確認を毎回先行する。変換結果を公開配信へ置かず、生成失敗時も保存データ/原画像を変更しない。元画像の取得失敗は既存404/503で扱い、cacheで隠さない。GET/HEADの表現を一致させ、未表示の拡大画像を先読みしない。
+- 同梱Nextの画像ガイドを確認。標準最適化では認証headerを転送しないため、既存認証APIで固定variantだけを扱う。DB・画像root・backup/削除対象を増やさず、生成物は上限付きのプロセス内一時cacheに限定する。これは毎回の再エンコードを避けるためで、原本bytesのhash・TTL・件数/容量・同時処理上限を設ける。新しい利用者設定や永続派生画像は増やさない。
+
+### 旧大会の実正本確認
+
+- `/etc/tuat-local/runtime.json` と既存DB識別記録、専用Docker socket、container ID/label/config hash/PGDATA、物理DB識別子と現行postgres OID20613を照合。初回はPostgreSQLのOIDがJSON文字列になることによる型差で監査を停止し、値の一致を確認後に比較型だけを訂正した。別DBへの切替や起動・サービス操作はしていない。
+- `REPEATABLE READ READ ONLY`、statement timeout 10秒・lock timeout 1秒で、保存した監査SQLの集計のみを実行。対象meet 1、ready/source_frozen/期待する旧source/運営roleは正常、旧書込guard 6/6、未処理の旧変更0、他大会の旧entry 0。
+- 参加者100・補助134・役割44・懇親会104は移行先で保持。元の出場キー295に対して新出場296で、元キー2件に差があった。追補SQLで2件とも同じ恒久ID・本人の正規`appearance.moveDivision`履歴と一致し、移動前後/現在の試技も保持、説明できない欠落0。氏名・個別ID・種目・成績本文は取得結果に出していない。
+- 旧履歴はentry 216件・operation 394件あり、新大会の履歴RPCが現在も読む。旧表・公開済みmigration・移行/backup/mirror契約は保持する。本番DBへの更新やmigration適用は行っていない。
+
+### サムネイルの実装・画質比較
+
+- Avatar 192px、投稿/ノート写真は長辺1024pxの固定1種類。既存の認証付き画像URLへ`variant=thumbnail`を付け、拡大リンク・Lightbox・編集は元画像URLを保持する。閉じたLightboxから元画像リクエストを出さない。既存外部/avatar blob URLはそのまま。
+- PC内画像は既存の認証/RLS/期限・退役確認→元ファイルの安全なread→bytes hash→派生cacheの順で配信。元画像が消えた場合の404、読取失敗の503をcacheで救済しない。元URLと署名付き`/api/local-image`の契約、cloud storageでの既存redirectは保持する。
+- Sharpのraster magic許可・50MP入力上限を再利用し、向きを補正、縦横比を維持してWebP quality82/effort2で縮小。小画像・アニメーション・派生の方が大きい場合は元画像を返す。HEADはGETと同じ表現の長さでbodyを省く。
+- cacheは最大256件/32MiB、10分で再利用失効（次のrequestで掃除するため、10分後のメモリ消去時刻は保証しない）。一意な変換jobの圧縮入力合計16MiB、実変換2・待機32を上限とし、2秒の応答deadline、Sharp native timeout 3秒を設けた。native処理が実際に終わるまで予約を解放せず、期限後の待機jobは変換を始めない。これらはプロセス全体のメモリ上限ではない。
+- 混雑・変換失敗時は同じrequestで元画像を返し短いprivate cacheにする。2回目の画像取得や独自の永続保存は増やさない。処理中に投稿の期限を超えた場合も返答直前に拒否し、cache時間を残期限から再計算する。
+- 完全合成のavatar/写真風/細文字をWindows Node24.19・Sharp0.35.5で比較した。元→縮小bytesはavatar 8,994→3,100（65.5%減）、写真風165,592→64,316（61.2%減）、細文字91,852→50,234（45.3%減）。同じ入力を9回変換した中央値は7.0/42.9/38.3ms。HTTP/Auth/DB/元ファイルreadや実利用の性能・削減率を測った値ではない。
+- 768pxとの画像比較も目視した。細文字がさらに判別しにくくなるため1024pxを採用し、元画像への拡大を維持する。再現スクリプト・計測JSON/比較HTML/PNGは`.contingency/unification/thumbnail-review/`に保持。実ユーザー画像は閲覧・変換していない。
+
+### 整理の完了と最終検証（10/21 00時台）
+
+- 旧OBのprogram/manage/共有シート取得を共通大会に一本化した。移行状態未確認・読取失敗で旧画面/旧保存へ戻らずエラーを伝える。一般大会・担当者権限・一般部員プレビューの抑止は維持。旧entryブックマークは現在の結果画面へ案内する。
+- 新経路から参照されなくなった旧ホーム/運営/本人登録/補助/懇親会/履歴表示、専用保存・取得・DB型adapter・hook・専用試験の閉じた依存群を53ファイル削除した。共通大会で使う既存のランキング・記録・出力・シート用helperは保全。最後に残ったテストの旧権限helper参照を現役の`permissionsOf`へ修正した。
+- 開発環境確認成功（Node24.19、直接依存36）。TypeScript、変更30ファイルのESLint、diff checkが成功。全Vitestは**206ファイル/1,832件、失敗・skip 0**。前回より件数が減ったのは、撤去した旧実装だけを対象とするテストも取り除いたため。画像配信28件・実Sharp/cache30件を含む。
+- 隔離DBは220 migration/12 SQL群、実RPC snapshot 2件、画像競合4件、旧大会監査の3状態と追補2状態が成功。未移行・正常移行・重複出場/削除済試技/補助/懇親会の保持、実moveDivisionによる恒久ID・試技保持、意図した物理欠落の検出を確認した。追加fixtureのNOT NULL・psql結果捕捉・表示名/学年の不備を修正後、最終runnerが全件成功。アプリのmigration変更は不要だった。
+- 最終`integration-result.json`は2026-10-20T15:00:11Z、success/cleanup=true、productionAccess/providerCalls=false。隔離資源を後片付けし、合成Auth/profiles/allowlist/画像queueは0、cron offを確認した。この隔離結果と、先述の実正本read-only集計を区別する。
+- 独立レビューで指摘された画像変換待ちの上限、期限超過、timer通知遅延時の待機再確認を修正し再検証。実運用のCPU/メモリ、native 3秒timeoutの高負荷再現、統合版の実ブラウザ・スマホ画質は未確認。サムネイル化は転送bytesの削減であり、それだけでCloudflare request回数の上限回避を保証しない。実アカウントの利用量確認・配信構成の反映は保留。
+- 終了前fetchでもorigin/masterは`39c525d`。統合branchへローカルcommitのみを保存する。公開保留に従いpush/build/deploy・本番DB更新・環境/Cloudflare設定変更は実施しない。root側はこの記録と索引の案内だけを追記し、並行作業の文書・元ソース・共有依存を保全する。

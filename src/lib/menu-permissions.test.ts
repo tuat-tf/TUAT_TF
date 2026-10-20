@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { AppRole } from "@/types";
 import { editableMenuBlocks, menuAccess } from "./menu-permissions";
-import { canModerateComments } from "./permissions";
-import { canManageObMeet } from "./ob-meet";
+import { canModerateComments, permissionsOf } from "./permissions";
 
 const role = (name: string, create = true, blocks: AppRole["editable_menu_blocks"] = [], suppressed = false) => ({
   name, can_create_menu: create, editable_menu_blocks: blocks, permissions_suppressed: suppressed,
@@ -37,6 +36,6 @@ describe("block menu editing", () => {
   it("hides explicit moderation and OB permissions during preview", () => {
     const suppressed = { ...role("担当", true, [], true), can_moderate_comments: true, can_manage_ob_meet: true };
     expect(canModerateComments([suppressed])).toBe(false);
-    expect(canManageObMeet([suppressed])).toBe(false);
+    expect(permissionsOf([suppressed]).manageObMeet).toBe(false);
   });
 });

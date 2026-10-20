@@ -3,13 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  obEntry: vi.fn(), obDuties: vi.fn(), participation: vi.fn().mockResolvedValue([]), profile: vi.fn(), notices: vi.fn(), competition: vi.fn(), schedules: vi.fn(),
+  profile: vi.fn(), notices: vi.fn(), competition: vi.fn(), schedules: vi.fn(),
   attendance: vi.fn(), summary: vi.fn(), notes: vi.fn(), feed: vi.fn(), program: vi.fn(),
 }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 vi.mock("@/lib/supabase/auth", () => ({ getCurrentProfile: mocks.profile, getCurrentUserId: async () => "me" }));
 vi.mock("@/lib/queries", () => ({
-  getMyObDuties: mocks.obDuties, getMyObEntry: mocks.obEntry, getMyObEntryCandidates: async () => [], getMyObParticipation: mocks.participation,
   getHomeNotices: mocks.notices, getHomeCompetition: mocks.competition,
   getAttendanceSchedules: mocks.schedules, getAttendancesForSchedules: mocks.attendance,
   getUserTrainingSummary: mocks.summary, getRecentSharedNotes: mocks.notes,
@@ -20,8 +19,6 @@ import HomePage from "./page";
 describe("home content loading", () => {
   beforeEach(() => {
     mocks.profile.mockResolvedValue({ id: "me", blocks: ["middle_long"], roles: [], display_name: "テスト", sheet_name: null });
-    mocks.obEntry.mockResolvedValue(null);
-    mocks.obDuties.mockResolvedValue([]);
     mocks.competition.mockResolvedValue(null);
     mocks.schedules.mockResolvedValue([]);
     mocks.summary.mockResolvedValue({ distance: 0, count: 0 });
@@ -71,8 +68,5 @@ describe("finished OB meet on home", () => {
     expect(html).toContain('href="/competitions/3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5/program"');
     expect(html.match(/<a /g)).toHaveLength(1);
     for (const text of ["エントリーする", "登録を編集", "自分の出場", "自分の補助担当"]) expect(html).not.toContain(text);
-    expect(mocks.obEntry).not.toHaveBeenCalled();
-    expect(mocks.obDuties).not.toHaveBeenCalled();
-    expect(mocks.participation).not.toHaveBeenCalled();
   });
 });

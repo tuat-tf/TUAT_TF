@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { SubHeader } from "@/components/layout/SubHeader";
 import { CompetitionMeetResults } from "@/components/features/CompetitionMeetResults";
 import { isObCompetition } from "@/lib/ob-meet";
@@ -13,7 +13,7 @@ export default async function MeetManagePage({ params, searchParams }: { params:
   const { id } = await params, requested = await searchParams;
   const [competition, profile, preview, stored] = await Promise.all([getCompetitionById(id),getCurrentProfile(),isMemberPreviewActive(),getCompetitionMeet(id)]);
   if (!competition) notFound();
-  if (isObCompetition(id) && !stored) redirect(`/competitions/${id}/program`);
+  if (isObCompetition(id) && !stored) throw new Error("大会データの移行状態を確認できませんでした");
   const system = permissionsOf(profile.roles).manageSystem;
   const meet: CompetitionMeet = stored ?? {competitionId:id,name:competition.name,meetKey:id,backend:await getCompetitionMeetBackend(),events:[],participants:[],appearances:[],duties:[],roles:[],party:[],members:[],permissions:{manage:system,groups:system,record:false,configure:system}};
   if (stored && isObCompetition(id) && (!stored.permissions.manage || preview)) return <><SubHeader title={competition.name} backHref={`/competitions/${id}`} /><CompetitionMeetResults meet={stored} date={competition.starts_on} endsOn={competition.ends_on} /></>;

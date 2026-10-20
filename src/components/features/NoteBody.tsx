@@ -2,6 +2,7 @@
 import { Linkify } from "@/components/common/Linkify";
 import { NoteImages, type NoteImage } from "@/components/features/NoteImages";
 import { parseNoteBody, photoKeyFromPath } from "@/lib/note-body";
+import { noteImageDisplayUrl } from "@/lib/note-image";
 
 /**
  * 記事の本文。写真は本文で置いた位置にそのまま出す。
@@ -52,14 +53,14 @@ export function NoteBody({
           <a
             data-ui-row
             key={index}
-            href={`/api/note-image?id=${image.id}`}
+            href={noteImageDisplayUrl(image.id)}
             target="_blank"
             rel="noopener noreferrer"
             className="my-3 block"
             aria-label="写真を拡大"
           >
             <img
-              src={`/api/note-image?id=${image.id}`}
+              src={noteImageDisplayUrl(image.id, "thumbnail")}
               alt="本文の写真"
               loading="lazy"
               className="w-full rounded-xl object-contain"

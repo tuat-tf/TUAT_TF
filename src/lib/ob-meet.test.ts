@@ -1,6 +1,6 @@
 import { expect,it } from "vitest";
-import { OB_PROGRAM, OB_DUTY_SLOTS, dutyCell, dutyTimeCell, dutyRows, partyCounts, obCsvCell, validPartyEdit, type ObPartyResponse } from "./ob-meet";
-import { OB_ENTRY_EVENTS, validEntryEdit } from "./ob-entry-edit";
+import { OB_PROGRAM, OB_DUTY_SLOTS, dutyCell, dutyTimeCell, dutyRows, obCsvCell } from "./ob-meet";
+import { OB_ENTRY_EVENTS } from "./ob-entry-edit";
 import type { ObEntry } from "./ob-entries";
 const entry = {id:"e",grade:"B2",submitted_name:"確認太郎",profile_id:"p",events:["男子100m","男子砲丸投げ"]} as ObEntry;
 it("separates concurrent helper events while retaining concurrent competition warnings",()=>{
@@ -45,19 +45,7 @@ it("does not treat alumni competitors as unconfirmed student helpers",()=>{
   const alumni={...entry,id:"alumni",profile_id:null,grade:"OB・OG"};
   expect(dutyRows([entry,alumni],[{id:"p",display_name:"確認太郎",grade:"2"}])).toHaveLength(1);
 });
-it("excludes held names from attendance totals",()=>{
-  const responses=[{status:"参加",needs_review:false},{status:"参加",needs_review:true},{status:"不参加",needs_review:false},{status:"未回答",needs_review:false}] as ObPartyResponse[];
-  expect(partyCounts(responses)).toEqual({attending:1,absent:1,unknown:1,held:1});
-});
 it("escapes CSV text and neutralises formula prefixes",()=>{
   expect(obCsvCell('田中,"太郎"')).toBe('"田中,""太郎"""');
   expect(obCsvCell(' =HYPERLINK("test")')).toBe('"\' =HYPERLINK(""test"")"');
-});
-it("validates party status and optimistic revision and permits explicit party-only registration",()=>{
-  expect(validPartyEdit({id:null,revision:null,status:"参加"})).toBe(true);
-  expect(validPartyEdit({id:"bad",revision:0,status:"参加"})).toBe(false);
-  expect(validPartyEdit({id:null,revision:0,status:"参加"})).toBe(false);
-  expect(validPartyEdit({id:null,revision:null,status:"unknown" as "参加"})).toBe(false);
-  const input={entryId:null,profileId:"10000000-0000-4000-8000-000000000001",revision:null,events:[],marks:{}};
-  expect(validEntryEdit(input,true)).toBe(true);expect(validEntryEdit(input)).toBe(false);
 });

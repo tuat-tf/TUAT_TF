@@ -10,8 +10,8 @@ export function isSafeTweetImagePath(path: string) {
   return /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.webp$/i.test(path);
 }
 
-export function tweetImageDisplayUrl(path: string) {
-  return `/api/tweet-image?path=${encodeURIComponent(path)}`;
+export function tweetImageDisplayUrl(path: string, variant: "original" | "thumbnail" = "original") {
+  return `/api/tweet-image?path=${encodeURIComponent(path)}${variant === "thumbnail" ? "&variant=thumbnail" : ""}`;
 }
 
 export function validateTweetImage(file: File) {
