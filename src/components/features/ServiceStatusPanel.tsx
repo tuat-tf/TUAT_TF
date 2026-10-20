@@ -32,7 +32,7 @@ export function ServiceStatusPanel({ embedded = false }: { embedded?: boolean })
     {data && <>
       <p className="text-micro text-muted">取得日時: {new Date(data.checkedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（日本時間）<br />通信量を抑えるため、結果を15分間再利用します。</p>
       <ServiceCard name="Supabase" health={data.health.supabase} statusUrl="https://status.supabase.com" usageUrl="https://supabase.com/dashboard/org/cctqtlkeltdpjkyyjmfl/usage">
-        <p className="text-sm">ログイン認証・PC停止時の予備データ</p>
+        <p className="text-sm">旧クラウドサービス。現在のデータとログイン認証はPCで稼働しています。</p>
         <p className="text-sm text-muted">月間転送量・DB容量・無料枠の残量: 未取得</p>
         <p className="text-micro text-muted">正確な使用量と利用制限は「使用量を開く」で確認してください。全体の稼働が正常でも、このプロジェクトに利用制限がかかっている場合があります。</p>
       </ServiceCard>

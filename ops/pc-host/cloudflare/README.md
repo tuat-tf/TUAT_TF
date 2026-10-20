@@ -1,14 +1,17 @@
-# Local Cloudflare VPC entry candidate
+# PC app Cloudflare VPC entry
 
-Prepared 2026-10-11. This folder has not provisioned or deployed any Cloudflare
-resource and does not establish public or production readiness.
+The PC app now uses a fixed Cloudflare public entry. See the latest notes in
+[PC production handoff](../../laptop/PC-PRODUCTION-HANDOFF.md) for the accepted
+deployment, verification, and remaining checks. This folder describes the source
+and configuration contract. Checked-in templates still contain placeholders;
+their presence does not provision a resource or prove a deployed version.
 
-The proposed path is a fixed HTTPS
+The path is a fixed HTTPS
 `<worker>.<account-subdomain>.workers.dev` address, one Worker `PC_APP` VPC Service
 binding, a persistent named Cloudflare Tunnel, and this PC's loopback app gateway.
-The 2026-10-12 candidate keeps Next, Auth, REST and private images on the PC;
-R2 is an optional encrypted-backup destination under a separate owner. Existing
-cloud Auth/images remain until actual migration is accepted. No Quick Tunnel,
+Next, Auth, REST and private images run on the PC. Encrypted offsite backup uses
+R2 through its separate backup owner; R2 is not the current image data path.
+Keep the retired cloud source fences and writers disabled. No Quick Tunnel,
 endpoint lease/discovery, fallback, retry, or
 second data path is involved.
 
@@ -31,12 +34,12 @@ enabled. Do not point it at Next directly, a DB, Studio, Auth/admin API or anoth
 network service. The Worker uses an `http://<fixed-public-host>/...` fetch URL:
 Cloudflare routes to the destination configured in the VPC Service; the URL host
 supplies HTTP `Host`. Traffic is encrypted through the Tunnel and plaintext only
-between the connector and the gateway on the same PC. This host behavior still
-requires proof through the real deployed route.
+between the connector and the gateway on the same PC. A change to this route
+requires proof through the actual deployed route, in addition to local tests.
 
 ## Local checks
 
-From the repository root, using the isolated candidate's Node runtime:
+From the repository root, using an isolated development Node runtime:
 
 ```powershell
 node --test ops/pc-host/cloudflare/worker.test.mjs ops/pc-host/cloudflare/config.test.mjs
@@ -62,27 +65,33 @@ Passing this check proves local configuration shape only. It does not verify the
 bound service's actual destination, account access, quota, connector, or routing.
 No deployment command is part of these local checks.
 
-## Actual integration gate and free-plan boundary
+## Checks for route changes
 
-Before cutover, verify the intended account's VPC access/roles and fixed hostname;
+Before an authorized route change, verify the intended account's VPC access/roles and fixed hostname;
 verify the service is pinned to this gateway; install the named connector under
 the intended runtime policy; prove the route under normal and unavailable-PC
-conditions. Cloudflare currently requires `cloudflared` 2025.7.0 or newer and
-QUIC (`auto`/`quic`) with outbound UDP 7844. Verify connector restart and network
+conditions. Recheck the provider's connector version and transport requirements
+before changing its configuration. Verify connector restart and network
 changes as well as Next pages/assets, RSC streaming, Server Actions, login and
 Google callback cookies/redirects, CSRF rejection, private images/uploads,
 multiple cookies, and an interrupted write with no replay. Update Auth redirect
 allowlists only within the separately authorized cutover scope. A synthetic
 transport test cannot establish these checks or actual user/device behavior.
 
-As checked on 2026-10-11, Workers VPC is **open beta, free on all Workers plans
-only while beta**; features/APIs may change and future pricing is not guaranteed.
-Normal Workers quotas apply: Free currently allows 100,000 inbound requests per
-day/account and 10 ms CPU per request. Requests proxied from the PC invoke the
-Worker, including its PC-served assets. Cloudflare describes `workers.dev` as
-intended for personal/hobby, noncritical projects and recommends a custom domain
-for production. An owned domain is not technically required for this VPC path,
-but neither perpetual free pricing nor production suitability has been proved.
+## Historical provider check (2026-10-11)
+
+The preparation review recorded Workers VPC as open beta and free on all Workers
+plans during beta, with ordinary Workers quotas still applying. It recorded
+100,000 inbound requests per day/account and 10 ms CPU per request for Workers
+Free, and a connector requirement of `cloudflared` 2025.7.0 or newer with
+QUIC (`auto`/`quic`) over outbound UDP 7844. These are dated research notes,
+not assertions of today's pricing, limits, or requirements.
+
+Requests proxied from the PC include its PC-served assets. The preparation review
+also recorded Cloudflare's recommendation to use a custom domain for production
+and its description of `workers.dev` as intended for personal/hobby, noncritical
+projects. Recheck the primary sources before a new capacity, cost, or deployment
+decision; this document does not promise perpetual free pricing.
 
 Primary sources:
 

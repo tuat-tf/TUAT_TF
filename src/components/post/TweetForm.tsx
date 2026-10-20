@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- local object URL preview */
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { BarChart3, Check, Clock3, ImagePlus, Link2, LoaderCircle, Plus, Send, X } from "lucide-react";
+import { BarChart3, ImagePlus, Link2, LoaderCircle, Plus, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -15,8 +15,8 @@ import {
   tweetContentUrls,
 } from "@/lib/tweet-content";
 import { Textarea } from "@/components/ui/textarea";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import { RefreshStatus } from "@/components/ui/refresh-status";
 import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
@@ -67,7 +67,6 @@ export const TweetForm = forwardRef<
   const [membersFailed, setMembersFailed] = useState(false);
   const [membersAttempt, setMembersAttempt] = useState(0);
   const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>([]);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [pollEnabled, setPollEnabled] = useState(false);
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollMultiple, setPollMultiple] = useState(false);
@@ -141,7 +140,6 @@ export const TweetForm = forwardRef<
     }
     setSaving(true);
     setError(null);
-    setAddMenuOpen(false);
     try {
       const supabase = createClient();
 
@@ -345,66 +343,49 @@ export const TweetForm = forwardRef<
       )}
 
       {!editing && (
-        <div className="space-y-2">
-          <button data-ui-action="icon"
-            type="button"
-            aria-label="投稿に追加"
-            aria-expanded={addMenuOpen}
-            onClick={() => setAddMenuOpen(true)}
-            className={cn(
-              "grid h-10 w-10 place-items-center rounded-full border",
-              addMenuOpen ? "border-accent bg-accent text-white" : "border-separator bg-card text-accent",
-            )}
-          >
-            <Plus size={20} className={cn("transition-transform", addMenuOpen && "rotate-45")} />
-          </button>
-          <Sheet open={addMenuOpen} onOpenChange={(next) => { if (!next || (!saving && !unconfirmed)) setAddMenuOpen(next); }}>
-            <SheetContent title="投稿に追加" autoFocus={false}>
-              <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-2 pb-4">
-                <button data-ui-action="row" type="button" className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-separator bg-card p-3.5 text-left active:bg-bg" onClick={() => { setPollEnabled((value) => !value); setAddMenuOpen(false); }}>
-                  <BarChart3 size={20} className="text-accent" />
-                  <span className="min-w-0 flex-1 text-headline">投票</span>
-                  {pollEnabled && <Check size={18} className="text-accent" />}
-                </button>
-                {!initialStory && (
-                <button data-ui-action="row" type="button" className="flex min-h-12 w-full items-center gap-3 rounded-xl border border-separator bg-card p-3.5 text-left active:bg-bg" onClick={() => {
-                  setExpiresIn24Hours((value) => {
-                    if (value) setImageFile(null);
-                    return !value;
-                  });
-                  setAddMenuOpen(false);
-                }}>
-                  <Clock3 size={20} className="text-accent" />
-                  <span className="min-w-0 flex-1 text-headline">ストーリーとして投稿</span>
-                  {expiresIn24Hours && <Check size={18} className="text-accent" />}
-                </button>
-                )}
-              </fieldset>
-            </SheetContent>
-          </Sheet>
+        <div className="space-y-3">
+          <Toggle
+            label="ストーリーとして投稿"
+            description="投稿から24時間後に自動で非表示になります。"
+            checked={expiresIn24Hours}
+            onChange={() => setExpiresIn24Hours((value) => {
+              if (value) setImageFile(null);
+              return !value;
+            })}
+          />
+          {!pollEnabled && (
+            <Button variant="outline" onClick={() => setPollEnabled(true)}>
+              <BarChart3 size={18} className="text-accent" />
+              投票を追加
+            </Button>
+          )}
           {pollEnabled && (
-            <section className="space-y-3 rounded-card border border-separator bg-card p-3">
-              <p className="text-[14px] font-semibold">投票</p>
+            <section data-ui-section className="space-y-3 rounded-card border border-separator bg-card p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-label">投票</p>
+                <Button variant="ghost" size="sm" data-ui-tone="danger" onClick={() => setPollEnabled(false)}>
+                  投票をやめる
+                </Button>
+              </div>
               <div className="space-y-2">
                 {pollOptions.map((option, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <input data-ui-field value={option}
+                    <Input value={option}
+                      aria-label={`選択肢${index + 1}`}
                       maxLength={80}
-                      placeholder={`選択肢 ${index + 1}`}
-                      className="h-10 min-w-0 flex-1 rounded-xl border border-separator bg-bg px-3 text-[16px]"
+                      placeholder={`選択肢${index + 1}`}
+                      className="flex-1"
                       onChange={(event) => setPollOptions((options) => options.map((value, optionIndex) => optionIndex === index ? event.target.value : value))}
                     />
-                    {pollOptions.length > 2 && (
-                      <button data-ui-action="icon" type="button" aria-label="選択肢を削除" className="grid h-10 w-10 place-items-center text-muted" onClick={() => setPollOptions((options) => options.filter((_, optionIndex) => optionIndex !== index))}>
-                        <X size={17} />
-                      </button>
-                    )}
+                    <Button variant="ghost" size="icon" aria-label={`選択肢${index + 1}を削除`} disabled={pollOptions.length <= 2} onClick={() => setPollOptions((options) => options.filter((_, optionIndex) => optionIndex !== index))}>
+                      <X size={17} />
+                    </Button>
                   </div>
                 ))}
               </div>
-              <button data-ui-action type="button" className="text-[13px] font-semibold text-accent" onClick={() => setPollOptions((options) => [...options, ""])}>
-                ＋ 選択肢を追加
-              </button>
+              <Button variant="ghost" size="sm" onClick={() => setPollOptions((options) => [...options, ""])}>
+                <Plus size={15} />選択肢を追加
+              </Button>
               <div className="divide-y divide-separator/70 overflow-hidden rounded-xl border border-separator">
                 <Toggle variant="row" label="複数投票" checked={pollMultiple} onChange={() => setPollMultiple((value) => !value)} />
                 <Toggle variant="row" label="匿名投票" checked={pollAnonymous} onChange={() => setPollAnonymous((value) => !value)} />
@@ -419,10 +400,6 @@ export const TweetForm = forwardRef<
 
           {expiresIn24Hours && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent/5 px-3 py-2.5">
-                <span className="text-[14px] font-semibold text-accent">ストーリー</span>
-                <span className="text-micro">24時間</span>
-              </div>
               {imagePreview && (
                 <div className="relative overflow-hidden rounded-card border border-separator">
                   <img src={imagePreview} alt="投稿画像のプレビュー" className="max-h-80 w-full object-contain" />
@@ -445,7 +422,6 @@ export const TweetForm = forwardRef<
                   }
                 }} />
               </label>
-              <p className="text-center text-[12px] text-muted2">ストーリーは投稿から24時間後に自動で非表示になります</p>
             </div>
           )}
         </div>

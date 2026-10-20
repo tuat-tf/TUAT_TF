@@ -57,7 +57,7 @@ describe("private note images", () => {
       .mockResolvedValueOnce({ data: null,error: null });
     query.single.mockResolvedValue({ data: image,error: null });
     rpc.mockResolvedValue({ data: true,error: null });
-    const request=new Request(`https://app.example/api/note-image?articleId=${article.toUpperCase()}&uploadId=${upload.toUpperCase()}`,{ method: "POST",headers: { "Content-Type": "image/webp" },body: "synthetic" });
+    const request=new Request(`https://app.example/api/note-image?articleId=${article.toUpperCase()}&uploadId=${upload.toUpperCase()}`,{ method: "POST",headers: { "Content-Type": "image/webp" },body: "RIFF0000WEBPsynthetic" });
     expect((await POST(request)).status).toBe(200);
     expect(mocks.upload.mock.calls[0][2]).toBe(image.path);
     expect(query.eq).toHaveBeenCalledWith("id",article);
@@ -68,7 +68,7 @@ describe("private note images", () => {
       .mockResolvedValueOnce({ data: null,error: null });
     rpc.mockResolvedValue({ data: true,error: null });
     capacity.count=6;
-    const request=new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222",{ method: "POST",headers: { "Content-Type": "image/webp" },body: "synthetic" });
+    const request=new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222",{ method: "POST",headers: { "Content-Type": "image/webp" },body: "RIFF0000WEBPsynthetic" });
     expect((await POST(request)).status).toBe(409);
     expect(request.bodyUsed).toBe(false);
     expect(mocks.upload).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe("private note images", () => {
       .mockResolvedValueOnce({ data: null,error: null });
     rpc.mockResolvedValue({ data: true,error: null });
     capacity.count=null;
-    const request=new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222",{ method: "POST",headers: { "Content-Type": "image/webp" },body: "synthetic" });
+    const request=new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222",{ method: "POST",headers: { "Content-Type": "image/webp" },body: "RIFF0000WEBPsynthetic" });
     expect((await POST(request)).status).toBe(503);
     expect(request.bodyUsed).toBe(false);
     expect(mocks.upload).not.toHaveBeenCalled();
@@ -170,6 +170,18 @@ describe("private note images", () => {
     }
     expect(mocks.upload).not.toHaveBeenCalled();
   });
+  it("checks image contents before decoding or publishing", async () => {
+    query.maybeSingle.mockResolvedValueOnce({ data: { note_id: "note" }, error: null })
+      .mockResolvedValueOnce({ data: null, error: null });
+    rpc.mockResolvedValue({ data: true, error: null });
+    const response = await POST(new Request(
+      "https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222",
+      { method: "POST", headers: { "Content-Type": "image/png" }, body: '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>' },
+    ));
+    expect(response.status).toBe(415);
+    expect(mocks.upload).not.toHaveBeenCalled();
+    expect(query.insert).not.toHaveBeenCalled();
+  });
   it("allows retry of an already completed deletion without touching other objects", async () => {
     expect(
       (
@@ -190,7 +202,7 @@ describe("private note images", () => {
       .mockResolvedValueOnce({ data: image, error: null });
     rpc.mockResolvedValue({ data: true, error: null });
     query.single.mockResolvedValue({ data: null, error: { message: "private lost response" } });
-    const response = await POST(new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "synthetic" }));
+    const response = await POST(new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "RIFF0000WEBPsynthetic" }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(image);
     expect(query.insert).toHaveBeenCalledOnce();
@@ -203,7 +215,7 @@ describe("private note images", () => {
       .mockResolvedValueOnce({ data: null, error: { message: "private lookup failure" } });
     rpc.mockResolvedValue({ data: true, error: null });
     query.single.mockRejectedValue(new Error("private lost response"));
-    const response = await POST(new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "synthetic" }));
+    const response = await POST(new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "RIFF0000WEBPsynthetic" }));
     expect(response.status).toBe(503);
     expect(JSON.stringify(await response.json())).not.toContain("private");
     expect(query.insert).toHaveBeenCalledOnce();
@@ -216,7 +228,7 @@ describe("private note images", () => {
       .mockResolvedValueOnce({ data: null, error: null });
     rpc.mockResolvedValue({ data: true, error: null });
     query.single.mockResolvedValue({ data: null, error: { code: "P0001", message: "An article can have at most 6 photos" } });
-    const response = await POST(new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "synthetic" }));
+    const response = await POST(new Request("https://app.example/api/note-image?articleId=11111111-1111-4111-8111-111111111111&uploadId=22222222-2222-4222-8222-222222222222", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "RIFF0000WEBPsynthetic" }));
     expect(response.status).toBe(409);
     expect(mocks.admin).not.toHaveBeenCalled();
     expect(mocks.cleanup).not.toHaveBeenCalled();

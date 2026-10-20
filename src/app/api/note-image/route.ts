@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAppPublicOrigin } from "@/lib/app-public-origin";
-import sharp from "sharp";
+import { uploadImageDecoder } from "@/lib/upload-image";
 import { createClient } from "@/lib/supabase/server";
 import { ImageNotFoundError,ImageUploadError,logImageFailure,readImageUpload,signedImageUrl,uploadImage } from "@/lib/image-storage";
 import { cleanupNoteImages } from "@/lib/note-image-cleanup";
@@ -120,7 +120,9 @@ export async function POST(request: Request) {
     }
     let output: Buffer;
     try {
-      output=await sharp(input,{ limitInputPixels: 50_000_000 })
+      const image=uploadImageDecoder(input,["jpeg","png","webp"]);
+      if(!image) return NextResponse.json({ error: "JPG・PNG・WebPを選んでください" },{ status: 415 });
+      output=await image
         .rotate()
         .resize(1600,1600,{ fit: "inside",withoutEnlargement: true })
         .webp({ quality: 82 })

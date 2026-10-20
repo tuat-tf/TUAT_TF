@@ -13,6 +13,7 @@ const harness = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
   getUser: vi.fn(),
+  getClaims: vi.fn(),
 }));
 vi.mock("react", async (importOriginal) => ({
   ...await importOriginal<typeof import("react")>(),
@@ -44,7 +45,7 @@ vi.mock("@/components/ui/form-modal", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/components/ui/form-modal")>(), useFormDraft: vi.fn(),
 }));
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({ from: harness.from, rpc: harness.rpc, auth: { getUser: harness.getUser } }),
+  createClient: () => ({ from: harness.from, rpc: harness.rpc, auth: { getUser: harness.getUser, getClaims: harness.getClaims } }),
 }));
 vi.mock("@/lib/supabase/client-auth", () => ({ getCurrentUserId: async () => "user-1" }));
 
@@ -138,6 +139,7 @@ beforeEach(() => {
   harness.rpc.mockReset().mockResolvedValue({ data: "saved-id", error: null });
   harness.from.mockReset().mockImplementation((table: string) => query(table === "schedule_sheets" ? { data: { id: "sheet-1" }, error: null } : { data: [], error: null }));
   harness.getUser.mockReset().mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+  harness.getClaims.mockReset().mockResolvedValue({ data: { claims: { sub: "user-1" } }, error: null });
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ connected: true, email: "" })));
   vi.stubGlobal("window", { open: vi.fn(() => ({ close: vi.fn(), location: { href: "" } })) });
   vi.stubGlobal("localStorage", { getItem: vi.fn(() => null), setItem: vi.fn() });
@@ -253,23 +255,18 @@ describe("schedule import recovery", () => {
 
   it("distinguishes failed initial reads from empty results and retries without losing input", async () => {
     harness.from.mockImplementation(() => query({ data: null, error: { code: "42501" } }));
-    vi.mocked(fetch).mockResolvedValueOnce(new Response("bad gateway", { status: 502 }));
     let action = await readySchedule();
     expect(action.existingError).toContain("予定を読み込めませんでした");
-    expect(action.venuesError).toContain("場所を読み込めませんでした");
-    expect(action.googleError).toContain("連携状態を確認できませんでした");
-    expect(action.googleConnected).toBeNull();
-    expect(action.existingLoading || action.venuesLoading || action.googleLoading).toBe(false);
+    expect(action.existingLoading).toBe(false);
     action.setSheetUrl("https://docs.google.com/sheet");
-    action.updateWeekdayDefault(1, "time", "09:00");
     harness.from.mockImplementation(() => query({ data: [], error: null }));
     action.retryReads();
     render(useScheduleSheetImport);
     await flushEffects();
     action = render(useScheduleSheetImport);
-    expect(action.existingError || action.venuesError || action.googleError).toBeNull();
+    expect(action.existingError).toBeNull();
     expect(action.sheetUrl).toBe("https://docs.google.com/sheet");
-    expect(action.weekdayDefaults.find((day) => day.weekday === 1)?.time).toBe("09:00");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("keeps selected existing rows after a failed read and retry", async () => {
@@ -288,34 +285,6 @@ describe("schedule import recovery", () => {
     render(useScheduleSheetImport);
     await flushEffects();
     expect(render(useScheduleSheetImport).selectedIds).toEqual(["two"]);
-  });
-
-  it.each(["network", "non-json", "server"])("closes the popup and blocks duplicate Google creation after %s response", async (failure) => {
-    let action = await readySchedule();
-    if (failure === "network") vi.mocked(fetch).mockRejectedValueOnce(new TypeError("offline"));
-    else if (failure === "non-json") vi.mocked(fetch).mockResolvedValueOnce(new Response("html", { status: 200 }));
-    else vi.mocked(fetch).mockResolvedValueOnce(Response.json({ error: "creation failed" }, { status: 500 }));
-    await action.issueSpreadsheet();
-    action = render(useScheduleSheetImport);
-    expect(action.issuing).toBe(false);
-    expect(action.uncertainOperation).toBe("create");
-    const popup = vi.mocked(window.open).mock.results[0].value;
-    expect(popup.close).toHaveBeenCalledOnce();
-    const requestCount = vi.mocked(fetch).mock.calls.length;
-    await action.issueSpreadsheet();
-    expect(fetch).toHaveBeenCalledTimes(requestCount);
-  });
-
-  it("allows Google creation again after a confirmed HTTP rejection", async () => {
-    let action = await readySchedule();
-    vi.mocked(fetch).mockResolvedValueOnce(new Response("forbidden", { status: 403 }));
-    await action.issueSpreadsheet();
-    action = render(useScheduleSheetImport);
-    expect(action.issuing).toBe(false);
-    expect(action.uncertainOperation).toBeNull();
-    vi.mocked(fetch).mockResolvedValueOnce(Response.json({ id: "sheet-1", url: "https://docs.google.com/new-sheet" }));
-    await action.issueSpreadsheet();
-    expect(render(useScheduleSheetImport).sheetUrl).toBe("https://docs.google.com/new-sheet");
   });
 
   it("reuses the known sheet ID for a read after an insert response is lost", async () => {

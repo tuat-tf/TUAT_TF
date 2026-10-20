@@ -6,6 +6,7 @@ import { LoaderCircle, X } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
 import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
+import { saveNewSchedule, scheduleCreateMessage, type PendingScheduleCreate } from "@/lib/schedule-create";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { FormModal, FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
@@ -115,6 +116,9 @@ export function ScheduleForm({
   const dateInput = useRef<HTMLInputElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
   const meetingTimeTouched = useRef(false);
+  const [pendingCreate, setPendingCreate] = useState<PendingScheduleCreate | null>(null);
+  const submissionLocked = useRef(false);
+  const createConfirmed = useRef(false);
 
   const isPractice = type === "practice";
   const canEntry = ENTRY_PERIOD_TYPES.includes(type);
@@ -167,7 +171,7 @@ export function ScheduleForm({
   }, []);
 
   const submit = useCallback(async () => {
-    if (saving) return;
+    if (submissionLocked.current) return;
     setErrorField(null);
     if (!date) {
       setError("日付を選択してください");
@@ -181,63 +185,73 @@ export function ScheduleForm({
       titleInput.current?.focus();
       return;
     }
+    submissionLocked.current = true;
+    meetingTimeTouched.current = true;
     setSaving(true);
     setError(null);
     try {
-    const supabase = createClient();
-    const userId = await getCurrentUserId(supabase);
-    if (!userId) {
-      setSaving(false);
-      return;
-    }
-
-    const venue = venueKey && venueKey !== OTHER ? venues.find((v) => v.id === venueKey) : undefined;
-    const venueName = venue ? venue.name : venueKey === OTHER ? otherVenue.trim() || null : null;
-
-    const payload = {
-      schedule_date: date,
-      schedule_type: type,
-      meeting_time: meetingTime || null,
-      venue_name: venueName,
-      venue_access: venue ? venue.access : null,
-      venue_fee: venue ? venue.fee : null,
-      venue_url: venue ? venue.url : null,
-      title: !isPractice ? title.trim() || null : null,
-      end_date: !isPractice && useEndDate && endDate ? endDate : null,
-      entry_start: canEntry && useEntry && entryStart ? entryStart : null,
-      entry_end: canEntry && useEntry && entryEnd ? entryEnd : null,
-      note: note.trim() || null,
-      target_blocks: targetBlocks,
-    };
-
-    if (editing) {
-      const result = await safeUpdate(
-        supabase,
-        "practice_schedules",
-        payload,
-        { id: schedule!.id },
-      );
-      if (!result.ok) {
-        setError(safeUpdateMessage(result.reason));
-        setSaving(false);
+      if (createConfirmed.current) {
+        router.refresh();
+        onDone();
         return;
       }
-    } else {
-      const { error } = await supabase
-        .from("practice_schedules")
-        .insert({ ...payload, created_by: userId });
-      if (error) {
-        setError("保存できませんでした。もう一度お試しください");
-        setSaving(false);
-        return;
+      const supabase = createClient();
+      const venue = venueKey && venueKey !== OTHER ? venues.find((item) => item.id === venueKey) : undefined;
+      const venueName = venue ? venue.name : venueKey === OTHER ? otherVenue.trim() || null : null;
+      const payload = {
+        schedule_date: date,
+        schedule_type: type,
+        meeting_time: meetingTime || null,
+        venue_name: venueName,
+        venue_access: venue ? venue.access : null,
+        venue_fee: venue ? venue.fee : null,
+        venue_url: venue ? venue.url : null,
+        title: !isPractice ? title.trim() || null : null,
+        end_date: !isPractice && useEndDate && endDate ? endDate : null,
+        entry_start: canEntry && useEntry && entryStart ? entryStart : null,
+        entry_end: canEntry && useEntry && entryEnd ? entryEnd : null,
+        note: note.trim() || null,
+        target_blocks: targetBlocks,
+      };
+
+      if (editing) {
+        const result = await safeUpdate(supabase, "practice_schedules", payload, { id: schedule!.id });
+        if (!result.ok) {
+          setError(safeUpdateMessage(result.reason));
+          return;
+        }
+      } else {
+        let attempt = pendingCreate;
+        if (!attempt) {
+          const { data, error: authError } = await supabase.auth.getClaims();
+          const userId = data?.claims.sub;
+          if (authError || !userId) {
+            setError(scheduleCreateMessage("forbidden"));
+            return;
+          }
+          attempt = {
+            row: { ...payload, target_blocks: [...targetBlocks], id: crypto.randomUUID(), created_by: userId },
+            uncertain: false,
+          };
+          setPendingCreate(attempt);
+        }
+        const result = await saveNewSchedule(supabase, attempt);
+        if (!result.ok) {
+          if (!attempt.uncertain) setPendingCreate(null);
+          setError(scheduleCreateMessage(result.reason));
+          return;
+        }
+        createConfirmed.current = true;
       }
-    }
-    router.refresh();
-    onDone();
+      router.refresh();
+      onDone();
     } catch {
-      setError("保存できませんでした。入力は残っています。保存先を確認してください");
-    } finally { setSaving(false); }
-  }, [saving, date, isPractice, title, venueKey, venues, otherVenue, type, meetingTime, useEndDate, endDate, canEntry, useEntry, entryStart, entryEnd, note, targetBlocks, editing, schedule, router, onDone]);
+      setError("保存できませんでした。入力は残っています。ログイン状態と保存結果を確認してください");
+    } finally {
+      submissionLocked.current = false;
+      setSaving(false);
+    }
+  }, [pendingCreate, date, isPractice, title, venueKey, venues, otherVenue, type, meetingTime, useEndDate, endDate, canEntry, useEntry, entryStart, entryEnd, note, targetBlocks, editing, schedule, router, onDone]);
 
   const selectedVenueName = venueKey === OTHER ? otherVenue : venues.find((venue) => venue.id === venueKey)?.name ?? "";
   const draftDirty = type !== (schedule?.schedule_type ?? initialType ?? "practice") ||
@@ -248,14 +262,15 @@ export function ScheduleForm({
     entryStart !== (schedule?.entry_start ?? "") || entryEnd !== (schedule?.entry_end ?? "") ||
     note !== (schedule?.note ?? "") ||
     [...targetBlocks].sort().join(",") !== [...normalizeProfileBlocks(schedule?.target_blocks)].sort().join(",");
-  useFormDraft({ dirty: draftDirty, busy: saving, onSave: submit });
+  useFormDraft({ dirty: draftDirty || !!pendingCreate, busy: saving, onSave: submit, intent: pendingCreate ? "check" : "save" });
   useEffect(() => {
-    onDraftChange?.({ dirty: draftDirty, busy: saving, onSave: submit });
-  }, [onDraftChange, draftDirty, saving, submit]);
+    onDraftChange?.({ dirty: draftDirty || !!pendingCreate, busy: saving || !!pendingCreate, onSave: submit, intent: pendingCreate ? "check" : "save" });
+  }, [onDraftChange, draftDirty, saving, submit, pendingCreate]);
   useEffect(() => () => onDraftChange?.(null), [onDraftChange]);
 
   return (
-    <fieldset disabled={saving} className="min-w-0 space-y-4 pb-4">
+    <div className="space-y-4 pb-4">
+    <fieldset disabled={saving || !!pendingCreate} className="min-w-0 space-y-4">
       {showTypeSelector && (
         <SegmentedControl
           items={SCHEDULE_TYPE_OPTIONS}
@@ -293,6 +308,7 @@ export function ScheduleForm({
       <div>
         <p className="section-label mb-1.5">場所</p>
         <Select
+          disabled={saving || !!pendingCreate}
           value={venueKey}
           onValueChange={setVenueKey}
           ariaLabel="場所"
@@ -427,13 +443,14 @@ export function ScheduleForm({
         />
       </div>
 
+    </fieldset>
       {error && !errorField && <p role="alert" className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         <Button size="lg" onClick={submit} disabled={saving}>
-          {saving ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : editing ? "更新する" : "作成する"}
+          {saving ? <><LoaderCircle size={18} className="animate-spin" />{pendingCreate ? "確認中…" : "保存中…"}</> : pendingCreate ? "保存結果を確認する" : editing ? "更新する" : "作成する"}
         </Button>
       </FormModalFooter>
-    </fieldset>
+    </div>
   );
 }
 

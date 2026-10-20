@@ -29,3 +29,9 @@
 - Node.js 22.14.0、直接依存35件とlockfileの一致をcheck:environmentで確認。TypeScript、変更ファイルのESLint、Vitest 100ファイル725テスト成功（ページの初期表示・本人未確認の深いリンク・履歴表示の権限を追加）。
 - 独立worktreeで実コンポーネントを合成データとスタブ化した保存処理で表示する一時ページを作り、内蔵ブラウザで確認（一時ページ・設定はコミット前に削除）。本人未確認の深いリンク、紐付け成功後の表示と件数、大会欠席の確認→失敗表示→成功→取消（revisionの引継ぎ）、「…」→編集→保存後の一覧反映、削除の成功と補助担当がある人の削除拒否、新規登録、懇親会切替、変更履歴、DNS表示を確認。新UI版で旧ホームの線が曲がることを再現し、修正後は直線であることを確認。幅320px・文字1.5倍で一覧と詳細の横はみ出しなし、390/780/1440pxで表示確認。
 - 内蔵ブラウザの幅指定エミュレーション中はクリックが届かなかったため、ポインタ操作は幅780pxで行い、320/390pxは表示とスクリプトからのクリックで確認した。iOS PWA・Androidの実機、実データ91件での操作は未確認。
+
+## 公開確認
+
+2026-10-04 JST、commit `5b43c9dfa68c9a7fbed199995da9c7e48733028f`をmasterへfast-forwardして1回だけpushし、`8e67cd1..5b43c9d HEAD -> master`を確認。Vercel MCPの`list_deployments`で`dpl_23sd6XRNuryGsm39VqbUi5ZqjwXX`が`target: production`・`state: READY`・`githubCommitSha`一致、公開`/api/version`も同じSHAを返すことを確認した。ビルドは独立worktreeで`npm ci`した依存とダミーの公開接続値で`npm run build`成功（junctionの依存ではTurbopackがルート外として停止するため）。DB・環境変数・Vercel設定は変更していない。
+
+rootの既存変更・未追跡93件は、索引だけ3者統合（本記録の1行を追加）し、他92件は統合前後のSHA-256一致を確認した。この追記は文書だけのためローカル保持し、追加push・デプロイは行わない。

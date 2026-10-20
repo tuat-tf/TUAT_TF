@@ -56,8 +56,13 @@ vi.mock("@/lib/image-storage", async original => ({ ...await original<typeof imp
 
 import { POST, DELETE } from "./route";
 
+// A real 1px WebP; decoding stays mocked so these tests isolate database outcomes.
+const inputImage = Buffer.from(
+  "UklGRjgAAABXRUJQVlA4ICwAAADwAQCdASoBAAEAAUAmJaACdLoB+AAETAAA/u+9V/43bjDfgu/33oDeBgAAAA==",
+  "base64",
+);
 function request() {
-  return new Request("https://app.example.test/api/avatar", { method: "POST", headers: { "Content-Type": "image/webp" }, body: "synthetic" });
+  return new Request("https://app.example.test/api/avatar", { method: "POST", headers: { "Content-Type": "image/webp" }, body: new Uint8Array(inputImage) });
 }
 beforeEach(() => {
   state.avatar = "verified-member/old.webp";

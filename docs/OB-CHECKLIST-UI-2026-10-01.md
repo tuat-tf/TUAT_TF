@@ -20,3 +20,7 @@
 - 本番への試験書込みなし。ローカルfixtureは `.contingency/ob-entry-ui`、`build-ob-entry-ui.mjs`、`verify-ob-entry-ui.cjs`。Chrome/WebKitの画像も目視確認済み。Windows WebKitは操作・配置検証用であり、iPhone/Android実機は未確認。
 
 修正と検証記録をmasterへ1回pushし、両Vercel公式チェックと公開SHAを確認する。反映後の完了記録はローカルに保持し、文書だけの追加pushは行わない。
+
+## 本番反映完了
+
+`309baa4c8a7fe90efa534c573e9c41746ea30c81` をmasterへ1回push。Vercel – tuat-tf / tuat-tf-pc-previewの公式チェックはいずれもsuccess、公開 `/api/version` は同じSHAだった。実部員のデータへの試験書込み、DB/GAS/PC jobsの変更なし。この完了追記とAGENTSの要約だけをローカルに保持し、文書のみの追加pushはしない。

@@ -2,7 +2,9 @@
 
 陸上競技部向けの練習記録・予定・出欠・大会結果・ノート共有アプリ。Next.js 16 / React 19 / Supabase / Tailwind CSS v4 を使用する。
 
-本番は [tuat-tf.vercel.app](https://tuat-tf.vercel.app)。アプリはVercel、認証はクラウドSupabase、通常のデータは所有者PCのWSL内Supabase、画像は非公開R2。PC停止時はクラウドの予備データへ切り替え、復帰時に変更を書き戻す。全面移行を接続先の差し替えだけで行ってはいけない。
+本番はCloudflareの公開入口から所有者PCへ接続し、アプリ・DB・認証・非公開画像をPC内で運用する。PC外には暗号化バックアップを保存する。旧クラウドへの業務データの切替・書戻しは再開しない。公開入口と稼働状態は [PC本番運用](ops/laptop/PC-PRODUCTION-HANDOFF.md) の最新注記を優先する。
+
+検証版・未公開版を含む開発基準は `codex/unified-development-20261020` に集約した。所有者PCの作業場所は `D:\TUAT_TF\.worktrees\unified-development-20261020`。取り込み元・採否・検証と公開保留の範囲は [一本化記録](docs/UNIFIED-DEVELOPMENT-2026-10-20.md) に記載する。元の作業コピーは履歴保全用であり、この統合版を今後の変更の土台にする。
 
 開発ルールと完了条件は [AGENTS.md](AGENTS.md)、運用は [PC本番運用](ops/laptop/PC-PRODUCTION-HANDOFF.md)、文書全体は [文書案内](docs/README.md) を参照する。
 
@@ -37,11 +39,11 @@ GoogleログインにはAuthプロバイダーとコールバック設定が必�
 
 検証前に `npm run check:environment` を実行する。package.jsonが新しくても、実行中のNode.jsや既存node_modulesが古い場合がある。診断は自動インストールや本番への通信を行わない。運用の実行スクリプトをテスト代わりに起動しない。
 
-所有者PCでの本番設定ビルドは `node ops/laptop/build-production-local.mjs`。非公開設定が必要なので、他のPCで同名フォルダを作って代用しない。
+本番のrelease作成・起動は [PC hostの手順](ops/pc-host/README.md) と最新の運用記録に従う。古いビルドスクリプトや同名フォルダを、本番と同じ構成だと判断して起動しない。
 
 ## 本番反映
 
-既存のVercelプロジェクト `tuat-tf` はmasterの更新でデプロイされる。検証後にmasterへ統合・pushし、対象SHAのProductionがREADYになったことと、本番 `/api/version` がそのSHAを返すことを確認する。Previewの成功だけでは本番反映完了ではない。東京リージョン `hnd1` を維持する。
+全体品質改善の公開保留を維持する。公開時は [完了の定義](docs/DEVELOPMENT-RULES.md#完了の定義) に従い、最新masterへ統合してbuild・pushし、PC releaseと公開 `/api/version` の対象SHA一致まで確認する。Vercelも更新する場合は同じSHAのProduction READYを確認する。Vercelの設定変更には別途具体的な承認が必要。東京リージョン `hnd1` を維持する。
 
 一般Previewへ本番のDB/管理キーを複製しない。デプロイ・DB・環境変数の同時変更を複数担当で行わない。
 

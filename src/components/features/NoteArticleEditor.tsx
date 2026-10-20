@@ -97,9 +97,10 @@ export function NoteArticleEditor({
   ]);
   const [initialDraft] = useState(draft);
   useFormDraft({
-    dirty: draft !== initialDraft || removed.length > 0 || pending.length > 0 || savedId !== article?.id,
+    dirty: unconfirmed || draft !== initialDraft || removed.length > 0 || pending.length > 0 || savedId !== article?.id,
     busy: saving || preparing,
     onSave: submit,
+    intent: unconfirmed ? "check" : undefined,
   });
 
   const previews = usePreviews(pending);
@@ -387,18 +388,16 @@ export function NoteArticleEditor({
           />
         </label>
         {!pollEnabled && (
-          <button data-ui-action
-            type="button"
+          <Button variant="outline"
             disabled={saving}
             onClick={() => {
               setPollEnabled(true);
               if (!keptOptions.length && !newOptions.length) setNewOptions(["", ""]);
             }}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-separator bg-card px-3.5 text-[14px] font-semibold active:bg-bg"
           >
             <BarChart3 size={18} className="text-accent" />
             投票を追加
-          </button>
+          </Button>
         )}
       </div>
       <p className="text-caption">
@@ -407,19 +406,17 @@ export function NoteArticleEditor({
       </p>
 
       {pollEnabled && (
-        <section className="space-y-3 rounded-card border border-separator bg-bg p-3">
-          <div className="flex items-center justify-between">
+        <section data-ui-section className="space-y-3 rounded-card border border-separator bg-card p-3">
+          <div className="flex items-center justify-between gap-2">
             <p className="section-label">投票</p>
-            <button data-ui-action data-ui-tone="danger"
-              type="button"
+            <Button variant="ghost" size="sm" data-ui-tone="danger"
               disabled={saving}
               onClick={() =>
                 savedOptions.length ? setConfirmRemovePoll(true) : setPollEnabled(false)
               }
-              className="text-[13px] font-semibold text-danger pressable"
             >
               投票をやめる
-            </button>
+            </Button>
           </div>
 
           {keptOptions.map((option) => (
@@ -448,6 +445,7 @@ export function NoteArticleEditor({
           {newOptions.map((option, index) => (
             <div key={index} className="flex items-center gap-2">
               <Input
+                aria-label={`選択肢${keptOptions.length + index + 1}`}
                 value={option}
                 maxLength={80}
                 placeholder={`選択肢${keptOptions.length + index + 1}`}
@@ -458,31 +456,27 @@ export function NoteArticleEditor({
                   )
                 }
               />
-              <button data-ui-action="icon"
-                type="button"
-                aria-label="選択肢を削除"
+              <Button variant="ghost" size="icon"
+                aria-label={`選択肢${keptOptions.length + index + 1}を削除`}
                 disabled={saving}
                 onClick={() =>
                   setNewOptions((old) => old.filter((_, i) => i !== index))
                 }
-                className="grid h-10 w-10 shrink-0 place-items-center text-muted"
               >
                 <X size={18} />
-              </button>
+              </Button>
             </div>
           ))}
 
-          <button data-ui-action
-            type="button"
+          <Button variant="ghost" size="sm"
             disabled={saving}
             onClick={() => setNewOptions((old) => [...old, ""])}
-            className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent pressable"
           >
             <Plus size={15} />
             選択肢を追加
-          </button>
+          </Button>
 
-          <div className="space-y-1.5">
+          <div className="divide-y divide-separator/70 overflow-hidden rounded-xl border border-separator">
             <Toggle
               variant="row"
               label="複数投票"

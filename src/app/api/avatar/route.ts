@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
+import { uploadImageDecoder } from "@/lib/upload-image";
 import { createClient } from "@/lib/supabase/server";
 import { loginAccessResponse } from "@/lib/supabase/login-access";
 import { ImageUploadError, logImageFailure, readImageUpload, uploadImage } from "@/lib/image-storage";
@@ -67,7 +67,9 @@ export async function POST(request: Request) {
     const profile = await currentAvatar(supabase,user.id);
     if (!profile) return NextResponse.json({ error: "プロフィールが見つかりません" }, { status: 404, headers: NO_STORE });
     const input = await readImageUpload(request, MAX_UPLOAD_BYTES);
-    const output = await sharp(input, { limitInputPixels: AVATAR_MAX_PIXELS })
+    const image = uploadImageDecoder(input, ["jpeg", "webp"], AVATAR_MAX_PIXELS);
+    if (!image) return NextResponse.json({ error: "対応していない画像形式です" }, { status: 415, headers: NO_STORE });
+    const output = await image
         .resize(AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE, { fit: "cover" })
         .webp({ quality: 82 }).toBuffer()
         .catch(() => { throw new ImageUploadError(400, "画像を読み込めませんでした"); });

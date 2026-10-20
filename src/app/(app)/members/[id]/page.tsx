@@ -14,6 +14,7 @@ import { ResultsList } from "@/components/features/ResultsList";
 import { PbManager } from "@/components/features/PbManager";
 import type { CompetitionEvent } from "@/lib/competition-goals";
 import { TrainingChart } from "@/components/features/TrainingChart";
+import { trainingReviewPreferenceKey } from "@/lib/training-review-display";
 import { MemberSkeleton, TrainingChartSkeleton } from "@/components/ui/page-skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NoteList } from "@/components/features/NotesView";
@@ -165,7 +166,7 @@ async function MemberDetails({ profile, viewer }: { profile: Profile; viewer: Pr
   return (
     <>
         {profile.blocks.includes("middle_long") && (
-          <TrainingChart records={records} showIntensitySummary />
+          <TrainingChart records={records} recordFields={profile.record_fields} showIntensitySummary viewerId={viewer.id} initialShowAllFields={cookieStore.get(trainingReviewPreferenceKey(viewer.id))?.value === "1"} />
         )}
 
         {(isSelf || notes.length > 0) && (

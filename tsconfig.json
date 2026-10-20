@@ -41,6 +41,7 @@
   "exclude": [
     "node_modules",
     ".worktrees",
+    "**/.contingency/**",
     "supabase",
     "tuat-tf-next"
   ]

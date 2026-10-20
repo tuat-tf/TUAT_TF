@@ -1,5 +1,6 @@
-param([switch]$Execute, [switch]$Api, [string]$NodePath = 'C:\Users\rainb\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe')
+param([switch]$Execute, [switch]$Api, [switch]$Integration, [string]$NodePath = 'C:\Users\rainb\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe')
 $ErrorActionPreference = 'Stop'
+if ($Api -and $Integration) { throw 'Choose the API or integration acceptance suite, not both' }
 $candidateRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 $image = 'supabase/postgres:17.6.1.136'
 $imageId = 'sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00'
@@ -16,7 +17,7 @@ $authName = "$name-auth-migrate"
 $storageName = "$name-storage-source"
 $cachePath = Join-Path $PSScriptRoot ".cache/$generation"
 $attempted = [ordered]@{ pg = $false; auth = $false; storage = $false; api = $false; volume = $false; network = $false }
-$report = [ordered]@{ version = 1; mode = $(if ($Api) { 'api' } else { 'sql' }); owner = $owner; generation = $generation; image = $image; imageId = $imageId; authImage = $authImage; authImageId = $authImageId; storageImage = $storageImage; storageImageId = $storageImageId; network = 'internal'; publishedPorts = @(); productionAccess = $false; providerCalls = $false; securityMigrationsSkipped = @(); migrations = @(); tests = @(); cleanup = $false }
+$report = [ordered]@{ version = 1; mode = $(if ($Api) { 'api' } elseif ($Integration) { 'integration' } else { 'sql' }); owner = $owner; generation = $generation; image = $image; imageId = $imageId; authImage = $authImage; authImageId = $authImageId; storageImage = $storageImage; storageImageId = $storageImageId; network = 'internal'; publishedPorts = @(); productionAccess = $false; providerCalls = $false; securityMigrationsSkipped = @(); migrations = @(); tests = @(); cleanup = $false }
 
 function Docker([Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments) {
   $text = & wsl.exe -d Ubuntu -- docker @Arguments 2>&1
@@ -119,9 +120,18 @@ SELECT set_config('storage.install_roles','false',false),
   Sql 'tuat_rls_review' "CREATE EXTENSION IF NOT EXISTS pg_cron; SELECT cron.schedule('sheet-sync-hourly','0 * * * *','SELECT 1'); SELECT cron.schedule('schedule-import-hourly','5 * * * *','SELECT 1');" | Out-Null
   $migrationFiles = @(Get-ChildItem (Join-Path $candidateRoot 'supabase/migrations') -File -Filter '*.sql' | Sort-Object Name)
   $expectedMigrations = @($migrationFiles | ForEach-Object { [ordered]@{ name = $_.Name; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() } })
-  $applySql = @('\set ON_ERROR_STOP on', 'SET client_min_messages = warning;')
+  $applySql = @('\set ON_ERROR_STOP on', 'SET client_min_messages = warning;',
+    "SELECT set_config('request.jwt.claims','{}',false),set_config('request.headers','{}',false);")
   foreach ($migration in $expectedMigrations) {
     if ($migration.name -notmatch '^\d+_[A-Za-z0-9_-]+\.sql$') { throw 'Unexpected candidate migration filename' }
+    if ($migration.name -eq '20261013030000_competition_relay_results.sql') {
+      $applySql += @('\echo FIXTURE:activated-ob-for-relay', '\ir /review/db-review/relay-migration-fixture.sql')
+    }
+    if ($Integration -and $migration.name -match '_configured_role_capabilities\.sql$') {
+      # The fixture installs the capability migration inside BEGIN/ROLLBACK.
+      # Run before its normal application to verify first-copy behavior too.
+      $applySql += @('\echo CHECK:capabilities-initial-upgrade', '\ir /review/supabase/tests/configured_role_capabilities.sql', '\echo CHECKED:capabilities-initial-upgrade')
+    }
     $applySql += @("\echo APPLY:$($migration.name)", 'BEGIN;', "\ir /review/supabase/migrations/$($migration.name)", 'COMMIT;', "\echo MIGRATED:$($migration.name)")
   }
   [IO.File]::WriteAllText((Join-Path $cachePath 'apply.sql'), ($applySql -join "`n"), [Text.UTF8Encoding]::new($false))
@@ -140,6 +150,11 @@ SELECT set_config('storage.install_roles','false',false),
     throw (($applyOutput | Select-Object -Last 12 | Out-String).Trim())
   }
   if ($report.migrations.Count -ne $expectedMigrations.Count) { throw 'Candidate migration completion count mismatch' }
+  $report.relayMigrationFixture = [ordered]@{ syntheticOnly = $true; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'relay-migration-fixture.sql') -Algorithm SHA256).Hash.ToLowerInvariant() }
+  if ($Integration) {
+    if ($applyText -notmatch '(?m)^CHECKED:capabilities-initial-upgrade\s*$') { throw 'Initial capability upgrade acceptance did not complete' }
+    $report.tests += [ordered]@{ name = 'capabilities-initial-upgrade'; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot 'supabase/tests/configured_role_capabilities.sql') -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
+  }
   foreach ($migration in $expectedMigrations) {
     if ((Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/migrations/$($migration.name)") -Algorithm SHA256).Hash.ToLowerInvariant() -ne $migration.sha256) { throw 'Candidate migration changed during isolated review' }
   }
@@ -176,6 +191,26 @@ SELECT set_config('storage.install_roles','false',false),
   $report.imageRaces = ($raceOutput | Out-String).Trim() | ConvertFrom-Json
   if ($report.imageRaces.passed -ne 4 -or !$report.imageRaces.realSql -or !$report.imageRaces.syntheticOnly -or $report.imageRaces.r2Requests -ne 0) { throw 'Real synthetic race evidence incomplete' }
   $report.imageRaceSources = [ordered]@{ driverSha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot 'ops/pc-image-cleanup/review-races.mjs') -Algorithm SHA256).Hash.ToLowerInvariant(); adapterSha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'image-races.mjs') -Algorithm SHA256).Hash.ToLowerInvariant() }
+  if ($Integration) {
+    # Each existing fixture rolls back; the final empty-state check remains mandatory.
+    foreach ($test in @('configured_role_capabilities.sql', 'configured_role_comment_operations.sql', 'app-only-comments.sql')) {
+      $report.stage = "test:$test"
+      SqlFile 'tuat_rls_review' "/review/supabase/tests/$test" | Out-Null
+      $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$test") -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
+    }
+    foreach ($test in @('integration-meets.sql', 'atomic-save-backup.sql')) {
+      $report.stage = "test:$test"
+      $output = SqlFile 'tuat_rls_review' "/review/db-review/$test"
+      if ($output -notmatch 'PASS:') { throw 'Integration SQL test did not produce its completion evidence' }
+      $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $test) -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
+    }
+    $report.meetFixtureSources = @('meet-fixture.sql', 'integration-meets.sql') | ForEach-Object {
+      [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
+    }
+    $report.meetTestSources = @('meet-appearance-division.sql', 'meet-division-mirror.sql', 'competition-relay-results.sql', 'ob-results-operator-permissions.sql') | ForEach-Object {
+      [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$_") -Algorithm SHA256).Hash.ToLowerInvariant() }
+    }
+  }
   }
   $report.final = (Sql 'tuat_rls_review' "SELECT json_build_object('auth_users',(SELECT count(*) FROM auth.users),'profiles', (SELECT count(*) FROM public.profiles), 'allowlist',(SELECT count(*) FROM public.login_email_allowlist),'confirmed_images',(SELECT count(*) FROM public.confirmed_image_retirements),'legacy_image_queue',(SELECT count(*) FROM public.note_image_cleanup),'rls_tables',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relrowsecurity),'cron_enabled',current_setting('cron.launch_active_jobs'))") | ConvertFrom-Json
   if ($report.final.auth_users -ne 0 -or $report.final.profiles -ne 0 -or $report.final.allowlist -ne 0 -or $report.final.confirmed_images -ne 0 -or $report.final.legacy_image_queue -ne 0 -or $report.final.cron_enabled -ne 'off') { throw 'Synthetic fixture rollback/cleanup or disabled cron failed' }
@@ -202,7 +237,7 @@ SELECT set_config('storage.install_roles','false',false),
     $report.cleanup = $true
   } catch { $report.cleanup = $false; $report.cleanupFailure = $_.Exception.Message }
   $report.completedAt = [datetime]::UtcNow.ToString('o')
-  $resultName = if ($Api) { 'api-result.json' } else { 'result.json' }
+  $resultName = if ($Api) { 'api-result.json' } elseif ($Integration) { 'integration-result.json' } else { 'result.json' }
   $report | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $PSScriptRoot $resultName) -Encoding utf8
 }
 [ordered]@{ success = $report.success; mode = $report.mode; stage = $report.stage; migrations = $report.migrations.Count; tests = $report.tests.Count; apiChecks = $report.apiProof.checks.Count; cleanup = $report.cleanup; failure = $report.failure } | ConvertTo-Json -Depth 4

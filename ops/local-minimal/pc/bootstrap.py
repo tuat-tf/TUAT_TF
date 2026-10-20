@@ -332,6 +332,75 @@ def wait_jobs_ready(config, pause=time.sleep, clock=time.monotonic):
         pause(0.25)
 
 
+def recover_stopped_backup_owner(config):
+    """Preserve a dead host's admission lock, never replay backup attempts."""
+    host = json.loads(private_file(config['hostConfigPath']))
+    backup = json.loads(private_file(host['backupConfigFile']))
+    root = Path(MOUNT)
+    need(backup.get('stateDirectory') == str(root/'backup-state') and
+         backup.get('instanceId') == config['filesystemUuid'], 'backup-recovery-target')
+    path = root/'backup-state/backup-owner.lock'
+    if not path.exists() and not path.is_symlink():
+        return
+    state = Path(host['stateDirectory'])
+    need(state.parent == root and re.fullmatch('host-state-[a-f0-9]{7,40}', state.name), 'backup-recovery-state')
+    lifetime = state/'lifetime.lock'
+    private_file(str(lifetime), 4096)
+    descriptor = os.open(lifetime, os.O_RDWR | os.O_NOFOLLOW)
+    try:
+        opened = os.fstat(descriptor)
+        need(stat.S_ISREG(opened.st_mode) and opened.st_uid == 0 and opened.st_nlink == 1 and
+             stat.S_IMODE(opened.st_mode) == 0o600 and
+             (opened.st_dev, opened.st_ino) == (lifetime.lstat().st_dev, lifetime.lstat().st_ino), 'backup-recovery-lifetime')
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        data = private_file(str(path), 4096)
+        before = path.lstat()
+        owner = json.loads(data)
+        need(type(owner.get('pid')) is int and 1 <= owner['pid'] <= 0x7fffffff and
+             owner.get('instanceId') == backup['instanceId'] and
+             re.fullmatch('[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', owner.get('generation', '')) and
+             isinstance(owner.get('startedAt'), str), 'backup-recovery-owner')
+        previous = json.loads(private_file(str(root/'backup-state/backup-lifecycle.json')))
+        need(all(previous.get(field) == owner[field] for field in ('instanceId', 'generation', 'startedAt')),
+             'backup-recovery-generation')
+        def dead():
+            try:
+                os.kill(owner['pid'], 0)
+            except ProcessLookupError:
+                return
+            raise Held('backup-recovery-owner-live')
+        dead()
+        archive = root/'private/recovered-backup-locks'
+        archive.mkdir(mode=0o700, exist_ok=True)
+        info = archive.lstat()
+        need(not archive.is_symlink() and stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and
+             stat.S_IMODE(info.st_mode) == 0o700, 'backup-recovery-archive')
+        target = archive/(hashlib.sha256(data).hexdigest()+'.json')
+        if target.exists():
+            need(private_file(str(target), 4096) == data, 'backup-recovery-archive-changed')
+        else:
+            with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), 'wb') as output:
+                output.write(data)
+                output.flush()
+                os.fsync(output.fileno())
+        need(private_file(str(target), 4096) == data, 'backup-recovery-archive-unverified')
+        dead()
+        after = path.lstat()
+        need((before.st_dev, before.st_ino, before.st_mtime_ns, before.st_ctime_ns) ==
+             (after.st_dev, after.st_ino, after.st_mtime_ns, after.st_ctime_ns) and
+             private_file(str(path), 4096) == data, 'backup-recovery-owner-changed')
+        path.unlink()
+        # Preserve the archive and the unlink across an immediate power loss.
+        for directory in (archive, path.parent):
+            fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+    finally:
+        os.close(descriptor)
+
+
 def start_installed(config, policy, command=run):
     need(policy == {'version': 1, 'enabled': True, 'automaticBackups': False} or
          policy == {'version': 1, 'enabled': True, 'automaticBackups': True}, 'boot-policy')
@@ -379,6 +448,7 @@ def start_installed(config, policy, command=run):
     wait_backup_idle(config, command)
     app = service(UNITS[2], command)
     if app['ActiveState'] == 'inactive':
+        recover_stopped_backup_owner(config)
         command(['/usr/bin/systemctl', 'start', UNITS[2]], timeout=120)
     need(service(UNITS[2], command)['ActiveState'] == 'active', 'app-start-not-observed')
     host = json.loads(private_file(config['hostConfigPath']))

@@ -83,3 +83,9 @@ a29f1caをmasterへ1回push。本番Vercelチェックsuccessと公開/api/versi
 ユーザー訂正により、お知らせ上部の固定リンクを削除。設定リンクを含む通常の告知をsystem_onlyで登録する。既存お知らせにはdefault false、追加の制限RLSでシステム限定告知を一般部員から除外。既存notices/profilesのfailover loggingと全列mirrorを利用、表の追加なし。
 
 全515テスト＋送信/返信削除停止2テスト、eslint、Next16.3.6 TypeScript付きbuild成功。PC/クラウドの連携切替・設定保全・取込拒否・一般部員拒否と告知RLSをrollback検証。実React UIでoff選択→シート欄非表示→保存失敗→再試行→off送信を確認。実ユーザーの設定は変更しない。
+
+本番反映: 3f0f1b21f910a79815ee074a5f2973f8b23544eeを1回pushし両Vercel success、公開/PC同一SHA確認。両DBへ20260930000000/20260930010000適用。PC public全体backupは /opt/tuat-tf-supabase/backups/sheet-off-20260930/pc-public-before.dump、クラウド関連表backupはアクセス制限付き.contingency/backend/sheet-off-cloud-data-before-20260930.json。クラウド適用SQLはコメント/空白正規化の長さ4051・hash1963538248でローカルmigrationと一致。PCの適用後NOTIFYだけ構文エラーだったため、commit完了を確認し正しいreload schemaを再実行済み。
+
+PC jobsは .contingency/pc-jobs-3f0f1b2へ切替、既存activateAt/journal保持。dry-run初回シート1件タイムアウト、記録だけ再試行でfailed0（insert13/update66/push1の予測）、大会dry-run成功。11:20大会定期処理success。以前の記録ジョブfailed journalは変更していない。
+
+通常の告知ID30260930-0000-4000-8000-000000000001「スプシ連携・入力方法の設定をお願いします」をsystem_only=true、システムロール宛通知1件で掲載。固定上部リンクは撤去。予備同期成功、両DBで告知/リンク/公開範囲を照合。全員のsheet_transitionが事前backupと一致し本人の入力設定も維持。GAS変更なし。完了記録だけはローカルに保持して追加pushなし。

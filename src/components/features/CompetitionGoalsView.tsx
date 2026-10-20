@@ -1,5 +1,4 @@
 "use client";
-import { FloatingActionPosition, floatingActionButtonClass } from "@/components/ui/floating-action";
 
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
@@ -57,6 +56,7 @@ export function CompetitionGoalsView({
 
   const ordered = sortCompetitionEvents(events);
   const ownGoals = goals.filter((g) => g.user_id === userId);
+  const availableEventCount = ordered.filter((event) => !ownGoals.some((goal) => goal.event === event.name)).length;
   const bestByKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const row of personalBests) {
@@ -154,24 +154,10 @@ export function CompetitionGoalsView({
         personalBests={bestByKey}
         onEdit={openEditor}
         onDelete={remove}
+        onAdd={() => openEditor()}
+        canAdd={availableEventCount > 0}
         busy={busy}
       />
-
-<FloatingActionPosition>      <button
-        data-ui-action="icon"
-        type="button"
-        aria-label="目標を追加"
-        title={
-          ownGoals.length >= events.length
-            ? "すべての種目に目標を設定済みです"
-            : "目標を追加"
-        }
-        disabled={busy || ownGoals.length >= events.length}
-        onClick={() => openEditor()}
-        className={`${floatingActionButtonClass} disabled:opacity-40`}
-      >
-        <Plus size={26} />
-      </button></FloatingActionPosition>
 
       <FormModal
         open={editorOpen}
@@ -179,7 +165,7 @@ export function CompetitionGoalsView({
         onOpenChange={(open) => {
           if (!open) requestClose();
         }}
-        title={editingId ? "目標を編集" : "目標を追加"}
+        title={editingId ? "目標を編集" : "大会の目標"}
       >
         <div className="space-y-4 pb-4">
           <p className="text-caption">
@@ -253,7 +239,7 @@ export function CompetitionGoalsView({
           {!editingId && (
             <Button
               variant="secondary"
-              disabled={busy || drafts.length >= events.length - ownGoals.length}
+              disabled={busy || drafts.length >= availableEventCount}
               onClick={() => setDrafts((old) => [...old, { event: "", target: "" }])}
             >
               <Plus size={16} />
@@ -267,7 +253,7 @@ export function CompetitionGoalsView({
           )}
           <FormModalFooter>
             <Button size="lg" disabled={busy || !events.length} onClick={() => void save()}>
-              {busy ? "保存中…" : editingId ? "変更を保存する" : "目標を追加する"}
+              {busy ? "保存中…" : editingId ? "更新する" : "作成する"}
             </Button>
           </FormModalFooter>
         </div>

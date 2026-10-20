@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShareButton } from "@/components/common/ShareButton";
+import { useShareActions } from "@/components/common/ShareButton";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { NoteEditor } from "@/components/features/NoteEditor";
 import { FormModal } from "@/components/ui/form-modal";
@@ -28,6 +28,12 @@ export function NoteDetailActions({
   const router = useRouter();
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
+  const canShare = note.status === "published";
+  const { copyLink, shareExternally } = useShareActions({
+    title: note.title,
+    text: `${note.title}｜ノート`,
+    path: `/notes/${note.id}`,
+  });
 
   async function remove() {
     try {
@@ -48,20 +54,17 @@ export function NoteDetailActions({
 
   return (
     <>
-      {note.status === "published" && (
-        <ShareButton
-          title={note.title}
-          text={`${note.title}\uFF5C\u30ce\u30fc\u30c8`}
-          path={`/notes/${note.id}`}
-          label={"\u3053\u306e\u30ce\u30fc\u30c8\u3092\u5171\u6709\u3059\u308b"}
-        />
-      )}
-      {(canEdit || canDelete) && (
+      {(canShare || canEdit || canDelete) && (
         <ActionMenu
+          onShare={canShare ? copyLink : undefined}
+          shareLabel="リンクをコピー"
+          onShareExternally={canShare ? shareExternally : undefined}
           onEdit={canEdit ? () => setEditing(true) : undefined}
           onDelete={canDelete ? remove : undefined}
-        deleteTitle="フォルダを削除しますか？"
-        deleteDescription="フォルダ内のサブフォルダ・記事もすべて削除され、元に戻せません。"
+          triggerLabel="フォルダの操作メニュー"
+          className="h-11 w-11"
+          deleteTitle="フォルダを削除しますか？"
+          deleteDescription="フォルダ内のサブフォルダ・記事もすべて削除され、元に戻せません。"
         />
       )}
       {editing && (

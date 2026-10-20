@@ -1,3 +1,4 @@
+-- Apply the unpublished atomic saves after the current production migration chain.
 -- Keep the existing table RLS as the authority. No service-role/definer writes.
 -- Functions add no tables, so failover change logging remains on the existing tables.
 CREATE OR REPLACE FUNCTION public.save_note_folder(

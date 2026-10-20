@@ -28,3 +28,7 @@
 ## 本番反映時
 
 承認後、先行監査修正とまとめて1回のmaster pushにする。DBは既存データをローカル退避後、`20260928010000_ob_entry_access_history.sql` をPC・クラウド双方へ適用する。予備同期の進行中処理を完了させ、移行中に旧同期コードが新しいキューを消費しないよう一時停止してから、両DBと新しいcloud-mirror.mjs/cloud-mirror-ob.mjsを揃えて再開する。状態ファイルは削除しない。PC固定releaseにも更新コードを含める。対象SHAのProduction READYと公開先を確認する。
+
+## 2026-09-29更新
+
+オーナーの明示承認後、526cd18としてコメント削除と一括本番反映済み。DB・GAS・Push・PC固定release・公開Production READYを確認。詳細 `COMMENT-MODERATION-2026-09-29.md` の本番反映結果を参照。

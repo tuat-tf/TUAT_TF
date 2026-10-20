@@ -65,7 +65,7 @@ SELECT set_config('test.capability_old_roles',(SELECT md5(jsonb_agg(to_jsonb(r)-
 SELECT set_config('test.capability_assignments',(SELECT md5(coalesce(jsonb_agg(to_jsonb(pr) ORDER BY profile_id,role_id),'[]')::text) FROM public.profile_roles pr),true);
 SELECT set_config('test.capability_meets',(SELECT md5(jsonb_agg(to_jsonb(m) ORDER BY competition_id)::text) FROM public.competition_meets m),true);
 SELECT set_config('request.headers','{}',true);
-\ir ../migrations/20261013120000_configured_role_capabilities.sql
+\ir ../migrations/20261020010300_configured_role_capabilities.sql
 
 DO $$ BEGIN
   IF current_setting('test.capability_old_roles') IS DISTINCT FROM (SELECT md5(jsonb_agg(to_jsonb(r)-'can_moderate_comments'-'can_manage_ob_meet'-'editable_menu_blocks' ORDER BY r.id)::text) FROM public.roles r)
@@ -104,7 +104,7 @@ WHERE id IN ('a6101312-0000-4000-8100-000000000008','a6101312-0000-4000-8100-000
 UPDATE public.roles SET can_moderate_comments=false WHERE id='a6101312-0000-4000-8100-000000000001';
 UPDATE public.roles SET can_manage_ob_meet=false WHERE id='a6101312-0000-4000-8100-000000000002';
 UPDATE public.roles SET editable_menu_blocks='{}' WHERE id='a6101312-0000-4000-8100-000000000004';
-\ir ../migrations/20261013120000_configured_role_capabilities.sql
+\ir ../migrations/20261020010300_configured_role_capabilities.sql
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM public.roles WHERE id IN ('a6101312-0000-4000-8100-000000000001','a6101312-0000-4000-8100-000000000002','a6101312-0000-4000-8100-000000000004','a6101312-0000-4000-8100-000000000008','a6101312-0000-4000-8100-000000000009','a6101312-0000-4000-8100-000000000010')
    AND (can_moderate_comments OR can_manage_ob_meet OR cardinality(editable_menu_blocks)>0)) THEN

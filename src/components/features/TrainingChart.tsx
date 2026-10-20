@@ -16,11 +16,12 @@ import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { KeyValue } from "@/components/ui/key-value";
 import { SegmentedControl } from "@/components/ui/segmented";
-import { INTENSITY_ORDER, INTENSITY_LABELS, CONDITIONS } from "@/lib/constants";
-import { jstToday } from "@/lib/date";
+import { INTENSITY_ORDER, INTENSITY_LABELS } from "@/lib/constants";
 import { cn, formatKm, roundKm } from "@/lib/utils";
 import { displayedDistance, unclassifiedDistance } from "@/lib/record-distance";
-import type { PracticeRecord, Intensity } from "@/types";
+import { useBooleanPreference } from "@/hooks/use-boolean-preference";
+import { trainingReviewFields, trainingReviewPreferenceKey } from "@/lib/training-review-display";
+import type { PracticeRecord, Intensity, RecordFieldDef } from "@/types";
 
 type Period = "day" | "week" | "month";
 
@@ -47,13 +48,23 @@ function bucketStart(d: Date, period: Period): Date {
 export function TrainingChart({
   records,
   showIntensitySummary = false,
+  viewerId,
+  recordFields = [],
+  initialShowAllFields = false,
 }: {
   records: PracticeRecord[];
   showIntensitySummary?: boolean;
+  viewerId?: string;
+  recordFields?: RecordFieldDef[];
+  initialShowAllFields?: boolean;
 }) {
   const [period, setPeriod] = useState<Period>("week");
   const [selected, setSelected] = useState<number | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showAllFields, setShowAllFields] = useBooleanPreference(
+    initialShowAllFields,
+    viewerId ? trainingReviewPreferenceKey(viewerId) : undefined,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const buckets = useMemo<Bucket[]>(() => {
@@ -82,61 +93,19 @@ export function TrainingChart({
     return arr;
   }, [records, period]);
 
-  const periodSummary = useMemo(() => {
-    const today = new Date(jstToday() + "T00:00:00");
-    const currentStart = bucketStart(today, period);
-    const previousStart = period === "day"
-      ? subDays(currentStart, 1)
-      : period === "week"
-        ? subWeeks(currentStart, 1)
-        : subMonths(currentStart, 1);
-    const previousEnd = subDays(currentStart, 1);
-    const from = format(currentStart, "yyyy-MM-dd");
-    const through = format(today, "yyyy-MM-dd");
-    const previousFrom = format(previousStart, "yyyy-MM-dd");
-    const previousThrough = format(previousEnd, "yyyy-MM-dd");
-    const by: Record<Intensity, number> = { low: 0, mid: 0, high: 0, speed: 0 };
-    const trainingDates = new Set<string>();
-    let unclassified = 0;
-    let previousTotal = 0;
-    for (const record of records) {
-      const distances: Record<Intensity, number> = {
-        low: record.dist_low ?? 0,
-        mid: record.dist_mid ?? 0,
-        high: record.dist_high ?? 0,
-        speed: record.dist_speed ?? 0,
-      };
-      const recordTotal = displayedDistance(record);
-      if (record.recorded_date >= from && record.recorded_date <= through) {
-        INTENSITY_ORDER.forEach((intensity) => {
-          by[intensity] += distances[intensity];
-        });
-        unclassified += unclassifiedDistance(record);
-        if (recordTotal > 0) trainingDates.add(record.recorded_date);
-      } else if (
-        record.recorded_date >= previousFrom &&
-        record.recorded_date <= previousThrough
-      ) {
-        previousTotal += recordTotal;
-      }
-    }
-    const total = INTENSITY_ORDER.reduce((sum, intensity) => sum + by[intensity], unclassified);
-    return {
-      by,
-      unclassified,
-      total,
-      previousTotal,
-      trainingDays: trainingDates.size,
-      from,
-      through,
-    };
-  }, [period, records]);
-
   const max = Math.max(...buckets.map((b) => b.total), 1);
   // 期間切替直後は前の選択番号が範囲外になりうるので必ず範囲内へ収める
   const rawIndex = selected ?? buckets.length - 1;
   const selIndex = rawIndex >= 0 && rawIndex < buckets.length ? rawIndex : buckets.length - 1;
   const sel = buckets[selIndex];
+  const previousStart = period === "day"
+    ? subDays(sel.start, 1)
+    : period === "week" ? subWeeks(sel.start, 1) : subMonths(sel.start, 1);
+  const previousFrom = format(previousStart, "yyyy-MM-dd");
+  const previousThrough = format(subDays(sel.start, 1), "yyyy-MM-dd");
+  const previousTotal = records.reduce((sum, record) =>
+    record.recorded_date >= previousFrom && record.recorded_date <= previousThrough
+      ? sum + displayedDistance(record) : sum, 0);
 
   // 期間切替・初期表示で右端（最新）までスクロール
   useEffect(() => {
@@ -160,10 +129,9 @@ export function TrainingChart({
 
   return (
     <Card className="p-4 space-y-3">
-      {showIntensitySummary && <IntensitySummary summary={periodSummary} period={period} />}
-      <div className="flex items-center justify-between">
-        <p className="section-label">練習量の推移</p>
-        <div className="w-36">
+      <div data-training-periods className="flex items-center justify-between gap-3">
+        <p className="section-label">{showIntensitySummary ? "走行サマリー" : "練習量の推移"}</p>
+        <div className="w-36 shrink-0">
           <SegmentedControl
             items={[
               { key: "day", label: "日" },
@@ -267,86 +235,51 @@ export function TrainingChart({
         </div>
       </div>
 
-      {/* 選択した期間の内訳（枠の高さは固定） */}
-      {(() => {
-        const hasText = sel.records.some(
-          (r) => r.result_text || r.strength_text || r.memo || r.condition,
-        );
-        return (
-          <div className="rounded-xl bg-bg p-3">
-            <div className="flex items-baseline justify-between mb-1">
-              <p className="text-[12px] font-semibold">{bucketLabel(sel, true)}</p>
-              <p className="text-[13px] font-bold tabular-nums">
-                {sel.total}
-                <span className="text-caption ml-0.5">km</span>
-              </p>
-            </div>
+      {/* 内訳は0kmでも同じ行を保ち、期間切替で操作を動かさない。 */}
+      <div data-training-detail className="rounded-xl bg-bg p-3">
+        <IntensitySummary summary={sel} period={period} label={bucketLabel(sel, true)} previousTotal={previousTotal} />
 
-            {/* 内訳エリア（高さ固定で日ごとにガタつかない） */}
-            <div className="h-9 overflow-hidden">
-              {sel.total > 0 ? (
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  {INTENSITY_ORDER.map((k) =>
-                    sel.by[k] > 0 ? (
-                      <span key={k} className="flex items-center gap-1 text-[12px] text-muted2">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: INTENSITY_LABELS[k].color }} />
-                        {INTENSITY_LABELS[k].label} {formatKm(sel.by[k])}km
-                      </span>
-                    ) : null,
-                  )}
-                  {sel.unclassified > 0 && (
-                    <span className="flex items-center gap-1 text-[12px] text-muted2">
-                      <span className="h-2 w-2 rounded-full bg-muted/35" />
-                      その他 {formatDistance(sel.unclassified)}km
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <p className="text-caption">この期間は記録がありません</p>
-              )}
-            </div>
-
-            {hasText && (
-              <Disclosure
-                title="詳細"
-                open={showDetail}
-                onOpenChange={setShowDetail}
-                className="mt-1"
-              >
-                  <div className="space-y-2">
-                    {sel.records.map((r) => {
-                      const cond = r.condition ? CONDITIONS[r.condition] : null;
-                      return (
-                        <div key={r.id} className="text-[12px] space-y-0.5">
-                          {period !== "day" && (
-                            <p className="font-semibold flex items-center gap-1.5">
-                              {format(new Date(r.recorded_date + "T00:00:00"), "M/d(E)", { locale: ja })}
-                              {cond && (
-                                <span style={{ color: cond.color }}>
-                                  {cond.symbol} {cond.label}
-                                </span>
-                              )}
-                            </p>
-                          )}
-                          {period === "day" && cond && (
-                            <p className="font-semibold" style={{ color: cond.color }}>
-                              {cond.symbol} {cond.label}
-                            </p>
-                          )}
-                          <dl>
-                            <KeyValue label="結果" value={r.result_text} />
-                            <KeyValue label="補強" value={r.strength_text} />
-                            <KeyValue label="感想" value={r.memo} />
-                          </dl>
-                        </div>
-                      );
-                    })}
+        <div className="mt-3 space-y-1.5">
+          <p className="text-caption">練習内容の表示</p>
+          <SegmentedControl
+            items={[
+              { key: "specified", label: "指定項目のみ" },
+              { key: "all", label: "すべてを表示" },
+            ]}
+            value={showAllFields ? "all" : "specified"}
+            onChange={(key) => setShowAllFields(key === "all")}
+          />
+        </div>
+        <Disclosure
+          title="練習内容"
+          open={showDetail}
+          onOpenChange={setShowDetail}
+          className="mt-3"
+        >
+          {sel.records.length === 0 ? (
+            <p className="text-caption">この期間は記録がありません</p>
+          ) : (
+            <div className="space-y-2">
+              {sel.records.map((r) => {
+                const fields = trainingReviewFields(r, recordFields, showAllFields);
+                return (
+                  <div key={r.id} className="text-[12px] space-y-0.5">
+                    <p className="font-semibold flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                      <span>{format(new Date(r.recorded_date + "T00:00:00"), "M/d(E)", { locale: ja })}</span>
+                    </p>
+                    <dl>
+                      {fields.map((field) => <KeyValue key={field.key} label={field.label} value={field.value} className="[&>dt]:[overflow-wrap:anywhere]" collapsible />)}
+                    </dl>
+                    {fields.length === 0 && (
+                      <p className="text-caption">表示する内容はありません</p>
+                    )}
                   </div>
-              </Disclosure>
-            )}
-          </div>
-        );
-      })()}
+                );
+              })}
+            </div>
+          )}
+        </Disclosure>
+      </div>
     </Card>
   );
 }
@@ -356,112 +289,76 @@ function formatDistance(value: number): string {
 }
 
 function IntensitySummary({
-  summary, period,
+  summary, period, label, previousTotal,
 }: {
-  summary: {
-    by: Record<Intensity, number>;
-    unclassified: number;
-    total: number;
-    previousTotal: number;
-    trainingDays: number;
-    from: string;
-    through: string;
-  };
+  summary: Bucket;
   period: Period;
+  label: string;
+  previousTotal: number;
 }) {
-  const difference = summary.total - summary.previousTotal;
+  const difference = summary.total - previousTotal;
   const previousLabel = period === "day" ? "前日" : period === "week" ? "先週" : "先月";
-  const periodComparison = summary.previousTotal === 0
-    ? summary.total > 0
-      ? `${previousLabel}は記録なし`
-      : null
+  const periodComparison = previousTotal === 0
+    ? `${previousLabel}0km`
     : Math.abs(difference) < 0.05
       ? `${previousLabel}と同じ`
-      : `${previousLabel}より ${difference > 0 ? "+" : ""}${formatDistance(difference)}km`;
-  const dateRange = `${format(new Date(`${summary.from}T00:00:00`), "M/d")}–${format(
-    new Date(`${summary.through}T00:00:00`),
-    "M/d",
-  )}`;
+      : `${previousLabel}比 ${difference > 0 ? "+" : ""}${formatDistance(difference)}km`;
+  const trainingDays = new Set(summary.records.filter((record) => displayedDistance(record) > 0).map((record) => record.recorded_date)).size;
 
   return (
-    <div className="rounded-xl bg-bg p-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="section-label">走行サマリー</p>
-        <p className="text-micro tabular-nums">{dateRange}</p>
-      </div>
-
-      <div className="mt-2">
-        <p className="text-2xl font-bold leading-none tabular-nums">
+    <div data-training-summary>
+      <div className="flex h-6 items-baseline justify-between gap-3">
+        <p className="min-w-0 text-[12px] font-semibold">{label}</p>
+        <p className="shrink-0 text-xl font-bold leading-6 tabular-nums">
           {formatDistance(summary.total)}
           <span className="ml-1 text-caption">km</span>
         </p>
-        {summary.total > 0 || periodComparison ? (
-          <p className="mt-1.5 text-caption tabular-nums">
-            {periodComparison && (
-              <>
-                {periodComparison}
-                <span className="mx-1.5 text-muted" aria-hidden="true">
-                  ・
-                </span>
-              </>
-            )}
-            走行{summary.trainingDays}日
-          </p>
-        ) : (
-          <p className="mt-1.5 text-caption">この期間の走行記録はありません</p>
+      </div>
+      <p className="mt-1 flex h-[18px] items-center gap-2 text-caption leading-[18px] tabular-nums">
+        <span className="min-w-0 truncate" title={periodComparison}>{periodComparison}</span>
+        <span className="shrink-0">走行{trainingDays}日</span>
+      </p>
+
+      <div
+        className="mt-1 flex h-2 overflow-hidden rounded-full bg-separator/60"
+        role="img"
+        aria-label={summary.total > 0 ? "強度別の走行距離割合" : "走行距離は0kmです"}
+      >
+        {INTENSITY_ORDER.map((intensity) =>
+          summary.by[intensity] > 0 ? (
+            <div
+              key={intensity}
+              style={{
+                width: `${(summary.by[intensity] / summary.total) * 100}%`,
+                backgroundColor: INTENSITY_LABELS[intensity].color,
+              }}
+            />
+          ) : null,
+        )}
+        {summary.unclassified > 0 && (
+          <div aria-label={`その他 ${formatDistance(summary.unclassified)}km`} className="bg-muted/35" style={{ width: `${(summary.unclassified / summary.total) * 100}%` }} />
         )}
       </div>
-
-      {summary.total > 0 && (
-        <>
-          <div
-            className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-separator/60"
-            role="img"
-            aria-label="強度別の走行距離割合"
-          >
-            {INTENSITY_ORDER.map((intensity) =>
-              summary.by[intensity] > 0 ? (
-                <div
-                  key={intensity}
-                  style={{
-                    width: `${(summary.by[intensity] / summary.total) * 100}%`,
-                    backgroundColor: INTENSITY_LABELS[intensity].color,
-                  }}
-                />
-              ) : null,
-            )}
-            {summary.unclassified > 0 && (
-              <div aria-label={`その他 ${formatDistance(summary.unclassified)}km`} className="bg-muted/35" style={{ width: `${(summary.unclassified / summary.total) * 100}%` }} />
-            )}
-          </div>
-          <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
-            {INTENSITY_ORDER.map((intensity) => {
-              const value = summary.by[intensity];
-              const percent = Math.round((value / summary.total) * 100);
-              return (
-                <div key={intensity} className="flex min-w-0 items-center gap-1.5 text-[11px]">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: INTENSITY_LABELS[intensity].color }}
-                  />
-                  <span className="truncate text-muted2">{INTENSITY_LABELS[intensity].label}</span>
-                  <span className="ml-auto shrink-0 font-semibold tabular-nums">
-                    {percent}%
-                    <span className="ml-1 font-normal text-muted">{formatDistance(value)}km</span>
-                  </span>
-                </div>
-              );
-            })}
-            {summary.unclassified > 0 && (
-              <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-muted/35" />
-                <span className="truncate text-muted2">その他</span>
-                <span className="ml-auto shrink-0 font-semibold tabular-nums">{Math.round((summary.unclassified / summary.total) * 100)}%<span className="ml-1 font-normal text-muted">{formatDistance(summary.unclassified)}km</span></span>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+        {INTENSITY_ORDER.map((intensity) => {
+          const value = summary.by[intensity];
+          return (
+            <div key={intensity} className="flex min-w-0 items-center gap-1 text-[11px]">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: INTENSITY_LABELS[intensity].color }}
+              />
+              <span className="truncate text-muted2">{INTENSITY_LABELS[intensity].label}</span>
+              <span className="ml-auto shrink-0 tabular-nums text-muted2">{formatDistance(value)}km</span>
+            </div>
+          );
+        })}
+        <div className="flex min-w-0 items-center gap-1 text-[11px]">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-muted/35" />
+          <span className="truncate text-muted2">その他</span>
+          <span className="ml-auto shrink-0 tabular-nums text-muted2">{formatDistance(summary.unclassified)}km</span>
+        </div>
+      </div>
     </div>
   );
 }

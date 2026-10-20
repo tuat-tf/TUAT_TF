@@ -44,6 +44,12 @@ yarn-error.log*
 next-env.d.ts
 
 gas/sync-clasp/secret.js
+
+# local worktrees and private operational state
 /.r2-migration/
-/.contingency/
+**/.contingency/
 /.worktrees/
+
+# Python cache files
+**/__pycache__/
+*.py[cod]

@@ -23,27 +23,25 @@ export async function copyText(text: string) {
   if (!copied) throw new Error("Copy failed");
 }
 
-export function ShareButton({
+/** Existing share operations can also live inside a content's ActionMenu. */
+export function useShareActions({
   title,
   text,
   path,
-  label = "\u5171\u6709\u3059\u308b",
-  className,
+  onClose,
 }: {
   title: string;
   text?: string;
   path: string;
-  label?: string;
-  className?: string;
+  onClose?: () => void;
 }) {
   const { showToast } = useToast();
-  const [open, setOpen] = useState(false);
 
   async function copyLink() {
     const url = new URL(path, window.location.origin).toString();
     try {
       await copyText(url);
-      setOpen(false);
+      onClose?.();
       showToast("リンクをコピーしました", "success");
     } catch {
       showToast("リンクをコピーできませんでした");
@@ -54,7 +52,7 @@ export function ShareButton({
     const url = new URL(path, window.location.origin).toString();
 
     if (navigator.share) {
-      setOpen(false);
+      onClose?.();
       try {
         await navigator.share({
           title,
@@ -68,6 +66,25 @@ export function ShareButton({
 
     await copyLink();
   }
+
+  return { copyLink, shareExternally };
+}
+
+export function ShareButton({
+  title,
+  text,
+  path,
+  label = "\u5171\u6709\u3059\u308b",
+  className,
+}: {
+  title: string;
+  text?: string;
+  path: string;
+  label?: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const { copyLink, shareExternally } = useShareActions({ title, text, path, onClose: () => setOpen(false) });
 
   const trigger = (
       <button

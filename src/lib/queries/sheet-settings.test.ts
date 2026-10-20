@@ -23,6 +23,7 @@ function role(overrides: Partial<AppRole> = {}): AppRole {
     id: "role", name: "担当", color: "blue", category: null, is_everyone: false,
     is_system: false, sort_order: 0, created_at: "2026-10-15T00:00:00Z",
     can_manage_system: false, can_manage_members: false, can_create_notice: false,
+    can_moderate_comments: false, can_manage_ob_meet: false, editable_menu_blocks: [],
     can_create_menu: false, can_create_schedule: false, can_decide_practice: false,
     ...overrides,
   };

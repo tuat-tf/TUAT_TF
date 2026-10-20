@@ -15,3 +15,7 @@
 - ローカルfixture/build/testは `.contingency/reaction-ui`、`build-reaction-ui.mjs`、`verify-reaction-ui.cjs`。Chromeの画面画像でも確認。iPhone/Android実機は未確認。
 
 検証後に修正とこの記録をまとめてmasterへ1回pushし、両Vercel公式チェックと公開SHAを確認する。反映後の完了記録は手元に保持し、文書だけの追加pushはしない。
+
+## 本番反映結果
+
+283719e85d9200add677cee4a55ba6ef2342680e をmasterへ1回push。両Vercel公式チェックsuccess、公開 /api/version のSHA一致を確認。この追記とAGENTS.mdの完了記録はローカルのみ保持し、追加pushは行わない。

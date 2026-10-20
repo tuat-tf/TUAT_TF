@@ -71,3 +71,12 @@
 - タブ48px・field44px・出欠44px、作成者行、閉じたお知らせ専用構造、投稿本文28px行/反応48pxを予約。ホームの走行2カード・ノート・今後の予定も本文の構成へ修正。
 - マイページは即時のプロフィール骨格を先に返し、プロフィール取得後は本文と同じ所属/管理行数を使用。部員詳細の初期骨格に所属未確定のグラフを決め打ちせず、既存のプロフィール確定後fallbackを使用。可変の本文長/件数/プロフィール折返し・空グラフと5番目の強度等は取得前に同一にはできない。
 - 最終差分でNode24.19/直接依存37件の環境検査・型検査・対象eslint・全Vitest177ファイル1653テスト・差分空白検査が成功。独立担当のグラフ/一覧の読み取りレビューも反映。実機のサイズ測定は未実施。
+
+### 寸法修正版の反映完了
+
+- 修正commit39c525d6cf9f5881ac648c8592bb4d42cec65294をmasterへ1回push。GitHub公式deployment7135461332（Production – tuat-tf）success、新旧/api/versionの同一SHAを確認。
+- Linux隔離build・起動・38735files/28linksの成果物照合成功。即時SSR/プロフィール待機/非中長/管理4行/一般部員プレビュー/取得失敗のstreamを実Loadingと実Reactで合成確認（loading-stream-check.json）。
+- DB/Auth/REST/Tunnel個体とJobs履歴を保持して1回切替。新generation b5c8953b-28d2-4ee3-868e-68601224177aで統合backup、別DB復元検証、18022436bytesの暗号化R2保存/完全読戻しが成功。Jobs/15分timer再開、正式watch healthyを確認し、一時保全プロセスだけを終了した。
+- 再開直後のruntime --checkは前回同様に初回unverified-input-or-runtimeだったが、例外位置診断で再確認した結果valid=true・例外0。最終app/Jobs/timer/Tunnel active、同世代backupを照合。
+- 本番ブラウザでマイページのグラフ573.5px、主要タブの遷移・本文表示・status解消を確認。表示/閲覧のみで、実データの更新操作は行っていない。スマホ実機は未確認。
+- 反映後の終了追記は文書のみのためローカル保持。追加push/build/deployは行わない。

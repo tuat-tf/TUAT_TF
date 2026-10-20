@@ -47,6 +47,18 @@ const nextConfig: NextConfig = {
   // ②各画面のreact-queryセッションキャッシュ ③loading.tsxスケルトンで担保する。
   //
   // 同様に experimental.staleTimes も再導入しないこと（同日の教訓）。
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

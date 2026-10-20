@@ -28,3 +28,5 @@
 - 本人用の修正を専用worktree `D:\TUAT_TF\.worktrees\attendance-contact-20261013` / `codex/attendance-contact-20261013` に保持する。作業ブランチのpush、master統合、本番build/deploy、migration適用は行っていない。
 - 未確認: 320/390pxの実ブラウザ描画、実機/PWAのキーボード・タッチ、実認証→実DB保存、PC/予備DBのmigration dryRun/適用とRLS確認。本番移行時は対象表snapshot・履歴・dryRunを先に確認する。公開後はProduction READYと/api/versionのSHAを照合する。
 - 全体UI改善の公開保留を維持する。DB制約のmigrationが未適用の現行本番では、遅刻なしの連絡を保存できるようになったとは報告しない。
+
+ローカル実装コミット: 877b692（Codex署名あり）。push・本番反映なし。

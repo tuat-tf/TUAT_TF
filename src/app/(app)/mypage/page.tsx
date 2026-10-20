@@ -17,7 +17,8 @@ import { getUserRecords, getUserActivity } from "@/lib/queries";
 import { gradeShort } from "@/lib/constants";
 import { permissionsOf } from "@/lib/permissions";
 import { RECORD_SOURCE_COOKIE, recordSourceEnabled } from "@/lib/record-source-display";
-import type { PracticeRecord } from "@/types";
+import { trainingReviewPreferenceKey } from "@/lib/training-review-display";
+import type { PracticeRecord, RecordFieldDef } from "@/types";
 import { ActivitySkeleton, TrainingChartSkeleton } from "@/components/ui/page-skeletons";
 
 export default async function MyPage({
@@ -88,7 +89,7 @@ export default async function MyPage({
         {/* 練習量の推移（日/週/月・横スライド） */}
         {profile.blocks.includes("middle_long") && (
           <Suspense fallback={<TrainingChartSkeleton />}>
-            <MyTraining userId={userId} />
+            <MyTraining userId={userId} recordFields={profile.record_fields} initialShowAllFields={cookieStore.get(trainingReviewPreferenceKey(userId))?.value === "1"} />
           </Suspense>
         )}
 
@@ -164,9 +165,9 @@ export default async function MyPage({
 }
 
 /** グラフを表示する中長距離の部員だけ取得する。 */
-async function MyTraining({ userId }: { userId: string }) {
+async function MyTraining({ userId, recordFields, initialShowAllFields }: { userId: string; recordFields: RecordFieldDef[]; initialShowAllFields: boolean }) {
   const records = await getUserRecords(userId) as PracticeRecord[];
-  return <MyTrainingChartCached userId={userId} initialRecords={records} showIntensitySummary />;
+  return <MyTrainingChartCached userId={userId} initialRecords={records} recordFields={recordFields} showIntensitySummary initialShowAllFields={initialShowAllFields} />;
 }
 
 /** 自分の投稿一覧（記録＋つぶやき）。Suspense で遅延読み込み */

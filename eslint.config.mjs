@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "tuat-tf-next/**",
+    // 作業コピー・非公開の運用状態は現行コードの検査へ混ぜない。
+    ".worktrees/**",
+    "**/.contingency/**",
+    ".r2-migration/**",
     // Apps Script の公開エントリポイントとローカル専用secretはJS側から直接参照される。
     "gas/sync-clasp/Code.js",
     "gas/sync-clasp/secret.js",

@@ -42,3 +42,15 @@
 - `from_sheet` は最初の作成元を保持する。既にシートから作られた当日記録をアプリで手動編集しても、投稿一覧への掲載は翌日からになる。今回の修正で編集履歴の例外や新しいUIは追加しない。
 - `record_fields_snapshot` と `record_fields_version` はDBの新規記録トリガーがシート取り込みにも設定する。手動編集した証拠として使わず、掲載の例外判定にしない。
 - タイムライン/本人の投稿はDBで日付を絞ってからlimit/cursorを適用。他部員の取得は件数limitのない既存全件取得から掲載対象を絞り、非掲載記録のsocial取得を追加しない。本人の記録/グラフ用クエリは変更しない。
+
+## 本番反映・運用の完了
+
+- commit `6878ab3b0af78785b811b9673ded84e631a56ac0`（`fix(sync): preserve app post times and publish completed days`）を最新masterへfast-forwardし、1回だけ `master -> master` をpush。作業ブランチはpushしていない。無関係な既存変更は保全した。
+- 隔離した依存で `npm run build -- --webpack` に成功。上記の環境差・TypeScript・対象eslint・全Vitest・運用試験と合わせて確認した。
+- 01:03に公式GitHub deployment `6863802085` の `Production – tuat-tf` / `success` / commit一致と、公開 `/api/version` の同じSHAを確認。Vercel設定は変更していない。
+- 専用PC releaseのread-only事前確認では、初回にGoogle返信元の取得確認が1件失敗した。書き込み・送信・本番の再同期は行わず失敗の要約を保全。読み取りだけの再確認は52人すべて完了、失敗0、新規0・更新予定5・送信予定0だった。0時以外の実同期は実行していない。
+- 専用PC releaseを同じ修正版へ切り替え、既存の `TUAT PC Jobs` を再開。既存journalの失敗2件と処理済み0時枠を保持し、同じ枠の再送がないことを確認。次の記録同期は10月7日00:00 JSTに有効。
+- 01:05:55の確認でPC runner/DB中継/バックアップが正常、大会処理は01:05:08に成功、予備同期は01:05:26に成功。PCの修復8件は元時刻を保持。予備DBに残る6件も一致し、古い2件は既定の3日保持処理で予備側だけから除外された。PCの記録は失われていない。今回の予備同期保留マーカーは解除済み。
+- 稼働releaseは `D:\TUAT_TF\.worktrees\sheet-publication-20261006\.contingency\pc-jobs-publication-20261006`。このworktreeと参照先の隔離依存は稼働に必要なため保全する。
+- 実際のiOS PWA/Android操作、所有者本人の画面確認、翌日の定時0時処理は未確認。試験やProduction成功で代替確認済みとは扱わない。別件の全体品質改善は公開保留を維持。
+- この完了追記はローカルに保持し、文書だけの追加push/build/deployは行わない。

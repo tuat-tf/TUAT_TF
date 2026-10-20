@@ -415,6 +415,7 @@ class SyntheticStart:
 
     def start(self):
         with patch.object(boot,'Path',side_effect=self.path), patch.object(boot,'private_file',side_effect=self.private), \
+             patch.object(boot,'recover_stopped_backup_owner',side_effect=lambda _config:self.events.append('recover-stopped-backup-owner')), \
              patch.object(boot.http.client,'HTTPConnection',side_effect=self.connection), \
              patch.object(boot,'wait_jobs_ready',side_effect=self.jobs_ready), \
              patch.object(boot,'transport_module',side_effect=self.transport,create=True):
@@ -544,6 +545,77 @@ assert.deepEqual(second,Buffer.alloc(32));
         result = subprocess.run([node,'--input-type=module','-e',script],capture_output=True,timeout=15)
         self.assertEqual(result.returncode,0,result.stderr.decode())
 
+
+
+@unittest.skipUnless(os.name == 'posix' and os.getuid() == 0, 'Linux root filesystem and FLOCK')
+class BackupOwnerRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        (self.root/'private').mkdir(mode=0o700)
+        (self.root/'backup-state').mkdir(mode=0o700)
+        (self.root/'host-state-abcdef0').mkdir(mode=0o700)
+        self.owner = {'pid':2147483647,'instanceId':'12345678-1234-1234-1234-123456789abc',
+                      'generation':'abcdefab-1234-1234-1234-123456789abc','startedAt':'2026-10-16T00:00:00Z'}
+        self.host = self.root/'private/host.json'
+        self.backup = self.root/'private/backup.json'
+        self.lock = self.root/'backup-state/backup-owner.lock'
+        self.write(self.host, {'stateDirectory':str(self.root/'host-state-abcdef0'),'backupConfigFile':str(self.backup)})
+        self.write(self.backup, {'stateDirectory':str(self.lock.parent),'instanceId':self.owner['instanceId']})
+        self.write(self.lock, self.owner)
+        self.write(self.lock.parent/'backup-lifecycle.json', self.owner)
+        self.write(self.root/'host-state-abcdef0/lifetime.lock', {'pid':99})
+        self.config = {'hostConfigPath':str(self.host),'filesystemUuid':self.owner['instanceId']}
+        self.mount = patch.object(boot,'MOUNT',str(self.root));self.mount.start();self.addCleanup(self.mount.stop)
+
+    def write(self,path,value):
+        path.write_text(json.dumps(value));path.chmod(0o600)
+
+    def test_dead_owner_is_preserved_exactly_without_changing_lifecycle(self):
+        original=self.lock.read_bytes();status=(self.lock.parent/'backup-lifecycle.json').read_bytes()
+        boot.recover_stopped_backup_owner(self.config)
+        self.assertFalse(self.lock.exists())
+        self.assertEqual(list((self.root/'private/recovered-backup-locks').iterdir())[0].read_bytes(),original)
+        self.assertEqual((self.lock.parent/'backup-lifecycle.json').read_bytes(),status)
+        boot.recover_stopped_backup_owner(self.config)
+
+    def test_live_or_reused_pid_is_preserved(self):
+        self.owner['pid']=os.getpid();self.write(self.lock,self.owner);self.write(self.lock.parent/'backup-lifecycle.json',self.owner)
+        with self.assertRaisesRegex(boot.Held,'owner-live'):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.exists())
+
+    def test_unknown_pid_probe_is_preserved(self):
+        with patch.object(boot.os,'kill',side_effect=PermissionError()):
+            with self.assertRaises(PermissionError):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.exists())
+
+    def test_generation_mismatch_is_preserved(self):
+        self.write(self.lock.parent/'backup-lifecycle.json',{})
+        with self.assertRaisesRegex(boot.Held,'generation'):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.exists())
+
+    def test_busy_kernel_lifetime_lock_is_preserved(self):
+        import fcntl
+        with (self.root/'host-state-abcdef0/lifetime.lock').open('r+b') as holder:
+            fcntl.flock(holder,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            with self.assertRaises(BlockingIOError):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.exists())
+
+    def test_redirected_lock_is_preserved(self):
+        self.lock.unlink();self.lock.symlink_to(self.lock.parent/'backup-lifecycle.json')
+        with self.assertRaises(boot.Held):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.is_symlink())
+
+    def test_corrupt_or_changed_lock_is_preserved(self):
+        self.lock.write_text('invalid')
+        with self.assertRaises(ValueError):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.exists())
+
+    def test_owner_becoming_live_after_archive_is_preserved(self):
+        with patch.object(boot.os,'kill',side_effect=[ProcessLookupError(),None]):
+            with self.assertRaisesRegex(boot.Held,'owner-live'):boot.recover_stopped_backup_owner(self.config)
+        self.assertTrue(self.lock.exists())
 
 if __name__ == '__main__':
     unittest.main()

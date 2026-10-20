@@ -34,7 +34,7 @@ BEGIN
  PERFORM set_config('request.jwt.claim.sub',staff::text,true);
  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',staff,'role','service_role')::text,true);
  INSERT INTO public.competitions(id,name,starts_on) VALUES(competition,'Division acceptance',current_date);
- INSERT INTO public.roles(id,name) VALUES(role_id,'Division acceptance staff');
+ INSERT INTO public.roles(id,name,can_manage_ob_meet) VALUES(role_id,'Division acceptance staff',true);
  INSERT INTO public.profile_roles(profile_id,role_id) VALUES(staff,role_id);
  INSERT INTO public.competition_meets(competition_id,meet_key,staff_role_id,legacy_source,ready)
  VALUES(competition,competition,role_id,'ob-2026',true);

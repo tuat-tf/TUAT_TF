@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
+import { uploadImageDecoder } from "@/lib/upload-image";
 import { createClient } from "@/lib/supabase/server";
 import { loginAccessResponse } from "@/lib/supabase/login-access";
 import { ImageUploadError,logImageFailure,readImageUpload,uploadImage,removeImages } from "@/lib/image-storage";
@@ -33,7 +33,9 @@ export async function POST(request: Request) {
     }
     let output: Buffer;
     try {
-      output=await sharp(input,{ limitInputPixels: 50_000_000 })
+      const image=uploadImageDecoder(input,["jpeg","png","webp"]);
+      if(!image) return NextResponse.json({ error: "対応していない画像形式です" },{ status: 415 });
+      output=await image
         .rotate().resize(1600,1600,{ fit: "inside",withoutEnlargement: true })
         .webp({ quality: 82 }).toBuffer();
     } catch {

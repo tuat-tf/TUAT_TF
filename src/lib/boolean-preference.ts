@@ -8,12 +8,23 @@ type BooleanPreferenceDetail = {
 };
 
 export function readBooleanPreference(key: string): boolean | null {
+  // The cookie is also the SSR value and stays current when Storage writes fail.
+  try {
+    const stored = document.cookie.split(";")
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith(`${key}=`))
+      ?.slice(key.length + 1);
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+  } catch {
+    // Cookieを使えない場合は、既存のStorage設定を読む。
+  }
   try {
     const stored = window.localStorage.getItem(key);
     if (stored === "1") return true;
     if (stored === "0") return false;
   } catch {
-    // Storageを使えない場合はSSRで渡されたCookie値を使う。
+    // どちらも使えない場合は、呼出元のSSR初期値を維持する。
   }
   return null;
 }

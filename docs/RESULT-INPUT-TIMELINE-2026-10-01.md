@@ -31,3 +31,7 @@
 ## 反映
 
 関連するコードと検証記録をまとめ、masterへ1回だけpushする。対象コミットのVercel公式チェックと公開`/api/version`のSHAを照合する。反映後の追記はローカル保持し、文書だけの追加pushは行わない。
+
+`d77a73ebd738c9c76e8f9f9fde4ca4837976c2d4`をmasterへfast-forwardして1回pushした。Vercel – tuat-tf / tuat-tf-pc-previewの公式GitHubステータスは両方success、公開`https://tuat-tf.vercel.app/api/version`の完全SHA一致を確認した。
+
+本番デプロイ: https://vercel.com/paimondayos-projects/tuat-tf/79YNuc128uKkxrLSHimvSJAHKQeF 。PC preview: https://vercel.com/paimondayos-projects/tuat-tf-pc-preview/ChGwqkYFUhTWUz2MUmY7LP2Agya2 。この反映記録とAGENTS.mdへの追記はローカル保持。既存の未公開監査差分・過去の完了記録は保全し、追加pushは行わない。

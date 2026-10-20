@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, ChevronDown, LogOut, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Camera, LogOut, SlidersHorizontal, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { clearPersistedQueries } from "@/lib/client/query-persistence";
 import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Disclosure } from "@/components/ui/disclosure";
 import { Avatar } from "@/components/common/Avatar";
 import { AvatarCropEditor } from "@/components/features/AvatarCropEditor";
 import { SheetHeaderSetupDialog, type SheetHeaderData } from "@/components/features/SheetHeaderSetupDialog";
@@ -192,25 +193,8 @@ export function ProfileEditForm({
   }
 
   const selectedBlock = blocks[0];
-  const shortEventOptions = [
-    ...EVENTS_BY_BLOCK.short,
-    ...EVENTS_BY_BLOCK.jump,
-    ...EVENTS_BY_BLOCK.throw,
-  ];
-  const primaryEventOptions = selectedBlock === "manager"
-    ? ALL_PROFILE_EVENTS
-    : selectedBlock === "short"
-      ? shortEventOptions
-      : selectedBlock === "middle_long"
-        ? EVENTS_BY_BLOCK.middle_long
-        : [];
-  const otherEventOptions = selectedBlock === "middle_long"
-    ? shortEventOptions
-    : selectedBlock === "short"
-      ? EVENTS_BY_BLOCK.middle_long
-      : [];
-  const otherEventLabel = selectedBlock === "middle_long" ? "短距離種目" : "中長距離種目";
-  const eventOptions = [...primaryEventOptions, ...otherEventOptions];
+  const eventOptions = selectedBlock ? ALL_PROFILE_EVENTS : [];
+  const eventGroups: Block[] = ["middle_long", "short", "jump", "throw"];
 
   async function fetchHeader(): Promise<SheetHeaderData | null> {
     const response = await fetch(`/api/sheets/header?sheetName=${encodeURIComponent(sheetName.trim())}`, {
@@ -422,65 +406,45 @@ export function ProfileEditForm({
       {eventOptions.length > 0 && (
         <div>
           <p className="section-label mb-1.5">専門種目（任意・複数可）</p>
-          <div className="flex flex-wrap gap-2">
-            {primaryEventOptions.map((ev) => {
-              const active = events.includes(ev);
-              return (
-                <button
-                  data-ui-choice
-                  aria-pressed={active}
-                  key={ev}
-                  type="button"
-                  onClick={() => toggleEvent(ev)}
-                  className={cn(
-                    "h-9 rounded-full border px-3.5 text-[13px] font-semibold pressable",
-                    active
-                      ? "border-accent bg-accent text-white"
-                      : "border-separator bg-card text-muted",
-                  )}
-                >
-                  {ev}
-                </button>
-              );
+          <div className="space-y-3">
+            {eventGroups.map((block) => {
+              const selected = EVENTS_BY_BLOCK[block].filter((event) => events.includes(event));
+              const summary = selected.length > 0 ? selected.join("・") : "未選択";
+              return <Disclosure key={block} title={<>
+                <span className="flex items-center gap-2">
+                  <span>{BLOCKS[block].label}</span>
+                  <span className="min-w-14 text-micro font-normal tabular-nums">{selected.length}件選択</span>
+                </span>
+                <span className="block truncate text-micro font-normal" title={summary}>{summary}</span>
+              </>}>
+              <fieldset className="min-w-0">
+                <legend className="sr-only">{BLOCKS[block].label}の専門種目</legend>
+                <div className="flex flex-wrap gap-2">
+                  {EVENTS_BY_BLOCK[block].map((event) => {
+                    const active = events.includes(event);
+                    return (
+                      <button
+                        data-ui-choice
+                        aria-pressed={active}
+                        key={event}
+                        type="button"
+                        onClick={() => toggleEvent(event)}
+                        className={cn(
+                          "min-h-11 rounded-full border px-3.5 text-[13px] font-semibold pressable",
+                          active
+                            ? "border-accent bg-accent text-white"
+                            : "border-separator bg-card text-muted",
+                        )}
+                      >
+                        {event}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              </Disclosure>;
             })}
           </div>
-          {otherEventOptions.length > 0 && (
-            <details data-ui-section className="group mt-3 rounded-xl border border-separator bg-card">
-              <summary data-ui-disclosure className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-[14px] font-semibold text-muted2">
-                <span className="flex-1">
-                  {otherEventLabel}
-                  {events.some((event) => otherEventOptions.includes(event)) && (
-                    <span className="ml-2 text-micro text-accent">
-                      {events.filter((event) => otherEventOptions.includes(event)).length}件選択
-                    </span>
-                  )}
-                </span>
-                <ChevronDown size={17} className="transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="flex flex-wrap gap-2 border-t border-separator/70 p-3">
-                {otherEventOptions.map((event) => {
-                  const active = events.includes(event);
-                  return (
-                    <button
-                      data-ui-choice
-                      aria-pressed={active}
-                      key={event}
-                      type="button"
-                      onClick={() => toggleEvent(event)}
-                      className={cn(
-                        "h-9 rounded-full border px-3.5 text-[13px] font-semibold pressable",
-                        active
-                          ? "border-accent bg-accent text-white"
-                          : "border-separator bg-card text-muted",
-                      )}
-                    >
-                      {event}
-                    </button>
-                  );
-                })}
-              </div>
-            </details>
-          )}
         </div>
       )}
 

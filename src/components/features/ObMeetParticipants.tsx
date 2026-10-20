@@ -34,7 +34,7 @@ export function ObMeetParticipants({ entries, members, history, party, duties, r
   const [view, setView] = useState<"entries" | "party">("entries");
   const [search, setSearch] = useState(""), [filter, setFilter] = useState<Filter>(initialFilter);
   const [targetId, setTargetId] = useState<string | null>(null), [editingId, setEditingId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false), [updates, setUpdates] = useState<ObEntry[]>([]), [deleted, setDeleted] = useState<string[]>([]);
+  const [adding, setAdding] = useState<string | null>(null), [updates, setUpdates] = useState<ObEntry[]>([]), [deleted, setDeleted] = useState<string[]>([]);
   const router = useRouter();
   const { showToast } = useToast();
   const roster = entries.filter(entry => !deleted.includes(entry.id)).map(entry => {
@@ -62,11 +62,20 @@ export function ObMeetParticipants({ entries, members, history, party, duties, r
         <h2 className="text-xl font-semibold">参加者</h2>
         <p className="text-caption">{roster.length}人 · 大会欠席 {counts.absent}人 · 本人未確認 {counts.identity}人</p>
       </div>
-      <Button onClick={() => setAdding(true)}>参加者を登録</Button>
+      <Button onClick={() => setAdding("")}>参加者を登録</Button>
     </div>
     {footer}
     <SegmentedControl items={[{ key: "entries", label: "エントリー" }, { key: "party", label: "懇親会" }]} value={view} onChange={setView} />
     {view === "party" ? <ObPartyView responses={party} /> : <>
+      <label className="block space-y-2 text-body"><span>エントリーを変更する人</span>
+        <Select value="" ariaLabel="エントリーを変更する人" onValueChange={value => {
+          if (value.startsWith("entry:") && roster.some(entry => entry.id === value.slice(6))) setEditingId(value.slice(6));
+          else if (value.startsWith("member:") && newMembers.some(member => member.id === value.slice(7))) setAdding(value.slice(7));
+        }} options={[{ value: "", label: "名前を選択" },
+          ...[...roster].sort((a, b) => compareByGrade({ grade: a.grade, name: a.submitted_name }, { grade: b.grade, name: b.submitted_name })).map(entry => ({ value: `entry:${entry.id}`, label: `${entry.grade} ${entry.submitted_name}` })),
+          ...[...newMembers].sort((a, b) => compareByGrade({ grade: a.grade, name: a.display_name }, { grade: b.grade, name: b.display_name })).map(member => ({ value: `member:${member.id}`, label: `${entryGrade(member.grade)} ${member.display_name}（未登録）` })),
+        ]}/>
+      </label>
       <Input aria-label="参加者の氏名・学年・種目で検索" placeholder="氏名・学年・種目で検索" value={search} onChange={event => setSearch(event.target.value)} />
       <div className="flex flex-wrap gap-2" aria-label="参加者の絞り込み">
         {([["all", "すべて"], ["absent", `大会欠席 ${counts.absent}`], ["identity", `本人未確認 ${counts.identity}`]] as const).map(([key, label]) =>
@@ -92,7 +101,7 @@ export function ObMeetParticipants({ entries, members, history, party, duties, r
       duties={duties} roles={roles} operations={operations} onClose={() => setTargetId(null)} onDelete={() => remove(target)}
       onEdit={() => { setTargetId(null); setEditingId(target.id); }}
       onAttendance={saved => setUpdates(current => [...current.filter(entry => entry.id !== saved.id), saved])} />}
-    {adding && <ObEntryEditor parties={party} members={newMembers} duties={duties} roles={roles} onClose={() => setAdding(false)} />}
+    {adding !== null && <ObEntryEditor key={adding || "new"} parties={party} members={newMembers} initialProfileId={adding} duties={duties} roles={roles} onClose={() => setAdding(null)} />}
     {editing && <ObEntryEditor key={`${editing.id}:${editing.revision}`} entry={editing} party={party.find(value => value.entry_id === editing.id)} members={members} duties={duties} roles={roles} onClose={() => setEditingId(null)} />}
   </div>;
 }

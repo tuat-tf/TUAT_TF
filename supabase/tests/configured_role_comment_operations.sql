@@ -70,7 +70,7 @@ DO $$ DECLARE n integer; BEGIN
  BEGIN
   PERFORM public.delete_comment_with_sheet('b6101312-0000-4000-8400-000000000001','sheet');
   RAISE EXCEPTION 'Non-moderator RPC deleted sheet reply';
- EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ EXCEPTION WHEN feature_not_supported THEN NULL; END;
  UPDATE public.comments SET content='合成本人編集' WHERE id='b6101312-0000-4000-8300-000000000003';
  GET DIAGNOSTICS n=ROW_COUNT; IF n<>1 THEN RAISE EXCEPTION 'Author lost comment editing'; END IF;
  IF public.delete_comment_with_sheet('b6101312-0000-4000-8300-000000000003','app') IS DISTINCT FROM 'b6101312-0000-4000-8300-000000000003'::uuid THEN RAISE EXCEPTION 'Author lost comment deletion'; END IF;
@@ -80,7 +80,10 @@ DO $$ DECLARE n integer; BEGIN
  UPDATE public.comments SET content='合成拒否編集' WHERE id='b6101312-0000-4000-8300-000000000001';
  GET DIAGNOSTICS n=ROW_COUNT; IF n<>0 THEN RAISE EXCEPTION 'Moderation granted other authors text editing'; END IF;
  IF public.delete_comment_with_sheet('b6101312-0000-4000-8300-000000000001','app') IS DISTINCT FROM 'b6101312-0000-4000-8300-000000000001'::uuid THEN RAISE EXCEPTION 'Moderation RPC could not delete another comment'; END IF;
- IF public.delete_comment_with_sheet('b6101312-0000-4000-8400-000000000001','sheet') IS DISTINCT FROM 'b6101312-0000-4000-8400-000000000001'::uuid THEN RAISE EXCEPTION 'Moderation RPC could not delete sheet reply'; END IF;
+ BEGIN
+  PERFORM public.delete_comment_with_sheet('b6101312-0000-4000-8400-000000000001','sheet');
+  RAISE EXCEPTION 'Moderation restored retired sheet reply deletion';
+ EXCEPTION WHEN feature_not_supported THEN NULL; END;
  DELETE FROM public.comments WHERE id='b6101312-0000-4000-8300-000000000002';
  GET DIAGNOSTICS n=ROW_COUNT; IF n<>1 THEN RAISE EXCEPTION 'Moderation RLS could not delete another comment'; END IF;
 END $$;
@@ -89,12 +92,13 @@ SELECT set_config('request.jwt.claim.sub','',true);
 SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM public.comments WHERE id::text LIKE 'b6101312-%')
-   OR EXISTS(SELECT 1 FROM public.sheet_record_replies WHERE id='b6101312-0000-4000-8400-000000000001') THEN
+   OR NOT EXISTS(SELECT 1 FROM public.sheet_record_replies
+     WHERE id='b6101312-0000-4000-8400-000000000001' AND content='合成シート返信') THEN
    RAISE EXCEPTION 'Deletion RPC or RLS left its target row';
  END IF;
  IF (SELECT count(*) FROM public.sheet_reply_deletions WHERE id IN
-   ('b6101312-0000-4000-8300-000000000001','b6101312-0000-4000-8300-000000000002','b6101312-0000-4000-8300-000000000003','b6101312-0000-4000-8400-000000000001'))<>4 THEN
-   RAISE EXCEPTION 'Deletion receipts missing';
+   ('b6101312-0000-4000-8300-000000000001','b6101312-0000-4000-8300-000000000002','b6101312-0000-4000-8300-000000000003','b6101312-0000-4000-8400-000000000001'))<>0 THEN
+   RAISE EXCEPTION 'App-only deletion created retired sheet receipts';
  END IF;
 END $$;
 
@@ -128,5 +132,5 @@ DO $$ DECLARE n integer; BEGIN
  IF NOT public.can_manage_members() THEN RAISE EXCEPTION 'Remaining manager lost their capability'; END IF;
 END $$;
 RESET ROLE;
-SELECT 'Eight-role OR, comment author editing, moderation RLS/RPC, sheet deletion receipts and final member-manager protection passed' AS result;
+SELECT 'PASS: eight-role OR, author editing, moderation RLS/RPC, retired sheet rejection, and final member-manager protection' AS result;
 ROLLBACK;

@@ -5,16 +5,20 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TrainingChart } from "@/components/features/TrainingChart";
 import { RefreshStatus } from "@/components/ui/refresh-status";
 import { loadMyTrainingRecords } from "@/app/(app)/mypage/actions";
-import type { PracticeRecord } from "@/types";
+import type { PracticeRecord, RecordFieldDef } from "@/types";
 
 export function MyTrainingChartCached({
   userId,
   initialRecords,
   showIntensitySummary = false,
+  recordFields,
+  initialShowAllFields = false,
 }: {
   userId: string;
   initialRecords: PracticeRecord[];
   showIntensitySummary?: boolean;
+  recordFields?: RecordFieldDef[];
+  initialShowAllFields?: boolean;
 }) {
   const queryClient = useQueryClient();
   const queryKey = ["my-training-records", userId];
@@ -32,5 +36,10 @@ export function MyTrainingChartCached({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialRecords, queryClient]);
   if (!showIntensitySummary) return null;
-  return <><RefreshStatus failed={isError} busy={isFetching} label="練習記録" retry={() => { void refetch(); }} /><TrainingChart records={data} showIntensitySummary /></>;
+  return (
+    <>
+      <TrainingChart records={data} showIntensitySummary viewerId={userId} recordFields={recordFields} initialShowAllFields={initialShowAllFields} />
+      <RefreshStatus failed={isError} busy={isFetching} label="練習記録" retry={() => { void refetch(); }} />
+    </>
+  );
 }

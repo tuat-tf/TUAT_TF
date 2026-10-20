@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShareButton } from "@/components/common/ShareButton";
+import { useShareActions } from "@/components/common/ShareButton";
 import { NoteArticleEditor } from "@/components/features/NoteArticleEditor";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { FormModal } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { createClient } from "@/lib/supabase/client";
+import { safeUpdate } from "@/lib/safe-update";
 import type { AuthorMini, NoteArticleWithAuthor } from "@/types";
 
 export function NoteArticleActions({
@@ -26,6 +27,11 @@ export function NoteArticleActions({
   const router = useRouter();
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
+  const { copyLink, shareExternally } = useShareActions({
+    title: article.title,
+    text: `${article.title}｜ノートの記事`,
+    path: `/notes/${noteId}/articles/${article.id}`,
+  });
 
   async function remove() {
     try {
@@ -50,12 +56,8 @@ export function NoteArticleActions({
   }
 
   async function togglePin() {
-    const { error } = await createClient()
-      .from("note_articles")
-      .update({ pinned: !article.pinned })
-      .eq("id", article.id)
-      .eq("note_id", noteId);
-    if (error) {
+    const result = await safeUpdate(createClient(), "note_articles", { pinned: !article.pinned }, { id: article.id, note_id: noteId });
+    if (!result.ok) {
       showToast("\u30d4\u30f3\u7559\u3081\u3092\u5909\u66f4\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f");
       return;
     }
@@ -64,22 +66,19 @@ export function NoteArticleActions({
 
   return (
     <>
-      {canShare && (
-        <ShareButton
-          title={article.title}
-          text={`${article.title}\uFF5C\u30ce\u30fc\u30c8\u306e\u8a18\u4e8b`}
-          path={`/notes/${noteId}/articles/${article.id}`}
-          label={"\u3053\u306e\u8a18\u4e8b\u3092\u5171\u6709\u3059\u308b"}
-        />
-      )}
-      {canEdit && (
+      {(canShare || canEdit) && (
         <ActionMenu
-          onEdit={() => setEditing(true)}
-          onPin={togglePin}
+          onShare={canShare ? copyLink : undefined}
+          shareLabel="リンクをコピー"
+          onShareExternally={canShare ? shareExternally : undefined}
+          onEdit={canEdit ? () => setEditing(true) : undefined}
+          onPin={canEdit ? togglePin : undefined}
           pinned={article.pinned}
-          onDelete={remove}
-        deleteTitle="記事を削除しますか？"
-        deleteDescription="削除した記事は元に戻せません。"
+          onDelete={canEdit ? remove : undefined}
+          triggerLabel="記事の操作メニュー"
+          className="h-11 w-11"
+          deleteTitle="記事を削除しますか？"
+          deleteDescription="削除した記事は元に戻せません。"
         />
       )}
       {editing && (

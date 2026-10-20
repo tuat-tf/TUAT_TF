@@ -6,6 +6,9 @@ import { ImageNotFoundError } from "./image-storage";
 import { GET as avatar } from "@/app/api/avatar/image/route";
 import { GET as story } from "@/app/api/tweet-image/route";
 import { POST as upload, DELETE as remove } from "@/app/api/tweet-image/upload/route";
+import { POST as avatarUpload } from "@/app/api/avatar/route";
+import { detectUploadImageFormat } from "@/lib/upload-image";
+import sharp from "sharp";
 const uid = "11111111-1111-4111-8111-111111111111";
 const path = `${uid}/22222222-2222-4222-8222-222222222222.webp`;
 const maybeSingle = vi.fn();
@@ -89,5 +92,22 @@ describe("private image routes", () => {
       expect((await remove(new Request(`https://app.example/api/tweet-image/upload?path=${path}`))).status).toBe(result.error ? 503 : 409);
     }
     expect(mocks.remove).not.toHaveBeenCalled();
+  });
+  it("refuses non-raster contents labelled as a photo before storing anything", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8"/></svg>';
+    const png = await sharp({ create: { width: 4, height: 4, channels: 3, background: "#336699" } }).png().toBuffer();
+    expect((await upload(new Request("https://app.example/api/tweet-image/upload", { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: svg }))).status).toBe(415);
+    for (const body of [svg, new Uint8Array(png)]) {
+      expect((await avatarUpload(new Request("https://app.example/api/avatar", { method: "POST", headers: { "Content-Type": "image/jpeg" }, body }))).status).toBe(415);
+    }
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+  it("stores a real photo as WebP", async () => {
+    const jpeg = await sharp({ create: { width: 4, height: 4, channels: 3, background: "#336699" } }).jpeg().toBuffer();
+    mocks.upload.mockResolvedValue(undefined);
+    const response = await upload(new Request("https://app.example/api/tweet-image/upload", { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: new Uint8Array(jpeg) }));
+    expect(response.status).toBe(200);
+    expect(mocks.upload.mock.calls[0][1]).toBe("tweet-images");
+    expect(detectUploadImageFormat(mocks.upload.mock.calls[0][3])).toBe("webp");
   });
 });

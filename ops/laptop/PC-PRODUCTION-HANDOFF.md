@@ -1,5 +1,21 @@
 # PC本番運用の引き継ぎ
 
+## 切替後の最新状態（2026-10-16、下の旧記録より優先）
+
+現在の主系はPC内の暗号化WSL領域 `/var/lib/tuat-local`。アプリ・通常DB・認証・画像を集約し、入口は https://tuat-pc-app.track-app.workers.dev 。既存Googleの本人IDを維持し、本人ログイン・閲覧・プロフィール保存/再読込を確認済み。2026-10-16のいいね障害も修正し、実正本の本人投稿で追加・認証付き読戻し・取消が成功、元の全いいね行と件数・通知・他データの一致を確認した。
+
+- 稼働releaseは `c6c2b019f891ab70a25755ee11995b1e5c58f2d2`、runtimeは `/etc/tuat-local/runtime.json`、SHA `20d20b7dc9549c7bfe38f0a479b72b67f502fe80ed9466cf5d6e0b7426f967ed`。現在のhost generationは `f8a815ab-962d-435a-9392-b5714701e890`（2026-10-15T23:28:58.660Z開始）。DB SYS `7696014892776206346`、postgres OID20613。元OID5は接続禁止で保持。
+- Jobsは元のactivation/journalを保持して稼働。WSLの時刻補正でUTC起動時刻を誤判定する問題を、boot ID・process start ticks・同一systemd MainPID/cgroup・実FLOCKの安定照合へ修正した。定期処理稼働中のcombined backupと、自動timer実行の別DB復元・暗号化R2保存/読戻しも成功。15分timerはactive、同一世代のbackupReady/localSnapshotReadyはtrue。
+- 旧PC/cloud source fence、旧cloud Data API off、旧relay retired503、旧Windows backend disabled、旧Jobs config=falseを維持。旧queue再送・書戻し再開をしない。Google Drive連携は所有者指示で廃止済み。
+- 現在の公開codeはmasterへpush済み。旧Vercel入口のProduction成功と新旧両方の/api/versionの同一SHAを確認し、正式S4U常駐監視への引継ぎも完了。作業用watchは実プロセスを識別して終了し、正式監視のみで稼働維持を確認済み。iPhoneへの復号鍵保存・再表示全文一致は本人確認済み。OS再起動試験、スマホ実機での最終保存/PWA起動は未確認。
+- 計画的にappを停止する前には、正式監視と独立した保全監視を先に維持する。正式監視はappの短い停止も異常として終了する。今回、正式監視終了後にWSLのサービスとmountが落ち、未公開backupが中断した。未検証archiveと元記録を暗号化領域へ保持してrefusedとし、新しい実行で正常復旧した。再試行・成功扱いで消していない。
+- mountは作業用WSLプロセスだけでなく、PID1/systemdのmount namespaceから同じUUIDを確認する。callerだけのmountはConditionPathIsMountPointを満たさず、サービス起動がskipされる。既存mapperと同じ暗号化領域をPID1側へ接続して復旧済み。新ストレージ・別DBを作成していない。
+- 新originのmanifest/SW/icon/offline配信は正常。旧Vercel originで作成したホーム画面アイコンは自動移管されないため、新URLをSafariで開き、共有→ホーム画面に追加で確認する。旧アイコンの削除は新アイコンの正常起動後。
+
+正確な失敗・復旧・受入記録は [10/12集約作業記録](../../docs/PC-LOCAL-AUTH-IMAGES-2026-10-12.md) の末尾を読む。
+
+移行の最新目標は[Linuxノート・Cloudflare無料化の並行計画](../../docs/SURFACE-SERVER-TRIAL-2026-10-10.md)。構成の複雑さ解消を最優先とする。以下は現行本番と過去の実施記録であり、Linuxへの移設・Vercel撤去を実施済みとは扱わない。
+
 ## 現在の構成（2026-09-27、下の旧運用記録より優先）
 
 - ログインはクラウドSupabase、通常のデータはこのPC。ブラウザのRESTはCloudflare Worker経由。Vercelは画面・サーバー処理を担当する。
@@ -133,3 +149,7 @@ Codexのこのタスクに9月16日14:30 JSTの復帰作業再開を登録（`tu
 コード修正・テスト・レビューは最新masterで可能。DB/Auth/復帰/トンネル/秘密鍵変更はこの本番PCで状態を確認して進める。別PCの同名ディレクトリは本番データではない。別端末から本番PCを操作する仕組みは用意していない。
 
 一時運用中にスキーマを変更すると基準差分転送が拒否される。両側の整合と復帰計画を先に見直し、比較ガードを削除して通さない。クラウドにdb pushしてPCへ反映済みと扱わない。複数エージェントでDB/環境変数/デプロイを同時変更しない。最新masterへ統合し、Vercel READYと本番URLを確認して引き継ぐ。
+
+## 2026-10-16 21:48 JST 再起動後の復旧（起動処理の最新追記）
+
+旧backup-owner.lockの残存による起動失敗を実確認し、旧PID不在とhost lifetime FLOCK取得後に元lockを暗号化privateへ保全して正式S4Uから復旧。公開app 4051ea1、Jobs、timer、正式watch、新世代backupのR2読戻し/別DB復元を確認。正式bootstrapとWindows pinへ停止ownerだけの保全復旧を適用済み。業務履歴の再送・旧writer復活なし。OS再起動の再試験は未実施。詳細: docs/REBOOT-RECOVERY-2026-10-16.md。

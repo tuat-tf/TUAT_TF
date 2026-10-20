@@ -18,7 +18,7 @@ BEGIN
  IF actor IS NULL OR other_actor IS NULL THEN RAISE EXCEPTION 'Relay fixture actors unavailable'; END IF;
  PERFORM set_config('request.jwt.claim.sub',actor::text,true);
  PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
- INSERT INTO public.roles(id,name) VALUES(staff_role,'合成リレー担当');
+ INSERT INTO public.roles(id,name,can_manage_ob_meet) VALUES(staff_role,'合成リレー担当',true);
  INSERT INTO public.profile_roles(profile_id,role_id) VALUES(actor,staff_role);
  INSERT INTO public.competitions(id,name,starts_on) VALUES(competition,'合成リレー検証','2026-10-13');
  INSERT INTO public.competition_meets(competition_id,meet_key,staff_role_id,legacy_source,ready) VALUES(competition,competition,staff_role,'ob-2026',true);

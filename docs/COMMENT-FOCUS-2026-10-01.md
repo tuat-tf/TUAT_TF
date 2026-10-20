@@ -15,3 +15,5 @@ CommentSectionに専用の範囲指定を加え、コメント入力・編集は
 ## 反映
 
 検証済みの関連変更のみmasterへ1回pushし、本番の公式デプロイ状態・公開SHAを確認する。
+
+反映結果: eba9e5827d41de2a76be6b7de24fabae96a79bcaをmasterへfast-forwardして1回push。Vercel公式チェック（tuat-tf / tuat-tf-pc-preview）両方success、公開/api/versionのSHA一致を確認。Vercel MCPは未接続のため公式GitHubステータスで確認。実機未確認。反映後記録のみローカル保持。

@@ -574,3 +574,57 @@ Cloudflare公式の現時点の料金条件も読取り確認: Workers VPCはope
 - d1cf2d0のLinuxビルド・smoke・sealed inventoryは成功。readonly切替の起動検査で、inactiveなTunnel unitがsystemdのinventoryから自動解放され、host-transport-unverifiedとなる実症状を確認。候補アプリは停止し、旧本番は稼働している。DB/Auth/画像の最終移行は未実施。
 - 再起動手順を、専用daemon・storage検査→enabled Tunnelの起動・実process/credential/ready検査→app起動の順へ修正。Tunnelの未登録拒否・厳密検証は維持する。bootstrap 17件・transport 15件が成功。OS再起動試験の証明にはしない。
 - 復旧helperはd1設定を再配置した段階で、実証済みprospective transportとLinux releaseのコードhashが改行形式により異なることを検知し停止。原本のraw Tunnelを維持、Jobs/timer停止、旧本番維持。改行以外の同一性を確認してから、既知状態に限定して継続する。
+### 最終ソース凍結・取得と旧入口の停止（2026-10-15）
+
+- 最終codeは0acc6f7。Linux build/smoke/全artifact inventory・readonly切替が成功し、systemd Tunnelを保持して候補homeも既存本人sessionで再表示できた。実機保存試験はまだ未実施。obsolete owned release3個のinactive node_modulesのみを個体/参照検査後に整理し、ソース・.next・現行/直前releaseを保全して空き5.5GBを確保。新0acc combined backupは13:20:44Z取得、13:20:54Z別DB復元、13:21:09Z R2読戻し成功（95b573d1…）。初回capacity検査失敗では新attempt未作成を確認した。
+- 13:25:09Zに旧クラウドを100表（Auth26O含む、managed4除外）凍結、generation aaa33fc6-c1ad-49ac-94b9-38dd99119a1b。直前のactive cron/queued netは0/0。13:25:28Zに旧PC正本SYS7686…を102表ALWAYS凍結、generation f24f42de-a778-48c2-bd3c-55d3215a41f5。解除していない。
+- 両凍結後にsource-e89c285c-6cf5-4ab2-920b-7c9dbdf314fc（5schema・暗号化dump/復旧pair読戻し）とロール16定義を保全。最終Authはauth-7ff33a32-b198-4a4a-9d09-3c2d11927cc0、27表/74users/80identitiesを完全照合。CSVはroot専用暗号化領域へ移しWindowsコピー・clipboardを削除。最終画像images-136cd387-53e7-4aff-b530-acf31382556eは全70/必要65、全byteshash/refs/R2前後安定、外部2件は既存本人ID/URLと完全一致でWebP化。
+- 凍結後queue17/購読7群も再読取。全7でendpoint/本人/両鍵一致、PClastSeenがcloud/queue以上。旧内部UUIDで上書きせず、queueack/replay0を維持。
+- 旧クラウドData APIをoffへ保存し再読戻し、旧Relayをretiredへ公開（deployment3bfaf05f…/versionde4be4f7…100%）。直後の伝播中検査はheldを残し、publish再送なしで13:34:05Zに全4method/path503・fallbackheader無し・新URL案内を確認した。
+- 最終退避を根拠に既存FullControlだけでTUAT PC Backend Temporaryをdisabled、登録実行instance0へ停止。ACL変更・PID signal0。孤立子processの不在は未証明であり、両DBfence/旧Data APIoff/旧Workerretiredを独立維持する。旧Jobsもconfigfalse/drained維持。
+- clone統合3149d70d…は全Auth/6migration/Push準備まで成功し、avatar2参照の通常UPDATEが他profilefield/tableへ副作用を起こすことを保持検査で検知して失敗。clone cleanup成功、旧/候補DBに適用0。移行専用のclone transactionだけ通常編集triggerを抑止し、他データ/security/trigger状態を完全保持する派生を検証中。本番の書込みは現在停止中、最終切替はまだ完了ではない。
+### 切替中のOS再起動からの状態照合（2026-10-16）
+
+- 所有者の続行指示を受け、前回のDB prepare d4f217cc-437b-4641-a402-494464a2dac5 は結果不明として再送していない。Windows LastBootUpTime は 2026-10-16 01:13:54 JST。既存S4U起動タスクは01:14台にreadonly起動成功を記録し、01:19にstart-and-observeでheld、現在Ready/LastTaskResult1。
+- 再照合時はWSLが起動し直され、暗号化backing fileは存在するがmapper未作成、mountpointは空、専用各unitはinactive。未マウントの空ディレクトリをデータ喪失とは扱わず、既存DPAPI鍵をpipeだけで既存storageへ渡してマウントのみ再開し、DB/保護記録から実施結果を判定する。旧source fence解除・prepare/apply再送・新規storage作成はしていない。
+- マウントのみ再接続が成功し、元postgres OID5と移行用OID20613を確認。前回prepareはfunction grant_pg_cron_access重複でstage単独復元をrollbackしていた。元113表は全てprepare.intentの件数・hashと一致。
+- 既存stageだけを選択TOCのclean/if-exists単一transactionで復元。その後の厳密検査で補助関数2個の余分なpostgres EXECUTE ACLだけを検出（データ113表、policies242、constraints453、triggers254、全function定義/ownerは一致）。2個の余分なACLだけをtransactionで除き、全行・全5security・platform5・Vault・globalroles・元DB保持の検査が成功した。
+- d4f217cc…のprepare receipt 53bebceb…と暗号化exact diff a9420ac6…を作成。独立read-only live照合で113表47878rows、完全Auth27表が凍結後cloud取得と一致、補助3表は双方0を確認。元DBのname swapはまだ実施していない。過去2件のheldは消さず、固定hash・限定復旧intent・成功証明に結びつけて保持。
+
+### 最終DB切替と閲覧復旧（2026-10-16 続き）
+
+- 上記は当時の状態。d4f217cc…のDB swapはacknowledged/observedCommittedとも成功し、移行済みOID20613をpostgresへ切替えた。元OID5は接続禁止のretired名で保持。新Authだけを再作成し、既存Google・allowlistを維持してsignupを許可。74users/80identitiesの元IDを保持し、実本人Googleログインが新DBで成功した。
+- 旧Jobsは停止・元activation保持のまま9ファイルを引継ぎ。Windows interopのPowerShell module importだけを修正したprivate派生でprepare/apply/verify成功。最終da6ac6d96b636676e07c6e61abaf477846b132d6を稼働へ配置、17:04:19Z開始の同一host generationで閲覧を復旧。実ブラウザで予定・記録・本人マイページ、表示画像69/69読込みを確認。通常保存は最終combined backup未成立で503を維持。
+- 最初の最終世代backupは旧環境の一度きり診断7ファイルが運用履歴rootに混在しているため、DB dumpより前のwhitelist検査で失敗。全9ファイルを別の暗号化R2保全packageへ保存し、全量GET・復号・元9ファイルのbyte一致を確認（13,229bytes、鍵別保管維持）。journal/status2件はliveで変更せず、診断7件だけ暗号化領域内の移行archiveへ移動し、全9件の元控えも保持。
+- 失敗attempt572560…は8個の既存archiveのみ・新dump/送信呼出し無し・thaw済みを実証し、元unknown-holdを保持してrefusedへ限定解消。次のcombined実行は未参照画像の厳密検査で失敗した。成功receiptとして扱わず、元画像の出自と保全方法を確認中。新Jobs/timerはまだ停止中、旧sourceのfenceは維持。Windows起動監視の再開はheldで、個別mount監視を維持して調査中。最終公開push・旧URL案内反映・本人スマホ保存確認は未完了。
+
+### 保存復旧と通常画像投稿のバックアップ不具合（2026-10-16 続き）
+
+- 未参照画像は1件67,344bytesに限定し、既存70画像・参照65・保持5と一致を確認。暗号化R2へ別保全し、全量GET・復号・元byte一致後に画像配信領域の外へ移した。元画像の出自は未証明で、合成画像と断定していない。画像失敗attempt cdf23dc2…もdump前・新archive/送信無し・resume済みを証明し、元記録を保持してrefusedへ整理。
+- その途中17:27:18Zに25a世代のappが終了。drained=true/Exec1を保持し、メモリ上限・実行時間上限・OOMの証拠は無し。既存hostは子の終了コードとsupervisorのfatal理由を保存しないため原因は未特定。元runtime/reader/failed unitと処理証拠を保全した限定計画でappだけを1回再開し、17:40:03.832Z開始の7488b841-31da-4f0c-854f-4a0f8d56c4c2世代を観測。DB/Auth/REST/Tunnelは同一個体・同一設定を保持。
+- この新世代のcombined backupは113表・画像70件の独立復元とR2保存・読戻しに成功。実本人ブラウザで名前を一時変更・保存・再読込・原名へ復元し、プロフィール/ロール/他人/練習/出欠/通知の保持を確認。合成2x2画像1件の通常API upload/deleteと、実正本でauthenticatedから他人の練習/出欠UPDATE/DELETE計4操作が0件で拒否されるROLLBACK検査も成功。スマホ実操作は確認依頼中。
+- Windows S4U監視は17:43:33Zにwatching/valid=trueへ復旧し、app世代は維持。OS再起動試験の証明にはしない。新Jobs/timerはまだ停止中、旧source fenceは解除しない。
+- 通常のtweet/note投稿で画像upload成功後、DB登録前にbackupがfreezeすると、静的な未参照画像5件との集合一致検査が失敗してunknown-holdを残す再発条件をコード・既存合成試験で確認。画像書込み途中の.upload temporary/hardlink出版窓も扱う必要がある。完成済み画像は全て既存の認証済みmanifestへ含め、厳密に特定した途中uploadだけを全writer resume・plaintext cleanup・archive/receipt/provider呼出し不変の証明後にdeferredとし、次timerでも証拠を再検査する修正を追加。欠落参照・不正link/path・保持hash差・結果不明/postdump失敗はholdを維持。
+- 子の終了コード/signalまたはallowlistしたsupervisor fatal種別だけをprivate runtime-statusへ保全する修正も追加。個人データ・環境変数・生の例外は記録しない。source commit5d4128366d801794aa4821a290fcb88f2d6f3415、local作業branchのみ。Python54+15、Node実子lifecycle7、全Vitest175files1643、環境/tsc/対象eslint/diffが成功。修正版のLinux build・配置・投稿途中の実combined検査・定期処理開始・最終公開は継続中。稼働中appはまだda6。
+
+### 2026-10-16 いいね・PWAの追加障害の調査（継続中）
+
+- 本人から「いいねできない」「PWAが無効化」と報告。現行640329f・同一アプリ世代でbackup=null、更新入口が503 PC_BACKUP_UNAVAILABLEを返す状態を確認。アプリは稼働中。
+- Jobsの実PID・cgroup・OSのFLOCKは一致するが、WSLの時刻補正で/proc/stat btimeから再構成するUTC起動時刻が変化し、バックアップが誤停止。OSのboot ID・start ticks・実FLOCKを照合する最小修正を検証中。
+- 既知d901の失敗はdump前・freeze前・R2送信前と独立確認し、元記録を暗号化領域へ保存してrefusedに分類。timer停止、Jobsの安全な停止は成功したが、一度の再起動はruntime検証で失敗したため再実行せず調査中。アプリ・DB/Auth/REST/Tunnelは維持。
+- 受入条件: 同一世代の復元検証済みR2 backup成立、本人のいいね追加/読戻し/取消と元件数復元、通常の権限・既存データ維持。PWAは新originのmanifest/SWと端末の起動状況を区別して確認する。未確認のまま最終切替完了とは扱わない。
+
+### 2026-10-16 いいね復旧・c6配置と自動バックアップ再開
+
+- source c6c2b019f891ab70a25755ee11995b1e5c58f2d2を配置しmasterへpush。環境/tsc/対象eslint/全Vitest175files1643、Python57、独立peer review、隔離Linux build/smoke/full inventoryを通した。native Jobsのロック照合を実カーネル識別へ修正し、legacy UTC検査は保持した。
+- c6切替直後の短いapp停止を正式watchが異常と判定して終了し、サービスとmountが失われた。中断7eeaはdump後の未公開暗号化archiveのみ作成済み、receipt/Jobsreceipt/R2呼出し無しと実証。原archive17,776,676bytes（SHA68816682…）・元unknown-hold・checkpoint・journalを暗号化領域へ保存し、成功扱いせずrefusedとした。
+- 作業用watchを保持し、caller側だけに見えていた既存暗号化mountをPID1/systemd namespaceへ同じmapper/UUIDで接続。封印済み専用daemon/Tunnelを再開し、c6 appを新世代f8a815ab-962d-435a-9392-b5714701e890（23:28:58.660Z）で起動。runtime SHA20d20b7d…、DB SYS/OID20613・認証・画像・鍵を保持。
+- 新世代backup0fcfは別DB復元・R2保存/読戻しに成功し、23:30ZにbackupReady/localSnapshotReady=true。本人の未いいねtweetへ標準SSR/native getUserで本人確認したAPIから追加、別GET/SQL読戻し、取消を実施。元の全likes行/件数、投稿、他人、プロフィール/ロール、通知、Push、sheet履歴が一致。受入result SHAdaeac3a8df73654fd44e651104eea9e16e1668dae9524d60ae7f1232eeea933a。実機PWAの証明にはしない。
+- Jobsを元activation/journalのまま起動、実FLOCK/boot/startticks/cgroup検証成功。Jobs稼働中のbackup eb1fも23:31:59Zに成功、freeze解除と同じhost世代を確認。15分timer起動後の自動e2b7もverified。正式監視の初回再開検査はこの自動backup実行中に当たり終了したため、バックアップ完了とruntime --check成功を確認して別実行を開始。作業用watchは引継ぎ確認まで維持。
+- 新URLのmanifest/SW/全icon/offline/loginは公開GETで正常。意図的なPWA無効化は無し。旧originのインストールは自動移管されないため、新URLをSafariで開いてホーム画面追加する。端末操作の回答待ち。旧source fence、旧backend/Jobs無効、R2鍵別保管は維持。
+
+### 2026-10-16 公開・正式監視の最終照合
+
+- Vercel本番tuat-tf（DLwsFggidLjhwtSoMFBtxUSXh6g1）の公式GitHub deployment status成功と、旧/new /api/version両方のc6c2b019f891ab70a25755ee11995b1e5c58f2d2一致を確認。旧/home?final-probe=1はqueryを除いて新/homeへ307、旧REST更新POSTは503/no-storeで拒否。新manifest/swは200、display=standalone/id=/home/scope=/。
+- 23:34:32.380Zに正式S4Uがvalid=true/phase=watchingへ到達。実Linux正式watch PID19799/birth1567808/argvSHA609b05…を確認後、作業用watch PID2333/birth1508523/argvSHA c32e28…だけをpidfd+SIGTERMで終了。正式watch・app PID5135/同f8世代・Jobs PID11550・timer active・backup verified・backupReady/localReady=true・両mount namespace同UUIDが維持されることを最終確認。
+- PC集約先への切替処理、いいね復旧、公開commit照合、15分バックアップと正式監視への引継ぎは完了。スマホ実機での最終保存/PWA起動とOS再起動試験は未確認。旧source fence解除・旧queue再送・旧Jobs再開はしない。この作業文書と引継ぎ/索引の更新は既存のローカル記録とともに保全し、文書だけを追加pushしない。

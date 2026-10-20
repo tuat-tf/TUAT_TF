@@ -37,3 +37,11 @@ PC DBを正本とし、既存の5分ごとのmirrorでクラウドAuthへ配る�
 - 最新masterへ載せ直し、本番構成のbuild成功。Git master統合とProduction確認を引き続き実施。
 
 未確認: 実際に許可する個人Googleアカウントが未定のため、その人のOAuthログイン一連の操作は未実施。iOS/Android実機操作も未確認。
+
+## 公開完了（2026-10-11 / Codex、ローカル追記）
+
+commit `e95e7c35c489ea4f424d77bd667410140a845eb9` をローカルmasterへfast-forwardし、masterを1回push。既存の未コミット文書・コード・未追跡ファイルは保全した。
+
+GitHub公式deployment `6983628577` の `Production – tuat-tf` がsuccess。同じSHAを `https://tuat-tf.vercel.app/api/version` で確認。本番のログイン済みセッションで管理画面を開き、空リスト表示・再取得成功・メール追加フォームの開閉を確認。対象メールは入力・保存していない。
+
+稼働元mirrorのstateに新表の記録が作成されたことを確認。最新masterと統合した全Vitestも135ファイル / 1171件成功。非公開の画面証跡は専用worktree `.contingency/production-allowlist.jpg`。公開確認のこの追記だけを理由に再push・再buildしない。

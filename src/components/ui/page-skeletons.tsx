@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import { TrainingChartSkeleton } from "@/components/ui/training-chart-skeleton";
+import { MemberPreviewSetting } from "@/components/features/MemberPreviewSetting";
+export { TrainingChartSkeleton } from "@/components/ui/training-chart-skeleton";
 import { Card as Panel } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -63,20 +66,6 @@ function ProfileCard() {
   return <Panel className="flex items-center gap-4 p-4"><Skeleton className="h-16 w-16 shrink-0 rounded-full" /><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-5 w-32 max-w-full" /><Skeleton className="h-3 w-20" /><div className="flex gap-1.5"><Skeleton className="h-4 w-14 rounded-full" /><Skeleton className="h-4 w-12 rounded-full" /></div></div></Panel>;
 }
 
-export function TrainingChartSkeleton() {
-  return <LoadingRegion label="練習量の推移" className=""><Panel className="space-y-3 p-4">
-    <div className="rounded-xl bg-bg p-3">
-      <div className="flex h-[18px] items-center justify-between gap-3"><Skeleton className="h-3 w-24" /><Skeleton className="h-2.5 w-20" /></div>
-      <div className="mt-2"><Skeleton className="h-6 w-24" /><div className="mt-1.5 flex h-[18px] items-center"><Skeleton className="h-2.5 w-32" /></div></div>
-      <Skeleton className="mt-3 h-2.5 w-full rounded-full" />
-      <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">{[0, 1, 2, 3].map(i => <div key={i} className="flex h-[16.5px] items-center gap-1.5"><Skeleton className="h-2 w-2 shrink-0 rounded-full" /><Skeleton className="h-2.5 min-w-0 flex-1" /></div>)}</div>
-    </div>
-    <div className="flex items-center justify-between"><Skeleton className="h-3 w-24" /><div className="w-36"><Filters /></div></div>
-    <div className="-mx-1 overflow-hidden px-1"><div className="w-max"><div className="flex h-[100px] items-end gap-2">{Array.from({ length: 16 }, (_, i) => <Skeleton key={i} className="w-6 shrink-0 rounded-t-sm rounded-b-none" style={{ height: `${[35, 52, 40, 68, 48, 72, 58, 82][i % 8]}%` }} />)}</div><div className="mt-1.5 flex gap-2">{Array.from({ length: 16 }, (_, i) => <div key={i} className="flex h-12 w-6 shrink-0 items-center justify-center">{i % 2 === 1 && <Skeleton className="h-2 w-5" />}</div>)}</div></div></div>
-    <div className="rounded-xl bg-bg p-3"><div className="mb-1 flex h-[19.5px] items-center justify-between"><Skeleton className="h-3 w-28" /><Skeleton className="h-3 w-12" /></div><div className="h-9"><Skeleton className="h-3 w-3/4" /></div><div className="mt-1 flex h-[45px] items-center border-t border-separator/60"><Skeleton className="h-3 w-28" /></div></div>
-  </Panel></LoadingRegion>;
-}
-
 export function ActivitySkeleton() {
   return <LoadingRegion label="投稿" className=""><div className="space-y-3">{[0, 1, 2].map(i => <Card key={i} lines={i === 0 ? 2 : 1} />)}</div></LoadingRegion>;
 }
@@ -126,12 +115,20 @@ export function ListSkeleton() {
 
 export function MyPageSkeleton({ showTraining = true, adminRows = 0, profilePending = false }: { showTraining?: boolean; adminRows?: number; profilePending?: boolean } = {}) {
   if (profilePending) return <LoadingRegion label="マイページ"><Title title="マイページ" action /><div className="px-4 pt-1"><ProfileCard /></div></LoadingRegion>;
-  return <LoadingRegion label="マイページ"><Title title="マイページ" action /><div className="space-y-5 px-4 pt-1"><ProfileCard />{showTraining && <TrainingChartSkeleton />}<Rows count={6} height={54.5} />{showTraining && <section className="space-y-2"><Label /><Rows count={1} height={54.5} /></section>}{adminRows > 0 && <section className="space-y-2"><Label /><Rows count={adminRows} height={54.5} /></section>}<section className="space-y-2"><Label /><ActivitySkeleton /></section></div></LoadingRegion>;
+  return <LoadingRegion label="マイページ"><Title title="マイページ" action /><div className="space-y-5 px-4 pt-1"><ProfileCard />{showTraining && <TrainingChartSkeleton />}<Rows count={6} height={56} />{showTraining && <section className="space-y-2"><Label /><Rows count={1} height={56} /></section>}{adminRows > 0 && <section className="space-y-2"><Label /><Rows count={adminRows} height={56} /></section>}<section className="space-y-2"><Label /><ActivitySkeleton /></section></div></LoadingRegion>;
 }
 
 /** サブページ共通の見出し（左に戻る・中央にタイトル）。SubHeader と同じ高さ。 */
 function SubTitle({ title }: { title?: string } = {}) {
   return <header data-glass-header className="sticky top-0 z-30 bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0"><div data-new-ui-subheader-layout className="flex h-12 items-center gap-2 px-2 md:px-4 lg:h-16"><Skeleton className="h-5 w-11 shrink-0" /><div className="flex min-w-0 flex-1 justify-center">{title ? <h1 data-new-ui-title className="truncate text-center text-title">{title}</h1> : <Skeleton className="h-5 w-32 max-w-full" />}</div><div className="w-11 shrink-0" /></div></header>;
+}
+
+/** 設定の閉じたグループと、一般部員プレビューの復帰入口を本文へ合わせる。 */
+export function SettingsSkeleton({ manageSystem, previewingAsMember }: { manageSystem: boolean; previewingAsMember: boolean }) {
+  return <div role="status" aria-label="設定を読み込み中"><SubTitle /><div className="space-y-5 px-4 pb-6 pt-1">
+    {previewingAsMember && <MemberPreviewSetting previewing />}
+    {Array.from({ length: manageSystem ? 5 : 4 }).map((_, i) => <div key={i} data-ui-section aria-hidden="true" className="rounded-card border border-separator/70 bg-card"><div data-ui-disclosure className="flex items-center justify-between gap-3 rounded-card px-4 py-4 text-[15px] font-semibold"><span className="flex h-[22.5px] items-center"><Skeleton className={i === 4 ? "h-4 w-24" : i === 3 ? "h-4 w-20" : "h-4 w-16"} /></span><Skeleton className="h-[18px] w-[18px] rounded-full" /></div></div>)}
+  </div></div>;
 }
 
 function Label() {
@@ -166,7 +163,7 @@ export function CompetitionSkeleton() {
 
 export function CompetitionGoalsSkeleton() {
   // 自分の目標 → ブロック切替・検索 → 種目ごとの行（CompetitionGoalBoardと同じ並び）
-  return <div className="pb-6"><SubTitle /><div className="space-y-4 px-4 pt-2"><section className="space-y-2"><Label /><Rows count={1} /></section><section className="space-y-3"><Label /><Skeleton className="h-9 w-full rounded-lg" /><Skeleton className="h-11 w-full rounded-xl" /><Rows count={5} /></section></div></div>;
+  return <div className="pb-6"><SubTitle /><div className="space-y-4 px-4 pt-2"><section className="space-y-2"><div className="flex h-11 items-center justify-between gap-3"><Label /><Skeleton className="h-11 w-28 rounded-full" /></div><Rows count={1} /></section><section className="space-y-3"><Label /><Skeleton className="h-12 w-full rounded-full" /><Skeleton className="h-11 w-full rounded-xl" /><Rows count={5} /></section></div></div>;
 }
 
 export function ResultsSkeleton() {

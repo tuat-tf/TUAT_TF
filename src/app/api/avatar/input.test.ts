@@ -19,8 +19,8 @@ vi.mock("@/lib/image-storage", async original => ({ ...await original<typeof imp
 import { POST } from "./route";
 
 beforeEach(() => upload.mockReset().mockResolvedValue(undefined));
-function request(body: Buffer | string) {
-  return new Request("https://app.example/api/avatar", { method: "POST", headers: { "Content-Type": "image/webp" }, body: body as BodyInit });
+function request(body: Buffer | string, contentType = "image/webp") {
+  return new Request("https://app.example/api/avatar", { method: "POST", headers: { "Content-Type": contentType }, body: body as BodyInit });
 }
 describe("avatar image conversion limits", () => {
   it("saves a normal photo as a 512px WebP", async () => {
@@ -31,12 +31,16 @@ describe("avatar image conversion limits", () => {
     expect(metadata).toMatchObject({ format: "webp", width: 512, height: 512 });
   });
   it("rejects a small input that expands beyond the pixel limit before uploading", async () => {
-    const input = '<svg xmlns="http://www.w3.org/2000/svg" width="10000" height="6000"><rect width="100%" height="100%" fill="red"/></svg>';
-    expect((await POST(request(input))).status).toBe(400);
+    const input = await sharp({ create: { width: 10000, height: 5001, channels: 3, background: "red" } })
+      .jpeg({ quality: 1 }).toBuffer();
+    expect(input.length).toBeLessThan(2 * 1024 * 1024);
+    expect((await POST(request(input, "image/jpeg"))).status).toBe(400);
     expect(upload).not.toHaveBeenCalled();
   });
   it("rejects an unreadable image without uploading or changing its reference", async () => {
-    expect((await POST(request("invalid image"))).status).toBe(400);
+    // Pass the JPEG format guard, then fail the real decoder on incomplete data.
+    const truncatedJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    expect((await POST(request(truncatedJpeg, "image/jpeg"))).status).toBe(400);
     expect(upload).not.toHaveBeenCalled();
   });
 });

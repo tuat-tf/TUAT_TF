@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArchiveRestore, MoreHorizontal, Pencil, Pin, PinOff, Quote, Share2, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Copy, MoreHorizontal, Pencil, Pin, PinOff, Quote, Share2, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { GlassMenu, type GlassMenuItem } from "./glass-menu";
@@ -10,6 +10,7 @@ export function ActionMenu({
   onEdit,
   onQuote,
   onShare,
+  onShareExternally,
   onPin,
   onArchive,
   archived = false,
@@ -18,6 +19,7 @@ export function ActionMenu({
   editLabel = "編集する",
   quoteLabel = "投稿を引用",
   shareLabel = "共有リンクをコピー",
+  shareExternallyLabel = "ほかのアプリで共有",
   deleteLabel = "削除する",
   deleteTitle = "削除しますか？",
   deleteDescription = "削除した内容は元に戻せません。",
@@ -30,6 +32,7 @@ export function ActionMenu({
   onEdit?: () => void;
   onQuote?: () => void;
   onShare?: () => void | Promise<void>;
+  onShareExternally?: () => void | Promise<void>;
   onDelete?: () => void | boolean | Promise<void | boolean>;
   onPin?: () => void | Promise<void>;
   onArchive?: () => void | Promise<void>;
@@ -38,6 +41,7 @@ export function ActionMenu({
   editLabel?: string;
   quoteLabel?: string;
   shareLabel?: string;
+  shareExternallyLabel?: string;
   deleteLabel?: string;
   deleteTitle?: string;
   deleteDescription?: string;
@@ -53,7 +57,8 @@ export function ActionMenu({
   const glassItems: GlassMenuItem[] = [];
   if (onEdit) glassItems.push({ key: "edit", label: editLabel, icon: <Pencil size={21} />, onSelect: onEdit });
   if (onQuote) glassItems.push({ key: "quote", label: quoteLabel, icon: <Quote size={21} />, onSelect: onQuote });
-  if (onShare) glassItems.push({ key: "share", label: shareLabel, icon: <Share2 size={21} />, immediate: true, onSelect: () => { void onShare(); } });
+  if (onShare) glassItems.push({ key: "share", label: shareLabel, icon: <Copy size={21} />, immediate: true, onSelect: () => { void onShare(); } });
+  if (onShareExternally) glassItems.push({ key: "external-share", label: shareExternallyLabel, icon: <Share2 size={21} />, immediate: true, onSelect: () => { void onShareExternally(); } });
   if (onPin) glassItems.push({ key: "pin", label: pinned ? "ピン留めを外す" : "ピン留めする", icon: pinned ? <PinOff size={21} /> : <Pin size={21} />, onSelect: () => { void onPin(); } });
   if (onArchive) glassItems.push({ key: "archive", label: archived ? "アーカイブを解除" : "アーカイブする", description: archived ? "ホームの表示対象に戻します" : "全員のホームから非表示にします", icon: archived ? <ArchiveRestore size={21} /> : <Archive size={21} />, onSelect: () => { void onArchive(); } });
   if (onDelete) glassItems.push({ key: "delete", label: deleteLabel, icon: <Trash2 size={21} />, destructive: true, separator: glassItems.length > 0, onSelect: () => setConfirmOpen(true) });

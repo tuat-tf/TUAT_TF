@@ -15,3 +15,11 @@
 - 両DBに適用済み。適用中にOB関連9表の前後を双方向比較し、既存データ不変を確認。RPC定義MD5は双方 `9d227d1ff1c6f6909f5a22acb634a0c4`。PCの変更ログoff・クラウドonを維持。実際の役職や担当の削除は行っていない。
 - Node 24.19環境確認、TypeScript、対象eslint、Vitest 94ファイル675件、本番用ビルド成功。Chrome/WebKit × 320/390/820/1440px × 通常/新UIの16条件で削除確認・キャンセル・失敗と再試行・設定・担当表示・文字拡大と横溢れを確認。
 - 実機iOS PWA・Androidは未確認。公開commitとProduction確認は反映後に追記する。
+
+## 本番反映
+
+`9abba3725ae90c4002c2c3a8f414c689a2f6f7e3` をmasterへfast-forwardし、`master -> master` の1回pushで反映。GitHub deploymentの `Production – tuat-tf` successと同一SHA、公開 `/api/version` の同一SHA・HTTP 200を確認した。
+
+本番ブラウザで「人を編集」を開き、編集中の役職と別役職の「この種目の補助担当」表示、前後予定、担当済み役職のメニューに削除がないことを確認。確認中は担当・役職を変更せず閉じた。削除操作そのものは両DBのROLLBACK検証と合成UIで確認した。実機未確認は上記の通り。
+
+完了追記はローカルに保持し、文書のみの追加pushは保留。次回の関連コード変更へ同梱する。

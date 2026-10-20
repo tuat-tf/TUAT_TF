@@ -1,3 +1,4 @@
+-- Apply the unpublished capability change after the current production migration chain.
 -- Copy the legacy capabilities once; later renames and migration retries never grant them.
 -- Assignments, existing permission flags, meet staff IDs and protected-role guards stay intact.
 DO $$
@@ -209,7 +210,7 @@ WITH sources AS (
 INSERT INTO public.competition_appearances(id,competition_id,participant_id,event_name,ordinal,operation_key,qualification_mark,state,performance)
 SELECT md5(s.competition_id::text||'/'||s.event_name||'/'||s.operation_key)::uuid,s.competition_id,s.participant_id,s.event_name,s.ordinal,s.operation_key,s.mark,CASE WHEN s.registered THEN 'registered' ELSE 'cancelled' END,
  coalesce((SELECT value FROM public.ob_event_operations o CROSS JOIN LATERAL jsonb_array_elements(o.data->'participants') WHERE o.meet_key='ob-2026' AND o.event_name=s.event_name AND value->>'entryId'=s.operation_key),jsonb_build_object('group',NULL,'order',NULL,'status','entered','trials','[]'::jsonb))||jsonb_build_object('entryId',md5(s.competition_id::text||'/'||s.event_name||'/'||s.operation_key)::uuid)
-FROM dedup s JOIN public.competition_participants p ON p.id=s.participant_id JOIN public.competition_meet_events e ON e.competition_id=s.competition_id AND e.name=s.event_name ON CONFLICT DO NOTHING;
+FROM dedup s JOIN public.competition_participants p ON p.id=s.participant_id JOIN public.competition_meet_events e ON e.competition_id=s.competition_id AND e.name=s.event_name ON CONFLICT(id) DO NOTHING;
 UPDATE public.competition_meet_events e SET confirmed=(o.data->>'confirmed')::boolean,revision=o.revision
 FROM public.ob_event_operations o JOIN public.competition_meets m ON m.legacy_source=o.meet_key AND NOT m.ready
 WHERE e.competition_id=m.competition_id AND e.name=o.event_name AND e.revision=0;

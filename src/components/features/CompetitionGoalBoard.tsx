@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,8 @@ export function CompetitionGoalBoard({
   personalBests,
   onEdit,
   onDelete,
+  onAdd,
+  canAdd,
   busy,
 }: {
   goals: CompetitionGoalRow[];
@@ -34,6 +37,8 @@ export function CompetitionGoalBoard({
   personalBests: Map<string, string>;
   onEdit: (goal: CompetitionGoalRow) => void;
   onDelete: (id: string) => Promise<boolean>;
+  onAdd: () => void;
+  canAdd: boolean;
   busy: boolean;
 }) {
   const [block, setBlock] = useState<SimpleBlockFilter>("all");
@@ -73,11 +78,16 @@ export function CompetitionGoalBoard({
     ) : null;
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4">
       <section className="space-y-1.5">
-        <p className="section-label">自分の目標</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="section-label">自分の目標</p>
+          <Button variant="secondary" size="sm" onClick={onAdd} disabled={busy || !canAdd}>
+            <Plus size={16} />目標を設定
+          </Button>
+        </div>
         {own.length === 0 ? (
-          <Card className="p-4 text-caption">まだ目標はありません。右下の＋から出場種目の目標を追加できます。</Card>
+          <Card className="p-4 text-caption">まだ目標はありません。出場する種目の目標を設定できます。</Card>
         ) : (
           <Card className="divide-y divide-separator">
             {own.map((g) => (

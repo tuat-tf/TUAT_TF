@@ -185,3 +185,19 @@ DNS修正 `d297d2a` を本番PCへ反映し、実アプリと同じnamespace・U
 同じ起動順がPC起動loaderにもあるため、次の修正ではJobsの実runnerとkernel FLOCKが確認できるまでtimerを開始しない。既にtimerが動いていてJobsの起動が必要ならtimerだけを一時停止し、実行中backupは止めず同じ処理の完了を待つ。failed/不明owner/期限超過では自動再試行しないこと、正式監視とストレージ保持を維持することを受入条件とする。
 
 起動順の追加修正はbootstrap31試験を通過した。activeだけで未準備のJobs、古いlifetime/runnerが同じunitの起動中に残る状態、owner変更・FLOCK不成立・期限超過を確認した。実PCでも新しい待合せ関数を読取りだけで呼び、現在のNodeプロセス・runner・kernel FLOCKを確認した。OS再起動の実試験は未実施である。
+
+## 本番反映の完了（2026-10-16 13:36 JST）
+
+最終commit `4051ea1e0999fe2665cc8d46135af1773be3b320` はmasterへ統合・push済み。Vercel Productionの成功と、新入口・旧URL両方の `/api/version` の同SHAを確認した。新入口のlogin・manifest・service workerは200、旧homeは新入口へ307である。
+
+返信はアプリ内だけとなり、Sheetsとの送受信・Sheets由来の表示/件数を終了した。既存コメント・旧返信・削除queue・履歴は保持している。同期の宛先検査とliteral保存、CSV取得制限、Pushの将来枠再開と過去失敗の履歴保持、OAuth戻り先、画像受付/容量制限、整理候補0件時の重複処理省略も反映済み。GAS実配備はv24で、秘密設定と旧版v23を保全した。
+
+最終アプリの実namespace・UID65530でGoogle DNS/HTTPS、resolverのread-onlyとWindowsファイル不可視性を確認した。実スプシdryRunは58人対象・失敗0件、追加予定10件・更新予定6件、実書込み0件。過去のSheets失敗枠をsuccessへ変更せず、再送していない。
+
+Jobsの実Node・両lock・kernel FLOCKを確認してからtimerを開始し、その後の自動backupも成功した。アプリとJobsはactive、timerはactive/waiting。program・cleanup・pushの現在枠はsuccess、過去のpush失敗1件は差替え前の履歴と完全一致した。正式なWindows常駐taskは1個のまま継続し、loaderと次回起動ハッシュを更新した。保守用の一時監視だけを正確なPID・birth・cmd hash・pidfdで終了し、本番サービスやmountは停止していない。
+
+最終generation `86f72dfb-7185-41e8-b5cd-d65dfa1dcda2` でR2保存・独立読戻し・別DB復元を確認した。最新archiveは17,797,156bytes、capture 04:34:45Z、R2検証04:35:07Z。readerと最新offsite receiptのarchive hash・generationが一致し、最終runtimeの全配置検査もvalid=trueで通過した。既存DB/Auth/REST/Tunnelの実体は維持している。
+
+検証は環境確認・tsc・全Vitest177ファイル1,653件、GAS/通知/整理61件、backup58件、bootstrap31件、Linux sandboxの7条件、隔離build/smoke、実DB migration snapshot/dryRun・データ保持、上記実経路確認である。スマホのPWAインストール・実保存・通知受信、OS再起動、契約/請求額とCloudflare実利用量は未確認。Vercel検証用自動deployの停止は具体案の承認待ちで変更していない。バックアップ周期・保持・完全性確認、課金設定、旧Supabaseは変更していない。
+
+この完了追記はローカル保存。文書だけを理由に追加build・deploy・pushは行わない。

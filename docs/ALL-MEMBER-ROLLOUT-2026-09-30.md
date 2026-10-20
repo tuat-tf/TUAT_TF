@@ -20,3 +20,23 @@
 - TypeScript・対象ESLint・全テストを確認。本番build・dry-run・公開SHA・PC固定release・両DBの最終照合は反映時に確認する。
 
 実ユーザーの設定を代理保存せず、実スプシへの試験書込みもしない。iPhone実機は未確認。未反映のコメント削除監査は含めない。
+
+## 本番反映完了
+
+- `65336838372df7719fee44ef4bc50c7745491263` を master へ1回push。Vercel本番とPC previewの公式チェックsuccess、公開 `/api/version` とPC `127.0.0.1:3112/api/version` が同一SHA。
+- Production: https://vercel.com/paimondayos-projects/tuat-tf/AHPayxMfdqnaZySJGNbWH1DtBUsx
+- 両DBへ20260930020000を適用。変更対象関数は適用後も正規化hash一致。既存案内の全員公開・全員のsheet_transitionが事前退避と一致することを両DBで確認。公開GET/POSTの未認証アクセスは401。
+- 全530テスト、tsc、対象eslint、Next16.3.6のPC本番設定build成功。dry-runは記録insert13/update66/push2・failed0、大会成功。
+- PC固定release `.contingency/pc-jobs-6533683` へ切替。既存activateAt維持、18:00大会処理success。予備同期再開後もsuccess。
+
+## 夜間同期の停止復旧（最新。過去の「failed journal保持」より優先）
+
+切替後の最終確認で、9/29 00:00 JSTにGAS接続1件が部分失敗したため、schedulerの安全停止が残り、後続日の夜間同期も実行されない状態を発見した。過去の成功・失敗履歴を確認し、現在の全件dry-run失敗0、対象48人の1巡完了、新しいバックアップを根拠に復旧した。
+
+- 追加退避: `/opt/tuat-tf-supabase/backups/all-member-20260930/pc-before-sync-recovery.dump`。
+- runner終了後、元journalと失敗内容をアクセス制限付き `.contingency/backend/sheet-journal-before-recovery-20260930.json` に保存。既存失敗を成功に書き換えず、sheetsだけを新しい時刻枠で再実行できる状態へ戻した。他のジョブ・activateAtは保持。
+- 18:03:55〜18:04:37 JSTの実同期で取り込み/更新79件・送信2件・失敗0をDB履歴で確認し、runner自身もsuccessを記録。これは試験データの送信ではなく、承認された本番同期の復旧実行。
+- 次回10/1 00:00 JSTのsheetsが実行可能であることをschedulerのdueJobsで確認。18:04:54の予備同期もsuccess。
+- 復旧記録: `.contingency/backend/sheet-recovery-result-20260930.json`。
+
+この完了記録とAGENTS更新は手元に保持。文書のみの追加pushはしない。iPhone実機の確認は未実施。

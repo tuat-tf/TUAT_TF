@@ -22,8 +22,8 @@ BEGIN
   INSERT INTO public.profiles(id,email,display_name) VALUES
     (a,a||'@example.invalid','合成本人'),(b,b||'@example.invalid','合成別部員'),(moderator,moderator||'@example.invalid','合成管理者')
     ON CONFLICT(id) DO NOTHING;
-  INSERT INTO public.roles(name) SELECT '管理者' WHERE NOT EXISTS(SELECT 1 FROM public.roles WHERE name='管理者');
-  SELECT id INTO role_id FROM public.roles WHERE name='管理者';
+  INSERT INTO public.roles(name,can_moderate_comments)
+    VALUES('Synthetic explicit comment moderator',true) RETURNING id INTO role_id;
   INSERT INTO public.profile_roles(profile_id,role_id) VALUES(moderator,role_id) ON CONFLICT DO NOTHING;
   INSERT INTO public.practice_records(id,user_id,recorded_date) VALUES(target,a,DATE '2026-09-30');
   INSERT INTO public.tweets(id,user_id,content) VALUES(target,a,'合成の同一ID別種別');

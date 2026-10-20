@@ -17,6 +17,7 @@ function role(manageSystem: boolean, suppressed = false): AppRole {
   return {
     id: "test-role", name: "合成ロール", can_manage_system: manageSystem,
     can_manage_members: false, can_create_schedule: false, can_create_menu: false,
+    can_moderate_comments: false, can_manage_ob_meet: false, editable_menu_blocks: [],
     can_create_notice: false, can_decide_practice: false, is_system: false,
     is_everyone: false, color: "blue", category: null, sort_order: 0,
     created_at: checkedAt, permissions_suppressed: suppressed,

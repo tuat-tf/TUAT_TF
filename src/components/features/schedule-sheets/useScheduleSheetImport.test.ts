@@ -12,10 +12,16 @@ vi.mock("react", () => ({
       state.slots[index] = typeof next === "function" ? next(state.slots[index]) : next;
     }];
   },
+  useRef: (initial: unknown) => {
+    const index = state.cursor++;
+    if (!(index in state.slots)) state.slots[index] = { current: initial };
+    return state.slots[index];
+  },
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
-vi.mock("@/lib/supabase/client-auth", () => ({ getCurrentUserId: async () => "11111111-1111-4111-8111-111111111111" }));
-vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ from: () => {
+vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({
+  auth: { getUser: async () => ({ data: { user: { id: "11111111-1111-4111-8111-111111111111" } }, error: null }) },
+  from: () => {
   const query = { select: () => query, eq: () => query, order: () => query, gte: () => query, lt: () => query,
     insert: (value: unknown) => { state.insert(value); return query; },
     single: async () => ({ data: { id: "synthetic-sheet" }, error: null }),
@@ -31,7 +37,9 @@ async function Mount() {
   return Render();
 }
 beforeEach(() => {
-  state.insert.mockReset(); state.fetch.mockReset().mockResolvedValue(Response.json({ rows: [], deletions: [] }));
+  state.insert.mockReset(); state.fetch.mockReset().mockResolvedValue(Response.json({
+    columns: [], rows: [], additions: [], updates: [], deletions: [], errors: [], skips: [],
+  }));
   vi.stubGlobal("fetch", state.fetch);
 });
 afterEach(() => vi.unstubAllGlobals());

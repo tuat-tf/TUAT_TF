@@ -38,3 +38,9 @@ PCにはsupabase_migrations.schema_migrationsが存在しない。初回適用�
 ## 公開と未確認
 
 masterへ一度だけpushし、Productionのcommit一致まで確認して完了とする。iOS/Androidの実機操作、会場回線、実際の大会での連続運用、PC電源断からの復帰は今回未確認。ブラウザ合成試験やDB検証をこれらの代替として扱わない。
+
+## 公開確認（完了）
+
+2026-10-04 JST、commit `96be81a10e9ef3a6512fd10c88be10b2928e5079`をmasterへfast-forwardして1回だけpushし、`master -> master`を確認。GitHub公式deployment `6830698644`のenvironment `Production – tuat-tf`がsuccess、公開`https://tuat-tf.vercel.app/api/version`のversionが同じSHAであることを確認した。Vercel MCPはこのセッションにないため、AGENTSで認められたGitHub公式status＋公開SHAの経路を使用した。
+
+本番PC/クラウドDB適用、データ不変、同期dry-run差分ゼロ、型・ESLint・719単体テスト・運用4テスト・合成UI32条件・buildは上記のとおり完了。rootに残っていた88件の既存変更/未追跡ファイルを保全し、索引は3-way統合、他ファイルは統合前後のハッシュ不変を確認。公開確認のこの追記は手元だけに保持し、文書追記のための追加push・デプロイは行わない。

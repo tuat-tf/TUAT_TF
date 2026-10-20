@@ -15,3 +15,9 @@
 - 隔離ビルドで `npm run build` 成功（Next 16.3.6、69静的ページ）。本番稼働中の root node_modules は変更せず、lock一致の検証依存を使用。複数lock検出の警告は隔離配置によるもの。
 - 検証用の画面・スクリプト・画像は `.contingency/ob-program-ui-*`。実ユーザーへの保存・削除は行っていない。iPhone/Android実機は未確認。
 - master と origin/master の一致を確認済み。本番の完了記録は公開SHA確認後に追記する。
+
+## 本番反映完了
+- commit: `84f65eddbbfdc7f70e127315a9bb3a1505b836d0`。master へfast-forwardし、1回のpushで `master -> master` を確認。
+- GitHub公式 deployment `Production – tuat-tf` が同SHAで success。公開 `/api/version` がHTTP 200で同SHAを返すことを確認。Previewの状態は完了証拠に使っていない。
+- 本番: https://tuat-tf.vercel.app 。デプロイ: https://vercel.com/paimondayos-projects/tuat-tf/CdcukzBeF9uJTqRutq3WPX18TCPS 。
+- rootの既存変更・未追跡77ファイルをハッシュ照合で保全し、索引・監査文書の既存追記も保持。完了追記はローカルに保持し、文書だけの追加pushは行わない。

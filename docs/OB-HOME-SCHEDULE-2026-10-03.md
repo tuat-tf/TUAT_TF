@@ -17,3 +17,11 @@ origin/master 82b840aから独立worktreeで実施。既存の未コミット変
 - DB・環境変数・運用同期・権限変更なし。本番PCの依存は保持。
 
 master反映・Production確認は続行中。
+
+## 本番反映完了
+
+commit `83afed155230ac54bf567a0a6c8c931eaa3feba1` をmasterへfast-forwardし、1回のpushで `master -> master` を確認。作業ブランチは未push。元の変更・未追跡75ファイルをハッシュ一致で保全し、索引・監査記録のローカル追記も保持。
+
+GitHub公式deployment statusで `Production – tuat-tf` が同SHAでsuccess、公開 https://tuat-tf.vercel.app/api/version も同SHAを返すことを確認した。DB変更なし。
+
+完了追記はローカルに保持し、文書だけを理由に再push・再ビルドしない。

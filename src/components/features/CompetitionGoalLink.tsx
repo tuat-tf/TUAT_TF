@@ -28,10 +28,8 @@ export function CompetitionGoalLink({
       <div className="min-w-0 flex-1">
         <p className="text-headline break-words">{competition.name}</p>
         <p className="text-caption mt-0.5">{period}</p>
+        <p className="text-caption mt-1 text-accent">{count > 0 ? `${count}種目を設定済み・目標を見る` : "目標を設定"}</p>
       </div>
-      <span className="shrink-0 text-caption tabular-nums">
-        {count > 0 ? `${count}種目` : "未設定"}
-      </span>
       <ChevronRight size={18} className="shrink-0 text-muted" />
     </Link>
   );

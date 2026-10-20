@@ -1,3 +1,4 @@
+-- Apply the unpublished atomic save after the current production migration chain.
 -- The existing own-tweet/poll/mention RLS and notification triggers remain in
 -- force. R2 upload is a separate step, not part of this database transaction.
 CREATE OR REPLACE FUNCTION public.save_tweet(
