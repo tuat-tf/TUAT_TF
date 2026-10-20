@@ -1,10 +1,11 @@
 // Browser regression for image-bearing backdrops. Run with Node and Playwright
 // installed, or point GLASS_PLAYWRIGHT_MODULE at an existing Playwright module.
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
-const assert = require('node:assert/strict');
-const { chromium, webkit } = require(process.env.GLASS_PLAYWRIGHT_MODULE || 'playwright');
-const bundle = readFileSync(resolve(__dirname, '../../public/vendor/liquid-glass/simple-liquid-glass.js'), 'utf8');
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const { chromium, webkit } = createRequire(import.meta.url)(process.env.GLASS_PLAYWRIGHT_MODULE || 'playwright');
+const bundle = readFileSync(resolve(import.meta.dirname, 'vendor/simple-liquid-glass.js'), 'utf8');
 const svg = color => `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path fill="${color}" d="M0 0h40v40H0z"/></svg>`;
 
 async function verify() {

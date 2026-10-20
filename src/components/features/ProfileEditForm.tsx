@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, LogOut, SlidersHorizontal, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { clearPersistedQueries } from "@/lib/client/query-persistence";
 import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
@@ -14,11 +13,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Disclosure } from "@/components/ui/disclosure";
 import { Avatar } from "@/components/common/Avatar";
 import { AvatarCropEditor } from "@/components/features/AvatarCropEditor";
-import { SheetHeaderSetupDialog, type SheetHeaderData } from "@/components/features/SheetHeaderSetupDialog";
+import { SheetHeaderSetupDialog } from "@/components/features/SheetHeaderSetupDialog";
 import { recordFieldsToJson } from "@/lib/profile-normalize";
 import { ALL_PROFILE_EVENTS, BLOCKS, EVENTS_BY_BLOCK, GRADE_OPTIONS, PROFILE_BLOCK_ORDER, normalizeProfileBlocks } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Block, Profile } from "@/types";
+import { useProfileAvatar } from "./profile-edit/useProfileAvatar";
+import { useProfileSheetSetup } from "./profile-edit/useProfileSheetSetup";
+import { useProfileSignOut } from "./profile-edit/useProfileSignOut";
 
 /** 名前・アバター・ブロック（複数可）・学年の編集フォーム（初回設定 / 後からの編集 共通） */
 export function ProfileEditForm({
@@ -52,25 +54,11 @@ export function ProfileEditForm({
   const [blocks, setBlocks] = useState<Block[]>(normalizeProfileBlocks(profile.blocks));
   const [events, setEvents] = useState<string[]>(profile.events ?? []);
   const [grade, setGrade] = useState<string | null>(profile.grade);
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? "");
-  const [avatarCropFile, setAvatarCropFile] = useState<File | null>(null);
-  const [processingAvatar, setProcessingAvatar] = useState(false);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [sheetName, setSheetName] = useState<string>(profile.sheet_name ?? "");
-  const [sheetOptions, setSheetOptions] = useState<string[] | null>(null);
-  const [sheetNameMissing, setSheetNameMissing] = useState(false);
-  const [headerData, setHeaderData] = useState<SheetHeaderData | null>(null);
-  const [loadingHeader, setLoadingHeader] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [confirmSignOut, setConfirmSignOut] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Reconciliation/router.refresh can reveal a save whose response was lost.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAvatarUrl(profile.avatar_url ?? "");
-  }, [profile.avatar_url]);
+  const { avatarUrl, avatarCropFile, setAvatarCropFile, processingAvatar, avatarInputRef, selectAvatar, uploadCroppedAvatar, removeAvatar } = useProfileAvatar(profile.avatar_url, setError);
+  const { sheetName, setSheetName, sheetOptions, sheetNameMissing, headerData, setHeaderData, loadingHeader, fetchHeader, openHeaderEditor } = useProfileSheetSetup(profile.sheet_name, separateRecordSettings, setError);
+  const { confirmSignOut, setConfirmSignOut, signingOut, signOut } = useProfileSignOut(profile.id);
 
   useFormDraft({
     dirty: JSON.stringify([name, blocks, events, grade, sheetName]) !== JSON.stringify([profile.display_name ?? "", normalizeProfileBlocks(profile.blocks), profile.events ?? [], profile.grade, profile.sheet_name ?? ""]),
@@ -78,54 +66,6 @@ export function ProfileEditForm({
     onSave: save,
   });
   const valid = name.trim() && blocks.length > 0 && grade;
-
-  // スプシ連携用：部員シート名の候補を取得（失敗しても編集は続行できる）
-  useEffect(() => {
-    if (separateRecordSettings) return;
-    let active = true;
-    fetch("/api/sheets/members")
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { members?: { name: string }[] }) => {
-        if (!active) return;
-        const names = (data.members ?? []).map((m) => m.name);
-        setSheetNameMissing(Boolean(profile.sheet_name && !names.includes(profile.sheet_name)));
-        // 現在の保存値が候補に無くても選べるよう加えておく
-        if (profile.sheet_name && !names.includes(profile.sheet_name)) {
-          names.unshift(profile.sheet_name);
-        }
-        setSheetOptions(names);
-      })
-      .catch(() => active && setSheetOptions([]));
-    return () => {
-      active = false;
-    };
-  }, [profile.sheet_name, separateRecordSettings]);
-
-  async function signOut() {
-    setSigningOut(true);
-    const supabase = createClient();
-    try {
-      if ("serviceWorker" in navigator && "PushManager" in window) {
-        const registration = await navigator.serviceWorker.getRegistration();
-        const subscription = await registration?.pushManager.getSubscription();
-        if (subscription) {
-          const endpoint = subscription.endpoint;
-          const { error: deleteError } = await supabase
-            .from("push_subscriptions")
-            .delete()
-            .eq("endpoint", endpoint)
-            .eq("user_id", profile.id);
-          if (deleteError) throw deleteError;
-          await subscription.unsubscribe();
-        }
-      }
-    } catch (pushCleanupError) {
-      console.error("Failed to remove push subscription during sign out", pushCleanupError);
-    }
-    await clearPersistedQueries();
-    await supabase.auth.signOut();
-    window.location.assign("/login");
-  }
 
   function selectBlock(block: Block) {
     setBlocks([block]);
@@ -135,87 +75,9 @@ export function ProfileEditForm({
     setEvents((cur) => (cur.includes(ev) ? cur.filter((x) => x !== ev) : [...cur, ev]));
   }
 
-  function selectAvatar(file: File | undefined) {
-    if (!file) return;
-    setError(null);
-    setAvatarCropFile(file);
-    if (avatarInputRef.current) avatarInputRef.current.value = "";
-  }
-
-  async function uploadCroppedAvatar(prepared: Blob) {
-    setProcessingAvatar(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/avatar", {
-        method: "POST",
-        headers: { "Content-Type": prepared.type },
-        body: prepared,
-      }).catch(() => { throw new Error("画像の保存結果を確認できませんでした。画面を開き直して確認してください"); });
-      const result = (await response.json().catch(() => { throw new Error("画像の保存結果を確認できませんでした。画面を開き直して確認してください"); })) as {
-        avatarUrl?: string;
-        error?: string;
-      };
-      if (!response.ok || !result.avatarUrl) {
-        throw new Error(result.error ?? "画像の保存結果を確認できませんでした。画面を開き直して確認してください");
-      }
-      setAvatarUrl(result.avatarUrl);
-      router.refresh();
-    } catch (saveError) {
-      router.refresh();
-      throw saveError;
-    } finally {
-      setProcessingAvatar(false);
-    }
-  }
-
-  async function removeAvatar() {
-    if (!avatarUrl || processingAvatar) return;
-    setProcessingAvatar(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/avatar", { method: "DELETE" }).catch(() => { throw new Error("画像の削除結果を確認できませんでした。画面を開き直して確認してください"); });
-      const result = (await response.json().catch(() => { throw new Error("画像の削除結果を確認できませんでした。画面を開き直して確認してください"); })) as { error?: string };
-      if (!response.ok) {
-        throw new Error(result.error ?? "画像を削除できませんでした。もう一度お試しください");
-      }
-      setAvatarUrl("");
-      router.refresh();
-    } catch (removeError) {
-      router.refresh();
-      setError(
-        removeError instanceof Error
-          ? removeError.message
-          : "画像を削除できませんでした。もう一度お試しください",
-      );
-    } finally {
-      setProcessingAvatar(false);
-    }
-  }
-
   const selectedBlock = blocks[0];
   const eventOptions = selectedBlock ? ALL_PROFILE_EVENTS : [];
   const eventGroups: Block[] = ["middle_long", "short", "jump", "throw"];
-
-  async function fetchHeader(): Promise<SheetHeaderData | null> {
-    const response = await fetch(`/api/sheets/header?sheetName=${encodeURIComponent(sheetName.trim())}`, {
-      cache: "no-store",
-    });
-    const result = await response.json() as SheetHeaderData & { error?: string };
-    if (!response.ok) {
-      setError(result.error ?? "スプレッドシートの見出しを取得できませんでした");
-      return null;
-    }
-    return result;
-  }
-
-  async function openHeaderEditor() {
-    if (!sheetName.trim() || loadingHeader) return;
-    setLoadingHeader(true);
-    setError(null);
-    const currentHeader = await fetchHeader();
-    setLoadingHeader(false);
-    if (currentHeader) setHeaderData(currentHeader);
-  }
 
   async function save() {
     try {

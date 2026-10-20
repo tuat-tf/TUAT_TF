@@ -69,9 +69,10 @@ export function successfulPayload(job, value) {
 /** Persist BEFORE dispatch. Later push cycles select pending DB items only;
  * failed/uncertain/claimed items remain guarded by the delivery API. */
 export async function tick({ state, now, save, execute, ready, localPushEnabled = false }) {
-  if (!await ready()) return { skipped: 'backend-not-ready' };
+  // Idle loops need no schema/version request. Every actual dispatch still
+  // checks the current backend, backup generation and release before saving intent.
   for (const job of dueJobs(state, now, localPushEnabled)) {
-    if (!await ready()) break;
+    if (!await ready()) return { skipped: 'backend-not-ready' };
     const previous = state.jobs[job.id];
     if (job.id === 'push' && previous && ['failed', 'uncertain'].includes(previous.status)) {
       // Preserve the old request outcome, including an interrupted startup record.

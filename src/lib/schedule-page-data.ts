@@ -39,7 +39,7 @@ export type SchedulePageData = {
 export async function getSchedulePageData(): Promise<SchedulePageData> {
   const profile = await getCurrentProfile();
   const perms = permissionsOf(profile.roles);
-  const schedules: (ScheduleWithMenus & { attendances?: (Attendee & { schedule_id: string })[] })[] =
+  const schedulesWithAttendances: (ScheduleWithMenus & { attendances?: (Attendee & { schedule_id: string })[] })[] =
     await getUpcomingSchedulesWithAttendances(profile.blocks, perms.manageSystem || profile.blocks.includes("manager") || profile.schedule_view_all_blocks);
   // シートのメニューはここでは取らない（上の型コメント参照）。誰に出すかだけ決める。
   const wantsSheetMenus =
@@ -53,8 +53,8 @@ export async function getSchedulePageData(): Promise<SchedulePageData> {
   const myLateBySchedule: Record<string, boolean> = {};
   const myLateNoteBySchedule: Record<string, string | null> = {};
   const myAbsenceNoteBySchedule: Record<string, string | null> = {};
-  for (const schedule of schedules) {
-    for (const attendee of schedule.attendances ?? []) {
+  const schedules = schedulesWithAttendances.map(({ attendances, ...schedule }) => {
+    for (const attendee of attendances ?? []) {
       (attendeesBySchedule[attendee.schedule_id] ??= []).push(attendee);
       // my* は「初日の自分の出欠」。2日目以降はカード側が attendees から日ごとに読む。
       if (attendee.user_id === profile.id && attendee.attend_date === schedule.schedule_date) {
@@ -64,14 +64,18 @@ export async function getSchedulePageData(): Promise<SchedulePageData> {
         myAbsenceNoteBySchedule[attendee.schedule_id] = attendee.absence_note;
       }
     }
-  }
+    return schedule;
+  });
 
   return {
     schedules,
     userId: profile.id,
     middleLongMenuSnapshot: null,
     wantsSheetMenus,
-    myProfile: profile,
+    myProfile: {
+      id: profile.id, display_name: profile.display_name, avatar_url: profile.avatar_url,
+      blocks: profile.blocks, grade: profile.grade,
+    },
     viewerBlocks: profile.blocks,
     canEditMenu: perms.createMenu,
     canManageAllMenus: perms.manageMembers,

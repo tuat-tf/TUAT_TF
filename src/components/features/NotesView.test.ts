@@ -25,7 +25,7 @@ function folder(id: string, overrides: Partial<NoteWithRelations> = {}): NoteWit
     id, title: id, author_id: "other", author: { ...currentUser, id: "other" },
     scope: "shared", status: "draft", edit_policy: "specified", parent_id: null,
     body: "", description: null, pinned: false, theme_id: null, theme: null,
-    created_at: "", updated_at: "", editors: [], articles: [], children: [], threads: [],
+    created_at: "", updated_at: "", editors: [], article_count: 0, child_count: 0, thread_count: 0,
     ...overrides,
   };
 }

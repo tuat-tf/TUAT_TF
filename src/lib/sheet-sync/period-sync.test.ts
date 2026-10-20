@@ -41,10 +41,14 @@ const admin = { async rpc(name: string, args: Record<string, unknown>) {
   let selectedColumns = "";
   let updateValue: Record<string, unknown> | null = null;
   const filters: [string, unknown][] = [];
+  const comparisons: ((row: Record<string, unknown>) => boolean)[] = [];
   const q = {
     select: (columns: string) => { selectedColumns = columns; state.selects.push({ table, columns }); return q; }, not: () => q, is: (key: string, value: unknown) => { filters.push([key, value]); return q; }, order: () => q, range: () => q,
     in: (key: string, value: unknown) => { filters.push([key, value]); return q; },
-    eq: (key: string, value: unknown) => { filters.push([key, value]); return q; }, gte: () => q,
+    eq: (key: string, value: unknown) => { filters.push([key, value]); return q; },
+    gte: (key: string, value: string) => { comparisons.push(row => String(row[key]) >= value); return q; },
+    lte: (key: string, value: string) => { comparisons.push(row => String(row[key]) <= value); return q; },
+    lt: (key: string, value: string) => { comparisons.push(row => String(row[key]) < value); return q; },
     insert: (value: unknown) => { op = "insert"; state.writes.push({ table, op, value }); return q; },
     update: (value: unknown) => { op = "update"; updateValue = value as Record<string, unknown>; state.writes.push({ table, op, value }); return q; },
     upsert: (value: unknown) => { op = "upsert"; state.writes.push({ table, op, value }); return q; }, delete: () => { op = "delete"; state.writes.push({ table, op, value: null }); return q; },
@@ -62,7 +66,8 @@ const admin = { async rpc(name: string, args: Record<string, unknown>) {
       let data = table === "profiles" ? state.profiles : table === "practice_records" ? state.records : table === "sheet_pending_clears" ? state.clears : table === "sheet_member_sync_state" ? state.syncStates : [];
       if (table === "practice_records") data = data.map(row => ({ updated_at: "2026-10-01T00:00:00Z", pending_sheet_push: false, ...row }));
       if (table === "sheet_pending_clears") data = data.map(row => ({ created_at: "2026-10-01T00:00:00Z", ...row }));
-      data = data.filter(row => filters.every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : value === null ? row[key] == null : row[key] === value));
+      data = data.filter(row => filters.every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : value === null ? row[key] == null : row[key] === value)
+        && comparisons.every(matches => matches(row)));
       if (table === "practice_records" && op === "update" && !state.zeroAck) {
         for (const row of data) {
           const saved = state.records.find(record => record.id === row.id);
@@ -396,6 +401,32 @@ describe("period-aware scheduled synchronization", () => {
     const result = await runSheetSync(admin);
     expect(result.inserted).toBe(0); expect(result.updated).toBe(0); expect(result.pushed).toBe(1);
     expect(state.gas).toHaveBeenCalledWith(expect.objectContaining({ spreadsheetId: OCTOBER_SHEET_ID, date: "2026-10-01", cells: { 感想: "アプリ" } }));  });
+  it("skips app-only CSV when no current-period write or clear remains", async () => {
+    vi.setSystemTime(new Date("2026-10-20T03:00:00Z"));
+    state.profiles = [profile("app_only")];
+    state.records = [
+      { id: "old", user_id: "regular", recorded_date: "2026-09-30", memo: "旧期間", pending_sheet_push: true },
+      { id: "future", user_id: "regular", recorded_date: "2026-10-21", memo: "未来", pending_sheet_push: true },
+      { id: "saved", user_id: "regular", recorded_date: "2026-10-19", memo: "送信済み", pending_sheet_push: false },
+    ];
+    expect(await runSheetSync(admin)).toMatchObject({ inserted: 0, updated: 0, pushed: 0, failedMembers: [] });
+    expect(state.fetch).not.toHaveBeenCalled();
+    expect(state.gas).not.toHaveBeenCalled();
+    expect(state.records[0].pending_sheet_push).toBe(true);
+  });
+  it("still reads app-only CSV for a queued clear or an edit first visible in the guarded snapshot", async () => {
+    vi.setSystemTime(new Date("2026-10-20T03:00:00Z"));
+    state.profiles = [profile("app_only")];
+    state.records = [{ id: "new", user_id: "regular", recorded_date: "2026-10-01", memo: "保存", pending_sheet_push: false }];
+    state.editBeforeRecordsRead = { id: "new", patch: { pending_sheet_push: true } };
+    await runSheetSync(admin);
+    expect(state.fetch).toHaveBeenCalledOnce();
+    state.fetch.mockClear();
+    state.records = [];
+    state.clears = [{ user_id: "regular", recorded_date: "2026-10-01" }];
+    await runSheetSync(admin);
+    expect(state.fetch).toHaveBeenCalledOnce();
+  });
   it("retains pending input when the sheet omits an item or a concurrent edit prevents acknowledgement", async () => {
     state.profiles = [profile("app_only")];
     state.records = [{ id: "r", user_id: "regular", recorded_date: "2026-10-01", memo: "保存済みの入力", pending_sheet_push: true }];

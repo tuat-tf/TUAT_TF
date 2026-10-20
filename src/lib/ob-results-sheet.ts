@@ -4,7 +4,7 @@ import { obAppearanceName, type ObEntry } from "./ob-entries";
 import { OB_PROGRAM, obFamilyLabel } from "./ob-meet";
 import { obFamilyRows, obMixedGroupLabel } from "./ob-mixed-operations";
 import { obEventRule, type ObEventOperation } from "./ob-operations";
-import type { XlsxCell, XlsxSheet } from "./xlsx-writer";
+import type { TableCell, TableSheet } from "./export-table";
 import { obResultRanks } from "./ob-result-ranking";
 
 type Row = ReturnType<typeof obFamilyRows>[number];
@@ -17,16 +17,16 @@ export function obResultFamilies(entries: ObEntry[], operations: ObEventOperatio
 }
 
 /** The timetable first, then one start list per event. Qualification marks are not exported. */
-export function obResultSheets(entries: ObEntry[], operations: ObEventOperation[]): XlsxSheet[] {
+export function obResultSheets(entries: ObEntry[], operations: ObEventOperation[]): TableSheet[] {
   return [obProgramSheet(), ...obResultFamilies(entries, operations).map(family => obResultSheet(family, entries, operations))];
 }
 
-export function obProgramSheet(): XlsxSheet {
+export function obProgramSheet(): TableSheet {
   return { name: "プログラム", widths: [8, 34, 14], rows: [["時刻", "内容", "備考"], ...OB_PROGRAM.map(slot => [slot.time, slot.label, slot.note ?? ""])] };
 }
 
 /** Fixed public workbook: attendance and withdrawals stay visible after later app edits. */
-export function obPublishedResultSheets(entries: ObEntry[], operations: ObEventOperation[]): XlsxSheet[] {
+export function obPublishedResultSheets(entries: ObEntry[], operations: ObEventOperation[]): TableSheet[] {
   return [obProgramSheet(), ...OB_PROGRAM.flatMap(slot => slot.events).map(family => obResultSheet(family, entries, operations, true))];
 }
 
@@ -34,19 +34,19 @@ export function obPublishedResultSheets(entries: ObEntry[], operations: ObEventO
  * Start list sent to alumni: only people who compete or already have a result, without internal status columns.
  * Record columns appear once the event has a result, so a pre-meet sheet is just the start list.
  */
-export function obResultSheet(family: string, entries: ObEntry[], operations: ObEventOperation[], published = false): XlsxSheet {
+export function obResultSheet(family: string, entries: ObEntry[], operations: ObEventOperation[], published = false): TableSheet {
   const rule = obEventRule(family), rows = obFamilyRows(family, entries, operations).filter(row => published || row.state.canParticipate || row.state.recorded);
   const recorded = rows.some(row => row.state.recorded);
   const results = published || recorded;
   const personHeaders = ["区分", "氏名", "学年", ...(published ? ["出場状況"] : [])];
   const personWidths = [6, 18, 7, ...(published ? [18] : [])];
-  const person = (row: Row): XlsxCell[] => [row.division, obAppearanceName(row.entry, row.eventName, row.entryId), row.entry?.grade ?? "",
+  const person = (row: Row): TableCell[] => [row.division, obAppearanceName(row.entry, row.eventName, row.entryId), row.entry?.grade ?? "",
     ...(published ? [publishedParticipation(row)] : [])];
   const best = (row: Row) => row.state.recorded ? new MeetEvent(obEventRule(row.eventName), { participants: [row.performance], confirmed: false }).best(row.performance.status === "DNS" ? { ...row.performance, status: "entered" } : row.performance) : "";
   const name = obFamilyLabel(family);
   const ranks = new Map(["男子", "女子"].flatMap(division => [...obResultRanks(rule,
     rows.filter(row => row.division === division && row.state.canParticipate).map(row => row.performance))]));
-  const ranked = (sheet: XlsxSheet): XlsxSheet => {
+  const ranked = (sheet: TableSheet): TableSheet => {
     if (!results) return sheet;
     let personIndex = 0;
     return { ...sheet, widths: [...sheet.widths!, 7], rows: sheet.rows.map((line, index) =>
@@ -55,8 +55,8 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
 
   if (rule.discipline === "track") {
     const lanes = !["1500m", "3000m"].includes(family);
-    const result = (row: Row): XlsxCell[] => results ? [best(row)] : [];
-    const lines: XlsxCell[][] = [["組", ...(lanes ? ["レーン"] : []), ...personHeaders, ...(results ? ["記録"] : [])]];
+    const result = (row: Row): TableCell[] => results ? [best(row)] : [];
+    const lines: TableCell[][] = [["組", ...(lanes ? ["レーン"] : []), ...personHeaders, ...(results ? ["記録"] : [])]];
     let heat: string | undefined;
     for (const row of rows) {
       const label = row.group === null ? "組未定" : obMixedGroupLabel(row.group);
@@ -68,7 +68,7 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
     return ranked({ name, widths: [10, ...(lanes ? [7] : []), ...personWidths, ...(results ? [10] : [])], rows: lines });
   }
 
-  const order = (row: Row): XlsxCell => row.number ?? "順番未定";
+  const order = (row: Row): TableCell => row.number ?? "順番未定";
   if (rule.discipline === "height") {
     const heights = heightColumns(rows);
     return ranked({ name, widths: [8, ...personWidths, ...(results ? [10, ...heights.map(() => 7)] : [])], rows: [

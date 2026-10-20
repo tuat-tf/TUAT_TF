@@ -17,6 +17,18 @@ export type MiddleLongMenuSnapshot = {
   loadedMonths: number[];
 };
 
+/** Display and write-result checks must resolve the same workbook date row. */
+export function findMiddleLongMenuRow(rows: MiddleLongSheetMenuRow[], date: string): MiddleLongSheetMenuRow | undefined {
+  const month = Number(date.slice(5, 7));
+  const candidates = rows.filter(row =>
+    row.exactDate === date ||
+    (row.exactDate === null && row.monthDay === date.slice(5) &&
+      // This workbook covers the October 2026–March 2027 season.
+      date >= "2026-10-01" && date < "2027-04-01"),
+  );
+  return candidates.find(row => row.sourceMonth === month) ?? candidates[0];
+}
+
 function isMiddleLongBlockMenu(menu: PracticeMenu): boolean {
   return menu.target_block === "middle_long" && (menu.targets?.length ?? 0) === 0;
 }
@@ -57,15 +69,7 @@ export function applyMiddleLongMenuSnapshot(
     if (schedule.target_blocks.length > 0 && !schedule.target_blocks.includes("middle_long")) return schedule;
     const month = Number(schedule.schedule_date.slice(5, 7));
     if (!loadedMonths.has(month)) return schedule;
-    const monthDay = schedule.schedule_date.slice(5);
-    const candidates = snapshot.rows.filter(
-      (row) =>
-        row.exactDate === schedule.schedule_date ||
-        (row.exactDate === null && row.monthDay === monthDay &&
-          // This workbook covers the October 2026–March 2027 season.
-          schedule.schedule_date >= "2026-10-01" && schedule.schedule_date < "2027-04-01"),
-    );
-    const row = candidates.find((candidate) => candidate.sourceMonth === month) ?? candidates[0];
+    const row = findMiddleLongMenuRow(snapshot.rows, schedule.schedule_date);
 
     const menus = (schedule.menus ?? []).filter((menu) => !isMiddleLongBlockMenu(menu));
     const current = row ? sheetMenu(schedule, row) : null;

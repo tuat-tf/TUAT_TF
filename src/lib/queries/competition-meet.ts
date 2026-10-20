@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CompetitionMeet } from "@/lib/competition-meet";
-import {validateRelayResults} from "@/lib/competition-meet-relay";
+import { isCompetitionMeetSnapshot } from "@/lib/competition-meet-snapshot";
 
 export async function getCompetitionMeet(competitionId: string): Promise<CompetitionMeet | null> {
   const client = await createClient();
@@ -8,11 +8,8 @@ export async function getCompetitionMeet(competitionId: string): Promise<Competi
   if (result.error) throw new Error("大会の運営情報を取得できませんでした");
   const snapshot=result.data;
   if(snapshot===null)return null;
-  if(typeof snapshot!=="object"||Array.isArray(snapshot)||snapshot.competitionId!==competitionId||!["pc","cloud"].includes(String(snapshot.backend)))throw new Error("大会の運営情報を照合できませんでした");
-  if(["participants","appearances","events","duties","roles","party","members"].some(key=>!Array.isArray(snapshot[key])))throw new Error("大会の運営情報を照合できませんでした");
-  const meet=snapshot as unknown as CompetitionMeet;
-  if(meet.events.some(event=>event.relay_results!=null&&validateRelayResults(event.relay_results,event.confirmed)))throw new Error("リレーのチーム・記録を照合できませんでした");
-  return result.data as unknown as CompetitionMeet | null;
+  if(!isCompetitionMeetSnapshot(snapshot,competitionId))throw new Error("大会の運営情報を照合できませんでした");
+  return snapshot;
 }
 
 export async function getCompetitionMeetBackend(): Promise<"pc" | "cloud"> {

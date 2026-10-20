@@ -206,3 +206,26 @@ test('shared runner reuses app, preserves journal, and disabling during a late p
     assert.deepEqual(state.jobs, {});
   } finally { assert(directory.startsWith(process.cwd())); rmSync(directory, { recursive: true, force: true }); }
 });
+
+test('idle shared runner observes a disabled or unreadable local switch without network probes', async () => {
+  for (const invalid of [false, true]) {
+    const directory = mkdtempSync(join(process.cwd(), '.tmp-shared-jobs-'));
+    try {
+      const c = { ...config, enabled: true, releaseDirectory: directory, stateDirectory: directory, hostStateDirectory: directory,
+        backupStatusPath: join(directory, 'backup-lifecycle.json'), environmentFile: join(directory, 'synthetic.env'),
+        activateAt: new Date(Date.now() + 86400000).toISOString() };
+      mkdirSync(join(directory, '.next')); writeFileSync(join(directory, '.next', 'BUILD_ID'), 'synthetic');
+      writeFileSync(c.environmentFile, Object.entries(env).map(([key, value]) => `${key}=${value}`).join('\n'));
+      const configFile = join(directory, 'jobs.json'); writeFileSync(configFile, JSON.stringify(c));
+      let pauses = 0;
+      await run(configFile, true, { spawnProcess: () => assert.fail('must reuse app'),
+        fetchRequest: async () => assert.fail('idle network probe'),
+        pause: async ms => {
+          assert.equal(ms, 10000); assert.equal(++pauses, 1);
+          writeFileSync(configFile, invalid ? '{' : JSON.stringify({ ...c, enabled: false }));
+        } });
+      assert.equal(pauses, 1);
+      assert.deepEqual(JSON.parse(readFileSync(join(directory, 'journal.json'), 'utf8')).jobs, {});
+    } finally { assert(directory.startsWith(process.cwd())); rmSync(directory, { recursive: true, force: true }); }
+  }
+});

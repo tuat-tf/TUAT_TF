@@ -364,6 +364,21 @@ async function verifyProtected(adapter,captured,now) {
   await adapter.assertFresh(captured.proof);
 }
 
+/** Inventory-only decision for the automatic post-publication runner.
+ * It cannot authorize deletion or claim another ciphertext verification.
+ * Any candidates still require the independent full dry run and apply below. */
+export async function inspectSnapshotCleanup(config,options={}) {
+  const now=options.now??Date.now,adapter=options.adapter??await createSnapshotCleanupAdapter(config,options);
+  const captured=await adapter.capture(),plan=planSnapshotRetention({...captured,planNonce:options.planNonce??randomUUID(),now:now()});
+  need(plan.planningAllowed,`Snapshot retention planning refused: ${plan.reason??'unknown'}`);
+  await adapter.assertFresh(captured.proof);
+  need(recoveryProof(await adapter.verifyRecovery(captured.protectedSnapshot),captured.protectedSnapshot,captured.identity,now()),'Retained recovery proof unavailable');
+  const metadataCandidates=await adapter.planMetadata?.(captured,plan)??[];
+  await adapter.assertFresh(captured.proof);
+  return {version:1,inspectionOnly:true,counts:{local:plan.local.removalCandidates.length,
+    remote:plan.remote.removalCandidates.length,metadata:metadataCandidates.length}};
+}
+
 export async function dryRunSnapshotCleanup(config,options={}) {
   const now=options.now??Date.now,adapter=options.adapter??await createSnapshotCleanupAdapter(config,options);
   const captured=await adapter.capture(),plan=planSnapshotRetention({...captured,planNonce:options.planNonce??randomUUID(),now:now()});

@@ -8,6 +8,8 @@
 
 `/api/version` のcommit SHAとreleaseId、hostのrunning/心拍とbackup identityを照合する。`hostStateDirectory`・`backupStatusPath`・既存archive UUID/実DB system IDを固定し、そのgenerationの35分以内backup・120秒未満心拍/target・maintenance解除を確認する。local画像もcombined snapshotのreceiptと照合する。旧backend statusだけでhostをreadyにしない。RESTのOpenAPI確認はloopbackだけへ行い、PC内構成では保護されたservice-role、旧共有方式ではanon keyを使う。部員の行は読まない。
 
+10秒の待機ループはlocal設定の停止スイッチだけを確認し、処理対象がない間はOpenAPI/versionを取得しない。各処理の実行直前には上記の確認を毎回行う。確認中の無効化も再確認し、journal保存・dispatchを行わない。
+
 `run.mjs --check <private-config>` はbuildと設定の検査のみ。共有方式のbuildは `ops/pc-host` が担当し、Jobsの `build-production.mjs` は拒否する。`preflight.mjs` は共有Nextを再利用して未認証拒否と既存APIのdryRunを実施し、終わっても共有Nextを止めない。APIのdryRunは実同期元への読取を伴うので、今回の合成試験と同一視しない。
 
 今後配置やreleaseを切り替えるときも、既存のJobsをdisabledにして実行終了・lock解放を確認してから、同じstateDirectoryとactivateAtを引き継ぐ。journalを空にしない。特に `uncertain` / `sheetWritesBlocked` / 元の失敗履歴は保持し、新旧を同時実行しない。検証準備で現在の設定を変更しない。
@@ -27,7 +29,9 @@ Vercel cronと旧DB cronの停止を維持する。[9/27記録](../../docs/OPERA
 
 ## 準備と検証
 
-Node24を使う。現在の共有方式のbuildはhost側で行う。以下の `prepare.mjs` / `prepare-production.mjs` / `build-production.mjs` による専用Nextの準備は旧方式の入口であり、現在のPC内構成を再配置する手順ではない。prepare.mjs はtracked HEADから新規リリースを作り、prepare-production.mjs は既存PC/同期設定からACL保護した非公開環境とdisabled configを作る。既存設定は上書きしない。
+Node24を使う。現在の共有方式のbuildはhost側で行う。hostの固定release/envと既存Jobsの`stateDirectory`・`activateAt`を引き継いだshared-pc設定を`run.mjs --check <private-config>`で検査する。検証のために新しいjournalや未来のactivationへ置換しない。
+
+`prepare-production.mjs`は退役した入口で、旧環境を読む前に非0終了する。旧生成処理は`legacy/prepare-dedicated.mjs`へ保管し、明示的な`--legacy-dedicated`なしでは動作しない。`prepare.mjs` / `build-production.mjs`も旧専用Next用であり、現在のPC内構成を再配置する手順ではない。既存の旧release/env/stateは保全する。
 
 旧方式のbuild-production.mjs <private-config> は専用リリースをbuildする。preflight.mjs <private-config> は専用方式では一時起動し、共有方式では既存Nextに接続して、未認証拒否と記録・大会のdryRunを行う。--without-records は部分確認専用で、全処理の準備完了を意味しない。結果は非公開stateに保存し標準出力は件数のみ。
 

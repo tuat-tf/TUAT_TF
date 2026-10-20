@@ -2,11 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { jstToday } from "@/lib/date";
-import { normalizePracticeRecord } from "@/lib/profile-normalize";
+import { normalizePracticeRecord, recordValuesFromJson } from "@/lib/profile-normalize";
 import { RECORD_NONEMPTY_OR } from "@/lib/record-content";
 import { displayedDistance } from "@/lib/record-distance";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
-import type { PbRecord, PracticeRecord } from "@/types";
+import type { PbRecord, PracticeRecord, TrainingRecord } from "@/types";
 import { RECORD_LIST_SELECT, attachRecordFieldGroups, fetchTargetSocialState } from "./internal";
 
 /** 週間カード用。本文・プロフィール・項目定義を取得せず、同じ対象日の距離と件数を集計する。 */
@@ -27,7 +27,31 @@ export async function getUserTrainingSummary(userId: string, fromDate: string) {
   };
 }
 
-/** ユーザーの期間内の練習記録（マイページに使用） */
+/** グラフと全項目の振り返り。同期・ソーシャル情報は取得しない。 */
+export async function getUserTrainingRecords(userId: string): Promise<TrainingRecord[]> {
+  const supabase = await createClient();
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - 400);
+  const data = await fetchAllPages((from, to) => supabase.from("practice_records")
+    .select("id,recorded_date,dist_low,dist_mid,dist_high,dist_speed,dist_actual,strides,result_text,strength_text,memo,menu_text,focus_text,condition,custom,record_fields_version")
+    .eq("user_id", userId).gte("recorded_date", fromDate.toISOString().slice(0, 10))
+    .lte("recorded_date", jstToday()).or(RECORD_NONEMPTY_OR)
+    .order("recorded_date", { ascending: false }).order("id").range(from, to));
+  const records: TrainingRecord[] = data.map(row => ({
+    ...row,
+    dist_low: row.dist_low ?? 0, dist_mid: row.dist_mid ?? 0, dist_high: row.dist_high ?? 0,
+    dist_speed: row.dist_speed ?? 0, dist_actual: row.dist_actual ?? 0, strides: row.strides ?? 0,
+    condition: row.condition === "great" || row.condition === "normal" || row.condition === "bad" ? row.condition : null,
+    custom: recordValuesFromJson(row.custom),
+  }));
+  // Legacy records use the current fields already supplied by the profile.
+  // Versioned records still require their historical names and display settings.
+  const historical = await attachRecordFieldGroups(supabase, records.filter(record => record.record_fields_version != null));
+  const byId = new Map(historical.map(record => [record.id, record]));
+  return records.map(record => byId.get(record.id) ?? record);
+}
+
+/** ユーザーの期間内の練習記録（他部員の投稿一覧に使用） */
 export async function getUserRecords(userId: string, fromDate?: string) {
   const supabase = await createClient();
   // fromDate省略時も無期限取得はしない（TrainingChartの最大表示期間は12ヶ月分）。

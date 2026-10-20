@@ -15,6 +15,7 @@ export function middleLongMenuQueryOptions({
   initialData?: MiddleLongMenuSnapshot;
 }) {
   const months = middleLongMenuMonths(schedules);
+  const canLoad = process.env.NEXT_PUBLIC_PC_TRIAL !== "true" && enabled && !!userId && months.length > 0;
   return queryOptions({
     queryKey: ["middle-long-menu-csv", userId, months.join(",")],
     queryFn: async ({ signal }): Promise<MiddleLongMenuSnapshot> => {
@@ -26,10 +27,10 @@ export function middleLongMenuQueryOptions({
       return response.json();
     },
     initialData,
-    enabled: process.env.NEXT_PUBLIC_PC_TRIAL !== "true" && enabled && !!userId && months.length > 0,
+    enabled: canLoad,
     staleTime: 60_000,
     // 月別シートの変更を、予定画面や展開中のホームカードへ反映する。
-    refetchInterval: 60_000,
+    refetchInterval: canLoad ? 60_000 : false,
     refetchOnWindowFocus: true,
     retry: false,
   });

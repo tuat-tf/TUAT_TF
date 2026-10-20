@@ -2214,6 +2214,18 @@ export type Database = {
     }
     Functions: {
       get_competition_meet: {Args:{p_competition_id:string};Returns:Json}
+      get_note_content_counts: {
+        Args: { requested_note_ids: string[] }
+        Returns: { note_id: string; article_count: number; child_count: number; thread_count: number }[]
+      }
+      get_thread_post_counts: {
+        Args: { requested_thread_ids: string[] }
+        Returns: { thread_id: string; post_count: number }[]
+      }
+      get_monthly_distance_ranking: {
+        Args: { period_start: string; period_end: string }
+        Returns: { id: string; display_name: string; grade: string | null; blocks: string[]; avatar_url: string | null; km_low: number; km_mid: number; km_high: number; km_speed: number; km_other: number; total_km: number }[]
+      }
       get_competition_meet_history: {Args:{p_competition_id:string;p_cursor:Json};Returns:Json}
       get_competition_meet_backend: {Args:Record<PropertyKey,never>;Returns:string}
       get_competition_meet_export: {Args:{p_competition_id:string};Returns:Json}

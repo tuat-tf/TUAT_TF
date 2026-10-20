@@ -16,8 +16,8 @@ export default async function MeetManagePage({ params, searchParams }: { params:
   if (isObCompetition(id) && !stored) redirect(`/competitions/${id}/program`);
   const system = permissionsOf(profile.roles).manageSystem;
   const meet: CompetitionMeet = stored ?? {competitionId:id,name:competition.name,meetKey:id,backend:await getCompetitionMeetBackend(),events:[],participants:[],appearances:[],duties:[],roles:[],party:[],members:[],permissions:{manage:system,groups:system,record:false,configure:system}};
-  if (stored && isObCompetition(id) && (!stored.permissions.manage || preview)) return <><SubHeader title={competition.name} backHref={`/competitions/${id}`} /><CompetitionMeetResults meet={stored} date={competition.starts_on} /></>;
+  if (stored && isObCompetition(id) && (!stored.permissions.manage || preview)) return <><SubHeader title={competition.name} backHref={`/competitions/${id}`} /><CompetitionMeetResults meet={stored} date={competition.starts_on} endsOn={competition.ends_on} /></>;
   const safe = preview ? {...meet,permissions:{manage:false,groups:false,record:false,register:false,configure:false},members:[],party:[]} : meet;
   const section = requested.section === "participants" || requested.edit === "identity" ? "participants" : requested.section === "duties" ? "duties" : "events";
-  return <><SubHeader title={competition.name} backHref={`/competitions/${id}`} /><CompetitionMeetWorkspace meet={safe} me={{id:profile.id,display_name:profile.display_name,grade:profile.grade}} initialSection={section} initialEdit={requested.edit === "mine" || requested.section === "mine"} /></>;
+  return <><SubHeader title={competition.name} backHref={`/competitions/${id}`} /><CompetitionMeetWorkspace startsOn={competition.starts_on} endsOn={competition.ends_on} meet={safe} me={{id:profile.id,display_name:profile.display_name,grade:profile.grade}} initialSection={section} initialEdit={requested.edit === "mine" || requested.section === "mine"} /></>;
 }

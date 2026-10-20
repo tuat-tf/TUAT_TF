@@ -2,7 +2,7 @@
   "version": 1,
   "mode": "integration",
   "owner": "codex-auth-db-review",
-  "generation": "8166f0629881417989f83a1e78b88f9b",
+  "generation": "a4a509f55df941e9b145dd70c543f533",
   "image": "supabase/postgres:17.6.1.136",
   "imageId": "sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00",
   "authImage": "supabase/gotrue:v2.196.0",
@@ -1109,6 +1109,11 @@
       "name": "20261020010300_configured_role_capabilities.sql",
       "sha256": "72358e93bd3cba6847d8d3092e2db5addbfb41a3da82eebd5e15c504fe90e854",
       "passed": true
+    },
+    {
+      "name": "20261021010000_read_aggregates.sql",
+      "sha256": "e972a78b204158a04673a57123bdb24f15899b67685e3d42919e7ecf935ecd71",
+      "passed": true
     }
   ],
   "tests": [
@@ -1154,17 +1159,22 @@
     },
     {
       "name": "integration-meets.sql",
-      "sha256": "3f6f10c0b059144b3357d2469f9d467993d12b20d0288f74d8e2f7f8a9495dc5",
+      "sha256": "e4e168c84ba6e3b8e1f52e99373ebb3c75366dfff0779df2b8fd36aae79449ca",
       "passed": true
     },
     {
       "name": "atomic-save-backup.sql",
       "sha256": "57af77f932a21c3e1bde55054287b379761953dc42ed70612cc642bb4dc1fba5",
       "passed": true
+    },
+    {
+      "name": "read-aggregates.sql",
+      "sha256": "525b381aa1000a58daef0d2dba4d99d272b5349c271825c0e018d3abc9c684ca",
+      "passed": true
     }
   ],
   "cleanup": true,
-  "stage": "test:atomic-save-backup.sql",
+  "stage": "test:read-aggregates.sql",
   "authMigrations": "77",
   "storageSourceSha256": "ba0bbde8317026d26032d3b310127eb74ed1cbb7900e20e087e28c664849351b",
   "storageMigrations": 67,
@@ -1259,6 +1269,24 @@
     "driverSha256": "45116a51b0d45439e4588b5211e358693eebaf67d43b3b9ccc2d3e0377c8c77a",
     "adapterSha256": "fd017db15d3d2963397685251ab494ce4ee2ce4dfd3739fd162d6ba207c7f954"
   },
+  "meetSnapshots": {
+    "passed": 2,
+    "syntheticOnly": true,
+    "validatorSources": [
+      {
+        "path": "competition-meet-snapshot.ts",
+        "sha256": "19f3f4aecd0161bea131c3a0b7897fb9078abac31a1c74139c9830fac17a2930"
+      },
+      {
+        "path": "competition-meet-relay.ts",
+        "sha256": "ffd6a99974170df5baa12f2d8482b4c570642e74b464f78b44cecf07b8c4c6a3"
+      },
+      {
+        "path": "meet-operations.ts",
+        "sha256": "39546e1df5e8a53f1bbcda88d8161ca4dd53a434e1493759d97bfda3ff377345"
+      }
+    ]
+  },
   "meetFixtureSources": [
     {
       "name": "meet-fixture.sql",
@@ -1266,7 +1294,7 @@
     },
     {
       "name": "integration-meets.sql",
-      "sha256": "3f6f10c0b059144b3357d2469f9d467993d12b20d0288f74d8e2f7f8a9495dc5"
+      "sha256": "e4e168c84ba6e3b8e1f52e99373ebb3c75366dfff0779df2b8fd36aae79449ca"
     }
   ],
   "meetTestSources": [
@@ -1304,5 +1332,5 @@
     "absent": 2
   },
   "cleanupDriverSha256": "de7c1ff32d6b9174ba5bdd62534603359f68acc49392f741d3f8c525dd532741",
-  "completedAt": "2026-10-20T13:13:59.0375476Z"
+  "completedAt": "2026-10-20T14:16:17.8248557Z"
 }

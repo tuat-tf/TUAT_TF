@@ -13,12 +13,12 @@ import { Linkify } from "@/components/common/Linkify";
 import { ActivityFeed } from "@/components/features/ActivityFeed";
 import { MyTrainingChartCached } from "@/components/features/MyTrainingChartCached";
 import { getCurrentProfile, getCurrentUserId } from "@/lib/supabase/auth";
-import { getUserRecords, getUserActivity } from "@/lib/queries";
+import { getUserTrainingRecords, getUserActivity } from "@/lib/queries";
 import { gradeShort } from "@/lib/constants";
 import { permissionsOf } from "@/lib/permissions";
 import { RECORD_SOURCE_COOKIE, recordSourceEnabled } from "@/lib/record-source-display";
 import { trainingReviewPreferenceKey } from "@/lib/training-review-display";
-import type { PracticeRecord, RecordFieldDef } from "@/types";
+import type { RecordFieldDef } from "@/types";
 import { ActivitySkeleton, TrainingChartSkeleton } from "@/components/ui/page-skeletons";
 
 export default async function MyPage({
@@ -166,7 +166,7 @@ export default async function MyPage({
 
 /** グラフを表示する中長距離の部員だけ取得する。 */
 async function MyTraining({ userId, recordFields, initialShowAllFields }: { userId: string; recordFields: RecordFieldDef[]; initialShowAllFields: boolean }) {
-  const records = await getUserRecords(userId) as PracticeRecord[];
+  const records = await getUserTrainingRecords(userId);
   return <MyTrainingChartCached userId={userId} initialRecords={records} recordFields={recordFields} showIntensitySummary initialShowAllFields={initialShowAllFields} />;
 }
 

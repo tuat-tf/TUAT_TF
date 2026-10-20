@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMiddleLongMenuSnapshot } from "./middle-long-menu-data";
+import { applyMiddleLongMenuSnapshot, findMiddleLongMenuRow } from "./middle-long-menu-data";
 import { parseMiddleLongMenuCsv } from "./middle-long-menu-sheet";
 import type { PracticeMenu, ScheduleWithMenus } from "@/types";
 
@@ -90,6 +90,13 @@ describe("parseMiddleLongMenuCsv", () => {
 });
 
 describe("applyMiddleLongMenuSnapshot", () => {
+  it("shares date-row resolution with confirmation, including empty fields and workbook-year bounds", () => {
+    const row = { exactDate: null, monthDay: "10-24", sourceMonth: 10, time: "17:00", location: "", content: "", pace: "", remark: "", supplement: "" };
+    expect(findMiddleLongMenuRow([{ ...row, sourceMonth: 11, content: "other tab" }, row], "2026-10-24")).toBe(row);
+    expect(findMiddleLongMenuRow([row], "2027-10-24")).toBeUndefined();
+    const dated = { ...row, exactDate: "2027-10-24" };
+    expect(findMiddleLongMenuRow([dated], "2027-10-24")).toBe(dated);
+  });
   it("replaces only the common middle-long menu and keeps personal menus", () => {
     const personal = menu({
       id: "personal",

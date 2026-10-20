@@ -47,7 +47,10 @@ function fixtureClient(): SupabaseClient {
     const q = { select: () => q, order: () => q, limit: () => q, range: (start: number, end: number) => { from = start; to = end; return q; },
       eq: (key: string, expected: unknown) => { filters.push(row => row[key] === expected); if (table === "sheet_push_attempts" && key === "attempt_id") state.readsByAttempt++; return q; },
       in: (key: string, expected: unknown[]) => { filters.push(row => expected.includes(row[key])); return q; },
-      is: (key: string, expected: unknown) => { filters.push(row => row[key] === expected); return q; }, gte: () => q,
+      is: (key: string, expected: unknown) => { filters.push(row => row[key] === expected); return q; },
+      gte: (key: string, expected: string) => { filters.push(row => String(row[key]) >= expected); return q; },
+      lte: (key: string, expected: string) => { filters.push(row => String(row[key]) <= expected); return q; },
+      lt: (key: string, expected: string) => { filters.push(row => String(row[key]) < expected); return q; },
       insert: (rows: unknown) => { operation = "insert"; value = rows; return q; },
       update: (patch: unknown) => { operation = "update"; value = patch; return q; },
       upsert: (rows: unknown) => { operation = "upsert"; value = rows; return q; },
@@ -139,6 +142,18 @@ describe("immediate writeCells followed by the durable planner", () => {
       { date: "2026-10-10", cells: { 感想: "old CSV date" } }, { date: "2026-10-11", cells: { 感想: "new CSV date" } }] }], signatures: new Map(), failedMembers: [], unchangedMembers: [] });
     expect(await runSheetSync(state.admin)).toMatchObject({ inserted: 0, updated: 0, pushed: 0 });
     expect(state.records[0].memo).toBe("moved app input"); expect(state.gas).toHaveBeenCalledOnce();
+  });
+  it("keeps the app-only planner's CSV check while an unresolved receipt outlives its record", async () => {
+    state.gas.mockRejectedValueOnce(new Error("synthetic lost response"));
+    await POST(request());
+    (state.profiles[0].sheet_transition as { mode: string }).mode = "app_only";
+    state.records = []; state.clears = [];
+    state.fetch.mockClear();
+    expect(await runSheetSync(state.admin)).toMatchObject({ inserted: 0, updated: 0, pushed: 0 });
+    expect(state.fetch).toHaveBeenCalledOnce();
+    expect(state.gas).toHaveBeenCalledOnce();
+    expect(state.attempts[0].state).toBe("reserved");
+    expect(state.writes.some(write => write.table === "practice_records" || write.table === "sheet_pending_clears")).toBe(false);
   });
   it("keeps a newer edit pending when known delivery is superseded", async () => {
     state.gas.mockImplementationOnce(async () => { Object.assign(state.records[0], { updated_at: "2026-10-10T02:00:00Z", memo: "newer app edit" }); return { success: true, action: "updated" }; });

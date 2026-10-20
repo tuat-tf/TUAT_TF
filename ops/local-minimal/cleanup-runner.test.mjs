@@ -63,6 +63,10 @@ function runnerFixture(mode) {
   const events=[],outcomes=[],faults={};let ownerCalls=0;
   const options={client:{},now:()=>now,read(path){if(!files.has(path))throw Object.assign(Error('No file'),{code:'ENOENT'});return files.get(path);},
     owner(){ownerCalls++;if(faults.owner&&ownerCalls>1)return {...owned,ownerToken:'changed-owner-token'};return owned;},
+    async inspect(cfg,callbacks){events.push('inspect');assert.equal(cfg,config);
+      await callbacks.assertExclusiveLifecycleWriter({identity:{...scope,generation},prefix:`ops/pc-backend/${sourceId}/backups/`});
+      if(faults.inspect)throw Error('Incomplete inventory');
+      return {inspectionOnly:true,counts:{local:faults.empty||faults.only?0:1,remote:faults.only==='remote'?1:0,metadata:faults.only==='metadata'?1:0}};},
     async dryRun(cfg,callbacks){events.push('dry-run');assert.equal(cfg,config);
       const identity={...scope,generation};const lock=await callbacks.assertExclusiveLifecycleWriter({identity,prefix:`ops/pc-backend/${sourceId}/backups/`});assert.equal(lock.exclusive,true);
       const proof=await callbacks.verifyRetainedRecovery({identity,snapshot:{archiveKey,archiveSha256,capturedAt:captured,restoreVerifiedAt:restored}});assert.equal(proof.verified,true);
@@ -76,16 +80,18 @@ function runnerFixture(mode) {
 
 test('policy absence is opt-out and a present policy defaults to review only',async()=>{
   const absent=runnerFixture();absent.files.delete(SNAPSHOT_CLEANUP_POLICY);assert.equal((await runSnapshotCleanup(config,absent.options)).state,'disabled');assert.deepEqual(absent.events,[]);
-  const f=runnerFixture(),result=await runSnapshotCleanup(config,f.options);assert.equal(result.state,'dry-run');assert.deepEqual(f.events,['dry-run']);assert.equal(f.outcomes.length,1);
-  const apply=runnerFixture('apply');assert.equal((await runSnapshotCleanup(config,apply.options)).state,'applied');assert.deepEqual(apply.events,['dry-run','apply']);
+  const f=runnerFixture(),result=await runSnapshotCleanup(config,f.options);assert.equal(result.state,'dry-run');assert.deepEqual(f.events,['inspect','dry-run']);assert.equal(f.outcomes.length,1);
+  const apply=runnerFixture('apply');assert.equal((await runSnapshotCleanup(config,apply.options)).state,'applied');assert.deepEqual(apply.events,['inspect','dry-run','apply']);
 });
 
-test('zero candidates retain preview safety proofs but never enter apply or create a deletion intent',async()=>{
+test('zero candidates use inventory inspection without claiming archive verification or entering apply',async()=>{
   const f=runnerFixture('apply');f.faults.empty=true;
+  f.options.dryRun=async()=>assert.fail('empty cleanup must not repeat the completed transfer readback');
   f.options.apply=async()=>assert.fail('empty cleanup must not re-read archives or enter deletion apply');
   const outcome=await runSnapshotCleanup(config,f.options);
-  assert.equal(outcome.state,'dry-run');assert.equal(outcome.reasonCode,'no-removal-candidates');
-  assert.deepEqual(outcome.counts,{local:0,remote:0,metadata:0});assert.deepEqual(f.events,['dry-run']);
+  assert.equal(outcome.state,'inspected');assert.equal(outcome.reasonCode,'no-removal-candidates');
+  assert.equal(outcome.previewDigest,undefined);
+  assert.deepEqual(outcome.counts,{local:0,remote:0,metadata:0});assert.deepEqual(f.events,['inspect']);
   assert.equal(f.outcomes.length,1);
   const changed=runnerFixture('apply');changed.faults.empty=true;changed.faults.owner=true;
   assert.equal((await runSnapshotCleanup(config,changed.options)).state,'held');assert(!changed.events.includes('apply'));
@@ -95,14 +101,14 @@ test('remote-only and metadata-only removal plans still enter the guarded apply 
   for(const only of ['remote','metadata']) {
     const f=runnerFixture('apply');f.faults.only=only;
     const outcome=await runSnapshotCleanup(config,f.options);
-    assert.equal(outcome.state,'applied');assert.deepEqual(f.events,['dry-run','apply']);
+    assert.equal(outcome.state,'applied');assert.deepEqual(f.events,['inspect','dry-run','apply']);
     assert.equal(outcome.counts[only],1);assert.equal(outcome.counts.local,0);
   }
 });
 
 test('wrong policy scope, changed producer owner or mismatched independent key is held without losing backup ACK',async()=>{
   for(const mutate of [f=>{f.policy.archiveKeyId='f'.repeat(64);f.files.set(SNAPSHOT_CLEANUP_POLICY,data(f.policy));},f=>f.faults.owner=true,
-    f=>f.files.set(f.parentConfig.recoveryKeyCopy,Buffer.alloc(32,9)),f=>f.faults.dryRun=true,f=>f.faults.apply=true]) {
+    f=>f.files.set(f.parentConfig.recoveryKeyCopy,Buffer.alloc(32,9)),f=>f.faults.inspect=true,f=>f.faults.dryRun=true,f=>f.faults.apply=true]) {
     const f=runnerFixture('apply');mutate(f);const outcome=await runSnapshotCleanup(config,f.options);assert.equal(outcome.state,'held');
     assert.equal(outcome.reasonCode,'retention-proof-unavailable');assert(!JSON.stringify(outcome).includes('secret'));assert(f.events.includes('held'));
   }

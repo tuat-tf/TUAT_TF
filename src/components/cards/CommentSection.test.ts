@@ -2,7 +2,8 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const hooks = vi.hoisted(() => ({ cursor: 0, values: [] as unknown[], effect: null as (() => unknown) | null }));
+const hooks = vi.hoisted(() => ({ cursor: 0, values: [] as unknown[], effectIndex: 0,
+  effects: [] as (() => unknown)[], dependencies: [] as unknown[][] }));
 type Menu = { onDelete: () => Promise<boolean>; onEdit?: () => void };
 const state = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), fetch: vi.fn(), count: vi.fn(), menus: [] as Menu[], send: null as (() => Promise<void>) | null, input: null as ((event: { target: { value: string } }) => void) | null }));
 vi.mock("react", async original => ({ ...await original<typeof import("react")>(),
@@ -11,7 +12,18 @@ vi.mock("react", async original => ({ ...await original<typeof import("react")>(
     if (!(index in hooks.values)) hooks.values[index] = initial;
     return [hooks.values[index], (next: T | ((before: T) => T)) => { hooks.values[index] = typeof next === "function" ? (next as (before: T) => T)(hooks.values[index] as T) : next; }];
   },
-  useRef: () => ({ current: null }), useEffect: (effect: () => unknown) => { hooks.effect = effect; },
+  useRef: (initial: unknown) => {
+    const index = hooks.cursor++;
+    if (!(index in hooks.values)) hooks.values[index] = { current: initial };
+    return hooks.values[index];
+  },
+  useEffect: (effect: () => unknown, dependencies: unknown[]) => {
+    const index = hooks.effectIndex++;
+    if (!hooks.dependencies[index] || dependencies.some((value, i) => value !== hooks.dependencies[index][i])) {
+      hooks.dependencies[index] = dependencies;
+      hooks.effects.push(effect);
+    }
+  },
 }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ from: state.from, rpc: state.rpc }) }));
 vi.mock("@/components/layout/glass/system-glass-state", () => ({ useSystemGlass: () => false }));
@@ -28,12 +40,12 @@ const other = { ...me, id: "other", display_name: "合成別部員" };
 const row = { id: "comment", user_id: me.id, target_type: "record", target_id: "record", content: "アプリのコメント", created_at: "2026-10-16T00:00:00Z", updated_at: "2026-10-16T00:00:00Z", author: me, sheet_reply_index: 8 };
 const selectors: string[] = [];
 let inserted: unknown;
-function render(moderator = false) {
-  hooks.cursor = 0; state.menus = [];
-  return renderToStaticMarkup(createElement(CommentSection, { targetType: "record", targetId: "record", currentUser: { ...me, canModerateComments: moderator }, onCountChange: state.count }));
+function render(moderator = false, onCountChange = state.count) {
+  hooks.cursor = 0; hooks.effectIndex = 0; state.menus = [];
+  return renderToStaticMarkup(createElement(CommentSection, { targetType: "record", targetId: "record", currentUser: { ...me, canModerateComments: moderator }, onCountChange }));
 }
 beforeEach(() => {
-  hooks.values = []; hooks.effect = null; selectors.length = 0; inserted = null;
+  hooks.values = []; hooks.effects = []; hooks.dependencies = []; selectors.length = 0; inserted = null;
   state.count.mockReset(); state.rpc.mockReset().mockResolvedValue({ data: [], error: null });
   state.fetch.mockReset().mockResolvedValue(new Response('{"ok":true}'));
   vi.stubGlobal("fetch", state.fetch); vi.stubGlobal("requestAnimationFrame", (callback: () => void) => callback());
@@ -47,7 +59,7 @@ beforeEach(() => {
     return query;
   });
 });
-async function load() { render(); hooks.effect!(); await vi.waitFor(() => expect(state.count).toHaveBeenCalledWith(2)); }
+async function load() { render(); hooks.effects.splice(0).forEach(effect => effect()); await vi.waitFor(() => expect(state.count).toHaveBeenCalledWith(2)); }
 afterEach(() => vi.unstubAllGlobals());
 it("shows and counts app comments without loading sheet history or using old column order", async () => {
   await load();
@@ -82,4 +94,18 @@ it("asks for a reload after an unknown deletion without resending it", async () 
   expect(html).toContain("画面を再読み込みして確認");
   expect(html).not.toContain("再試行");
   expect(state.count).toHaveBeenLastCalledWith(2);
+});
+it("keeps the loaded comments and draft when only the parent's count callback changes", async () => {
+  await load();
+  render();
+  state.input!({ target: { value: "書きかけの返信" } });
+  const latestCount = vi.fn();
+  render(false, latestCount);
+  hooks.effects.splice(0).forEach(effect => effect());
+  await Promise.resolve();
+  expect(state.from).toHaveBeenCalledOnce();
+  expect(state.rpc).toHaveBeenCalledOnce();
+  await state.send!();
+  expect(inserted).toMatchObject({ content: "書きかけの返信" });
+  expect(latestCount).toHaveBeenLastCalledWith(3);
 });

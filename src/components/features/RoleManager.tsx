@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, FolderPlus, Lock, Plus, SlidersHorizontal, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/toast";
 import { PERMISSION_COLUMN, PERMISSION_LIST } from "@/lib/permissions";
 import { BLOCKS } from "@/lib/constants";
 import type { AppRole, EditableMenuBlock, Permission, Profile, RoleCategory } from "@/types";
+import { applyRoleMembers, saveRoleMembers, type PendingRoleMembers } from "@/lib/role-members-save";
 
 async function refreshRoleCatalog() {
   try {
@@ -42,6 +43,11 @@ export function RoleManager({ roles: initialRoles, members, categories: initialC
   const [creating, setCreating] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
+  useEffect(() => {
+    // Membership writes no longer alter this state until confirmed; refresh is authoritative.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMemberState(members);
+  }, [members]);
 
   async function reorder(next: AppRole[]) {
     const previous = roles;
@@ -89,22 +95,35 @@ export function RoleManager({ roles: initialRoles, members, categories: initialC
   </div>;
 }
 
-function RoleRow({ role, members, categories, onUpdated, onDeleted, onMembersUpdated, onError, canManageSystem }: { role: AppRole; members: Profile[]; categories: RoleCategory[]; onUpdated: (role: AppRole) => void; onDeleted: () => void; onMembersUpdated: (members: Profile[]) => void; onError: (message: string) => void; canManageSystem: boolean }) {
+function RoleRow({ role, members, categories, onUpdated, onDeleted, onMembersUpdated, onError, canManageSystem }: { role: AppRole; members: Profile[]; categories: RoleCategory[]; onUpdated: (role: AppRole) => void; onDeleted: () => void; onMembersUpdated: Dispatch<SetStateAction<Profile[]>>; onError: (message: string) => void; canManageSystem: boolean }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [pendingMembers, setPendingMembers] = useState<PendingRoleMembers | null>(null);
+  const memberSaveLock = useRef(false);
   const perms = PERMISSION_LIST.filter((permission) => role[PERMISSION_COLUMN[permission.key]]);
   const editableBlocks = role.editable_menu_blocks ?? [];
   const assignedIds = role.is_everyone ? members.map((member) => member.id) : members.filter((member) => member.roles.some((item) => item.id === role.id)).map((member) => member.id);
 
   async function updateRoleMembers(nextMemberIds: string[]) {
-    if (role.is_everyone) return;
-    const previous = members;
-    const selected = new Set(nextMemberIds);
-    const optimistic = members.map((member) => ({ ...member, roles: selected.has(member.id) ? member.roles.some((item) => item.id === role.id) ? member.roles : [...member.roles, role] : member.roles.filter((item) => item.id !== role.id) }));
-    onMembersUpdated(optimistic);
-    const { error } = await createClient().rpc("set_role_members", { target_role_id: role.id, target_profile_ids: nextMemberIds });
-    if (error) { onMembersUpdated(previous); onError("ロールのメンバーを更新できませんでした"); }
-    else router.refresh();
+    if (role.is_everyone || memberSaveLock.current) return false;
+    memberSaveLock.current = true;
+    const attempt = pendingMembers ?? { roleId: role.id, memberIds: [...nextMemberIds], uncertain: false };
+    try {
+      const result = await saveRoleMembers(createClient(), attempt);
+      if (!result.ok) {
+        setPendingMembers(result.reason === "unknown" ? attempt : null);
+        onError(result.reason === "unknown"
+          ? "保存結果を確認できませんでした。選択は残っています。もう一度押すと結果だけ確認します。"
+          : "ロールのメンバーを更新できませんでした。選択と権限を確認してください。");
+        return false;
+      }
+      setPendingMembers(null);
+      onMembersUpdated(current => applyRoleMembers(current, role, attempt.memberIds));
+      try { router.refresh(); } catch { onError("保存しました。画面を開き直すと最新の状態を確認できます。"); }
+      return true;
+    } finally {
+      memberSaveLock.current = false;
+    }
   }
 
   async function remove() {
@@ -119,9 +138,9 @@ function RoleRow({ role, members, categories, onUpdated, onDeleted, onMembersUpd
       <span className="flex items-center gap-1 text-[15px] font-semibold"><span className="inline-flex rounded-full px-2 py-0.5 text-[13px]" style={{ color: role.color, backgroundColor: `${role.color}18` }}>{role.name}</span>{role.is_system && <span className="inline-flex shrink-0 items-center gap-0.5 text-micro text-muted"><Lock size={10} />組み込み</span>}{role.is_everyone && <span className="inline-flex shrink-0 items-center gap-0.5 text-micro text-muted"><Users size={10} />全員に自動適用</span>}</span>
       <div className="mt-1.5 flex flex-wrap gap-1">{perms.length === 0 && editableBlocks.length === 0 ? <span className="text-micro">権限なし（肩書きのみ）</span> : perms.map((permission) => <span key={permission.key} className="rounded-full bg-accent/10 px-2 py-0.5 text-micro text-accent">{permission.label}</span>)}</div>
       {editableBlocks.length > 0 && <p className="mt-2 text-caption">他人のメニューを編集する範囲: {editableBlocks.map(block => BLOCKS[block].label).join("・")}（メニュー作成・編集の権限と組み合わせて適用）</p>}
-    </div><ActionMenu onEdit={() => setEditing(true)} onDelete={role.is_system || role.is_everyone || (role.can_manage_system && !canManageSystem) ? undefined : remove} deleteTitle={`ロール「${role.name}」を削除しますか？`} deleteDescription="このロールの部員への割り当ても解除されます。" triggerLabel={`${role.name}のメニュー`} /></div>
+    </div><ActionMenu disabled={!!pendingMembers} onEdit={() => setEditing(true)} onDelete={role.is_system || role.is_everyone || (role.can_manage_system && !canManageSystem) ? undefined : remove} deleteTitle={`ロール「${role.name}」を削除しますか？`} deleteDescription="このロールの部員への割り当ても解除されます。" triggerLabel={`${role.name}のメニュー`} /></div>
     {editing && <RoleEditor open onClose={() => setEditing(false)} role={role} sortOrder={role.sort_order} categories={categories} canManageSystem={canManageSystem} onSaved={(updated) => { onUpdated(updated); setEditing(false); }} />}
-    <div className="mt-3">{role.is_everyone ? <div className="flex min-h-11 items-center gap-2 rounded-xl border border-separator bg-bg px-3 text-sm font-semibold"><Users size={17} className="text-accent" /><span className="flex-1">すべての部員</span><span className="text-muted">{members.length}人</span></div> : role.can_manage_system && !canManageSystem ? <p className="text-caption">このロールの所属変更はシステム管理者のみ操作できます。</p> : <PersonPicker people={members} value={assignedIds} onChange={(ids) => void updateRoleMembers(ids)} label={`所属メンバー（${assignedIds.length}人）`} />}</div>
+    <div className="mt-3">{role.is_everyone ? <div className="flex min-h-11 items-center gap-2 rounded-xl border border-separator bg-bg px-3 text-sm font-semibold"><Users size={17} className="text-accent" /><span className="flex-1">すべての部員</span><span className="text-muted">{members.length}人</span></div> : role.can_manage_system && !canManageSystem ? <p className="text-caption">このロールの所属変更はシステム管理者のみ操作できます。</p> : <PersonPicker people={members} value={pendingMembers?.memberIds ?? assignedIds} onChange={updateRoleMembers} pending={!!pendingMembers} label={`所属メンバー（${assignedIds.length}人）`} />}</div>
   </Card>;
 }
 

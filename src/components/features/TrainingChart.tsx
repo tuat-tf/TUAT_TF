@@ -21,7 +21,7 @@ import { cn, formatKm, roundKm } from "@/lib/utils";
 import { displayedDistance, unclassifiedDistance } from "@/lib/record-distance";
 import { useBooleanPreference } from "@/hooks/use-boolean-preference";
 import { trainingReviewFields, trainingReviewPreferenceKey } from "@/lib/training-review-display";
-import type { PracticeRecord, Intensity, RecordFieldDef } from "@/types";
+import type { TrainingRecord, Intensity, RecordFieldDef } from "@/types";
 
 type Period = "day" | "week" | "month";
 
@@ -35,7 +35,7 @@ interface Bucket {
   by: Record<Intensity, number>;
   unclassified: number;
   total: number;
-  records: PracticeRecord[];
+  records: TrainingRecord[];
 }
 
 function bucketStart(d: Date, period: Period): Date {
@@ -52,7 +52,7 @@ export function TrainingChart({
   recordFields = [],
   initialShowAllFields = false,
 }: {
-  records: PracticeRecord[];
+  records: TrainingRecord[];
   showIntensitySummary?: boolean;
   viewerId?: string;
   recordFields?: RecordFieldDef[];

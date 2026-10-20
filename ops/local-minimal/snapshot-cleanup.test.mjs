@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {mkdtemp,writeFile,readFile,rm,link,symlink,rename,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve} from 'node:path';
-import {dryRunSnapshotCleanup,applySnapshotCleanup,verifySnapshotCiphertext,removeSnapshotCiphertext,createSnapshotCleanupAdapter,
+import {inspectSnapshotCleanup,dryRunSnapshotCleanup,applySnapshotCleanup,verifySnapshotCiphertext,removeSnapshotCiphertext,createSnapshotCleanupAdapter,
   planCompletedSnapshotMetadata} from './snapshot-cleanup.mjs';
 import {planSnapshotRetention} from './snapshot-retention.mjs';
 
@@ -57,6 +57,33 @@ function harness(count=100) {
   return {adapter,options,local,remote,intents,results,events,faults,snapshots,
     advance:ms=>clock+=ms,changeHost:()=>binding='another-host',changeMetadata:()=>metadataDigest='changed',changeCurrent:()=>currentDigest='new-current'};
 }
+
+test('empty automatic inspection performs no repeated ciphertext read and cannot authorize deletion',async()=>{
+  const h=harness(1);
+  const inspected=await inspectSnapshotCleanup({},h.options);
+  assert.deepEqual(inspected,{version:1,inspectionOnly:true,counts:{local:0,remote:0,metadata:0}});
+  assert.deepEqual(h.events,[]);
+  await assert.rejects(applySnapshotCleanup({},inspected,h.options),/dry run required/);
+  // An explicit operator dry run still verifies all retained bytes.
+  await dryRunSnapshotCleanup({},h.options);
+  assert.deepEqual(h.events,['verify-local','verify-remote']);
+});
+
+test('inspection includes metadata candidates and holds incomplete, changed or uncertain inventory',async()=>{
+  const h=harness(1);h.adapter.planMetadata=async()=>[{}];
+  assert.equal((await inspectSnapshotCleanup({},h.options)).counts.metadata,1);
+  for(const fault of ['incomplete','recovery','badCheckedAt']) {
+    const f=harness(1);f.faults[fault]=true;
+    await assert.rejects(inspectSnapshotCleanup({},f.options));
+    assert.equal(f.intents.size,0);
+  }
+  const changed=harness(1);changed.adapter.planMetadata=async()=>{changed.changeHost();return [];};
+  await assert.rejects(inspectSnapshotCleanup({},changed.options),/scope changed/);
+  const missing=harness(1);missing.remote.delete(missing.snapshots[0].archiveKey);
+  await assert.rejects(inspectSnapshotCleanup({},missing.options),/planning refused/);
+  const pending=harness(1);pending.intents.set('unknown',{});
+  await assert.rejects(inspectSnapshotCleanup({},pending.options),/Unresolved/);
+});
 
 test('reviewed cleanup keeps current, latest local24/remote96 and unknown files/objects',async()=>{
   const h=harness();const legacyPath='/var/lib/tuat-local/backup/legacy.enc',legacyKey=`ops/pc-backend/${identity.sourceId}/backups/legacy.enc`;

@@ -72,22 +72,10 @@ export function PostActions({
   const updateCommentCount = useCallback((count: number) => {
     queryClient.setQueryData(
       ["social-like", currentUser.id, targetType, targetId],
-      (previous: InteractionState | undefined) => ({
-        ...(previous ?? {
-          liked: initialLiked,
-          likes: initialLikes,
-          commentCount: initialComments,
-          busy: false,
-          pending: null,
-        }),
-        commentCount: count,
-      }),
+      (previous: InteractionState | undefined) => previous ? { ...previous, commentCount: count } : previous,
     );
   }, [
     currentUser.id,
-    initialComments,
-    initialLiked,
-    initialLikes,
     queryClient,
     targetId,
     targetType,

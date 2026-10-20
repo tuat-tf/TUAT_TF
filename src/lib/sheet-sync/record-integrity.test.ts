@@ -35,6 +35,8 @@ const admin = { from(table: string) {
     eq: (key: string, expected: unknown) => { filters.push(row => row[key] === expected); return query; },
     is: (key: string, expected: unknown) => { filters.push(row => expected === null ? row[key] == null : row[key] === expected); return query; },
     gte: (key: string, expected: string) => { filters.push(row => String(row[key]) >= expected); return query; },
+    lte: (key: string, expected: string) => { filters.push(row => String(row[key]) <= expected); return query; },
+    lt: (key: string, expected: string) => { filters.push(row => String(row[key]) < expected); return query; },
     insert: (inserted: unknown) => { op = "insert"; value = inserted; return query; },
     update: (patch: unknown) => { op = "update"; value = patch; return query; },
     upsert: (rows: unknown) => { op = "upsert"; value = rows; return query; },

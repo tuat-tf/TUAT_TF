@@ -116,7 +116,7 @@ export function TweetCard({
           onClick={(event) => { event.stopPropagation(); setImageOpen(true); }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={imageUrl!} alt="投稿画像" className="max-h-[520px] w-full object-contain" />
+          <img src={imageUrl!} alt="投稿画像" loading="lazy" decoding="async" className="max-h-[520px] w-full object-contain" />
         </button>
       )}
 

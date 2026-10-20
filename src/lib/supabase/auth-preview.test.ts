@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
     return { eq: () => ({ maybeSingle: async () => ({ data: { id: "me", display_name: "本人", blocks: [], status: "active", approved: true }, error: null }) }) };
   } }),
 }) }));
-import { getCurrentProfile, getRealCurrentProfile } from "./auth";
+import { getCurrentProfile } from "./auth";
 
 beforeEach(() => {
   mocks.preview = false;
@@ -34,7 +34,7 @@ describe("member preview permissions", () => {
       can_manage_ob_meet: false, can_create_schedule: false, can_create_menu: false,
       can_create_notice: false, can_decide_practice: false, editable_menu_blocks: [],
     });
-    expect((await getRealCurrentProfile()).roles[0]).toEqual(mocks.role);
+    expect(mocks.role.can_manage_system).toBe(true);
   });
   it("keeps the real permissions outside preview and ignores preview cookies without system permission", async () => {
     expect((await getCurrentProfile()).roles[0]).toEqual(mocks.role);

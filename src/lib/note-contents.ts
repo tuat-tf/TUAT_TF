@@ -7,14 +7,14 @@
  * 並び順はフォルダ詳細の節（サブフォルダ→記事→スレッド）に合わせる。
  */
 export function folderContentsLabel(note: {
-  children?: { id: string }[] | null;
-  articles?: { id: string }[] | null;
-  threads?: { id: string }[] | null;
+  child_count?: number;
+  article_count?: number;
+  thread_count?: number;
 }): string {
   const parts: string[] = [];
-  const folders = note.children?.length ?? 0;
-  const articles = note.articles?.length ?? 0;
-  const threads = note.threads?.length ?? 0;
+  const folders = note.child_count ?? 0;
+  const articles = note.article_count ?? 0;
+  const threads = note.thread_count ?? 0;
   if (folders > 0) parts.push(`フォルダ${folders}件`);
   if (articles > 0) parts.push(`記事${articles}件`);
   if (threads > 0) parts.push(`スレッド${threads}件`);

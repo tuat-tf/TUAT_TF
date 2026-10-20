@@ -65,6 +65,77 @@ Passing this check proves local configuration shape only. It does not verify the
 bound service's actual destination, account access, quota, connector, or routing.
 No deployment command is part of these local checks.
 
+## Static assets without Worker invocations
+
+The unpublished `wrangler.assets.example.json` adds asset-first delivery on the
+same origin. Existing JS/CSS/fonts under `/_next/static/` and an explicit list of
+public branding files can be served by Cloudflare without invoking this Worker.
+HTML, RSC, Auth, API, private images, service worker and missing files still go
+through the existing single PC dispatch. This is source preparation, not an
+account setting or an active deployment.
+
+Use `prepare-assets.mjs` only with an independently prepared PC release:
+
+```powershell
+node ops/pc-host/cloudflare/prepare-assets.mjs --prepare HOST_CONFIG NEW_BUNDLE_DIRECTORY PREVIOUS_BUNDLE_DIRECTORY
+node ops/pc-host/cloudflare/prepare-assets.mjs --verify NEW_BUNDLE_DIRECTORY
+```
+
+Omit the previous bundle only on the first release. The command reads the
+existing host configuration, verifies its prepared receipt, source commit,
+runtime manifest and build hash, and checks Next's deployment ID. It neither
+builds nor starts the app, changes the configuration, contacts Cloudflare, nor
+reads user images. The output's parent must exist and its destination must be
+new. An existing bundle is never overwritten or removed.
+
+The new bundle contains `assets/` and a sibling `manifest.json`. Only `assets/`
+is uploaded. It contains `.next/static` with source maps excluded, the named
+branding files, and generated cache headers. Unknown extensions, links,
+unlisted files, changed bytes and immutable URL collisions fail verification.
+Never replace this directory with `.next`, `public`, a release root or image
+storage. Server output, secrets, user images, receipt and private responses
+must remain outside it.
+
+Keep all previous active releases' Next assets by supplying their verified
+bundles; a previously accumulated bundle already includes its predecessors.
+The manifest records each release and every file hash. Unhashed branding comes
+from the selected release. For rollback, prepare the older verified release
+with the newest bundle as a previous bundle, so newer open tabs do not lose
+their asset URLs. A URL collision must be resolved before publishing. Do not
+delete old hashes on a timer without establishing that no active release/tab
+requires them. These assets do not make old application APIs interchangeable.
+
+For a later authorized deployment, use the new template with the existing
+Worker name, origin and VPC binding. In that release's Cloudflare directory,
+the verified bundle is `.contingency/static-assets/`. `check-config.mjs` now
+verifies its manifest as well as the configuration. It requires
+`run_worker_first: false`, `html_handling: "none"` and
+`not_found_handling: "none"`; SPA fallbacks and extra assets bindings are
+rejected. The Worker source is unchanged. Existing static assets are public,
+so they do not pass the Worker's hostname/auth checks; private requests still
+do. Preserve the current origin and authorization rules.
+
+Local asset tests use isolated fixtures and a model of Cloudflare routing:
+known GET/HEAD assets cause zero Worker/PC dispatches; dynamic paths and writes
+retain one dispatch, and missing static assets retain their 404. This is not a
+measurement of the deployed account. Before publishing, confirm the actual
+route, MIME/cache headers, first/repeat visits, auth cookies, RSC, writes,
+private-image denial, missing hashes, old tabs and rollback, and compare
+account-wide request counts. Build/package/PC release and assets must refer to
+the same commit. No automatic deployment or quota guarantee is provided.
+When publication is authorized, make the union of old and new assets available
+before switching the PC to the new release. After switching, check both the PC
+version and bundle receipt against that release. Roll back the PC with the
+union still available; do not replace it with a bundle that drops newer hashes.
+
+Official behavior checked on 2026-10-20:
+[asset-first matching](https://developers.cloudflare.com/workers/static-assets/routing/worker-script/),
+[static request billing](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/),
+[disabling HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/),
+and [asset response headers](https://developers.cloudflare.com/workers/static-assets/headers/).
+The reduced count comes from avoiding Worker execution; caching inside the
+Worker alone would not remove its invocation.
+
 ## Checks for route changes
 
 Before an authorized route change, verify the intended account's VPC access/roles and fixed hostname;

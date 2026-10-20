@@ -76,7 +76,10 @@ export async function POST(request: Request) {
       .select("schedule_date, schedule_type")
       .eq("id", scheduleId)
       .maybeSingle();
-    if (scheduleError || !schedule || schedule.schedule_type !== "practice") {
+    if (scheduleError) {
+      return NextResponse.json({ error: "対象の練習予定を読み込めませんでした。時間をおいて確認してください。" }, { status: 503 });
+    }
+    if (!schedule || schedule.schedule_type !== "practice") {
       return NextResponse.json({ error: "対象の練習予定が見つかりません" }, { status: 404 });
     }
 

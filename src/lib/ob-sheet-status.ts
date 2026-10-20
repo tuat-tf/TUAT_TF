@@ -5,7 +5,7 @@ import { OB_PROGRAM } from "./ob-meet";
 import { obFamilyLabel } from "./ob-meet";
 import type { ObEntry } from "./ob-entries";
 import type { ObEventOperation } from "./ob-operations";
-import type { XlsxSheet } from "./xlsx-writer";
+import type { TableSheet } from "./export-table";
 
 export const OB_SHEET_STATUSES = { "出場": "entered", "DNS（欠場）": "DNS", "DNF（途中棄権）": "DNF", "DQ（失格）": "DQ" } as const;
 /** Accept older sheet labels while presenting one DNS choice. */
@@ -32,7 +32,7 @@ export function readObSheetTarget(token: unknown, secret: string): ObSheetStatus
 }
 
 /** Row identities stay in the private publisher, never in public cells or metadata. */
-export function obSheetStatusTargets(entries: ObEntry[], operations: ObEventOperation[], sheets: XlsxSheet[], secret: string) {
+export function obSheetStatusTargets(entries: ObEntry[], operations: ObEventOperation[], sheets: TableSheet[], secret: string) {
   return OB_PROGRAM.flatMap(slot => slot.events).map(family => {
     const name = obFamilyLabel(family), sheet = sheets.find(sheet => sheet.name === name)!;
     const statusColumn = sheet.rows[0].indexOf("出場状況");

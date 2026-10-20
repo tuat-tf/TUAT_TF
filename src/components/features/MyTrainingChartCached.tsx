@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TrainingChart } from "@/components/features/TrainingChart";
 import { RefreshStatus } from "@/components/ui/refresh-status";
 import { loadMyTrainingRecords } from "@/app/(app)/mypage/actions";
-import type { PracticeRecord, RecordFieldDef } from "@/types";
+import type { TrainingRecord, RecordFieldDef } from "@/types";
 
 export function MyTrainingChartCached({
   userId,
@@ -15,7 +15,7 @@ export function MyTrainingChartCached({
   initialShowAllFields = false,
 }: {
   userId: string;
-  initialRecords: PracticeRecord[];
+  initialRecords: TrainingRecord[];
   showIntensitySummary?: boolean;
   recordFields?: RecordFieldDef[];
   initialShowAllFields?: boolean;

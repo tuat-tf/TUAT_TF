@@ -1,7 +1,7 @@
 import { MeetMark } from "./meet-operations";
 import type { ManagedMeetEvent, RelayTeamResult } from "./competition-meet";
 import type { ParsedProgramRow } from "./competition-program";
-import type { XlsxSheet } from "./xlsx-writer";
+import type { TableSheet } from "./export-table";
 
 export function emptyRelayResults(): RelayTeamResult[] {
   return Array.from({length:6},(_,index)=>({lane:index+1,name:"",time:"",members:["","","",""]}));
@@ -62,7 +62,7 @@ export function relayResultRow(event:ManagedMeetEvent,date:string):ParsedProgram
       ...(team.time?{result:{place:ranks.has(team.lane)?String(ranks.get(team.lane)):null,record:team.time}}:{})}))};
 }
 
-export function relayResultSheet(event:ManagedMeetEvent):XlsxSheet {
+export function relayResultSheet(event:ManagedMeetEvent):TableSheet {
   const teams=event.relay_results??[],ranks=relayRanks(teams);
   return {name:event.name,widths:[8,24,14,8,20,20,20,20],rows:[["レーン","チーム名","タイム","順位","1走","2走","3走","4走"],...teams.map(team=>[team.lane,team.name,team.time,ranks.get(team.lane)??"",...team.members])]};
 }

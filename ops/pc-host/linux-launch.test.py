@@ -12,8 +12,6 @@ import tempfile
 import unittest
 
 SOURCE = Path(__file__).resolve().parent
-NODE = Path('/opt/tuat-pc-app-candidate-20261013/bin/node')
-NODE_HASH = 'bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12'
 ENTRY = r'''import {readFileSync,writeFileSync,renameSync,unlinkSync} from 'node:fs';
 import {acquireRunnerLock,acquireManagedRunnerLock,verifyLinuxLifetime} from './runner-lock.mjs';
 const configPath=process.argv[2]==='--run'?process.argv[3]:process.argv[2];
@@ -42,10 +40,15 @@ try {
 class Lifetime(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        if not NODE.is_file() or hashlib.sha256(NODE.read_bytes()).hexdigest() != NODE_HASH:
-            raise RuntimeError('Exact fixture Node24 dependency unavailable')
+        node = shutil.which('node')
+        if not node or subprocess.run([node, '--version'], check=True, capture_output=True, text=True).stdout.split('.')[0] != 'v24':
+            raise RuntimeError('Fixture Node24 must be on PATH')
+        source_hash = hashlib.sha256(Path(node).read_bytes()).hexdigest()
         cls.base = Path(tempfile.mkdtemp(prefix='codex-linux-lifetime-', dir='/root'))
-        cls.binary = cls.base / 'node'; shutil.copyfile(NODE, cls.binary); cls.binary.chmod(0o700)
+        cls.binary = cls.base / 'node'; shutil.copyfile(node, cls.binary); cls.binary.chmod(0o700)
+        cls.node_hash = hashlib.sha256(cls.binary.read_bytes()).hexdigest()
+        if cls.node_hash != source_hash:
+            raise RuntimeError('Fixture Node changed during copy')
 
     @classmethod
     def tearDownClass(cls):
@@ -83,7 +86,8 @@ class Lifetime(unittest.TestCase):
         self.config.write_text(json.dumps(value)); self.config.chmod(0o600)
         return value
 
-    def start(self, service='app', pin=NODE_HASH, environment=None):
+    def start(self, service='app', pin=None, environment=None):
+        if pin is None: pin = self.node_hash
         child = subprocess.Popen(['/usr/bin/python3','-I',str(self.launcher),'--service',service,
                                   '--config',str(self.config),'--node-sha256',pin],
                                  stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,env=environment)
@@ -147,7 +151,7 @@ class Lifetime(unittest.TestCase):
                     p=self.state/'lifetime.lock';p.write_text('retained');p.chmod(0o600);os.link(p,self.state/'other-link')
                 if mode=='owner':
                     p=self.state/'lifetime.lock';p.write_text('retained');p.chmod(0o600);os.chown(p,65530,0)
-                child=self.start(pin='0'*64 if mode=='pin' else NODE_HASH); out,err=child.communicate(timeout=5)
+                child=self.start(pin='0'*64 if mode=='pin' else self.node_hash); out,err=child.communicate(timeout=5)
                 self.assertEqual(child.returncode,1);self.assertEqual(out,'');self.assertIn('linux-lifetime-unverified',err)
                 self.assertFalse((self.state/'runner.lock').exists())
                 if mode=='state':self.state.chmod(0o700)
@@ -158,7 +162,7 @@ class Lifetime(unittest.TestCase):
     def test_arbitrary_command_is_rejected_without_echoing_arguments(self):
         self.prepare();marker='synthetic-sensitive-marker'
         result=subprocess.run(['/usr/bin/python3','-I',str(self.launcher),'--service','app','--config',str(self.config),
-                              '--node-sha256',NODE_HASH,'--command',marker],capture_output=True,text=True,timeout=5)
+                              '--node-sha256',self.node_hash,'--command',marker],capture_output=True,text=True,timeout=5)
         self.assertEqual(result.returncode,2);self.assertNotIn(marker,result.stderr);self.assertNotIn(marker,result.stdout)
         self.assertFalse((self.state/'lifetime.lock').exists());self.assertFalse((self.state/'runner.lock').exists())
 

@@ -71,7 +71,7 @@ export function normalizeAuthorRow(row: AuthorRow): AuthorMini {
   };
 }
 
-function recordValuesFromJson(value: Json): Record<string, string | number | null> {
+export function recordValuesFromJson(value: Json): Record<string, string | number | null> {
   if (!value || Array.isArray(value) || typeof value !== "object") return {};
   return Object.fromEntries(
     Object.entries(value).filter((entry): entry is [string, string | number | null] =>

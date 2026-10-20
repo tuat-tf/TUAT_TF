@@ -173,6 +173,13 @@ export interface PracticeRecord {
   from_sheet?: boolean;
 }
 
+/** Graph and expandable review fields, without author/social/sync metadata. */
+export type TrainingRecord = Pick<PracticeRecord,
+  "id" | "recorded_date" | "dist_low" | "dist_mid" | "dist_high" | "dist_speed" | "dist_actual" |
+  "strides" | "result_text" | "strength_text" | "memo" | "menu_text" | "focus_text" | "condition" |
+  "custom" | "record_fields_version" | "record_fields_snapshot"
+>;
+
 /** 投稿者情報を join した練習記録 */
 export interface RecordWithAuthor extends PracticeRecord {
   author: AuthorMini;
@@ -633,11 +640,10 @@ export interface NoteWithRelations extends NoteRow {
   author: AuthorMini;
   theme: NoteTheme | null;
   editors?: { user_id: string; profile?: AuthorMini | null }[];
-  articles?: { id: string }[];
-  /** このフォルダ直下のサブフォルダ */
-  children?: { id: string }[];
-  /** このフォルダ直下のスレッド */
-  threads?: { id: string }[];
+  article_count?: number;
+  /** RLSで閲覧できる直下のサブフォルダ・スレッド件数 */
+  child_count?: number;
+  thread_count?: number;
 }
 
 export interface ThreadRow {
@@ -652,7 +658,7 @@ export interface ThreadRow {
 
 export interface ThreadWithAuthor extends ThreadRow {
   author: AuthorMini;
-  posts?: { id: string }[];
+  post_count?: number;
 }
 
 export interface ThreadPostWithAuthor {

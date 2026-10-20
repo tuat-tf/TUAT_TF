@@ -98,12 +98,6 @@ const getStoredProfile = cache(async (): Promise<Profile> => {
   return normalizeProfileRow(profile, rolesMap.get(user.id) ?? []);
 });
 
-/**
- * 本来の権限を持つプロフィール。一般部員プレビューの切り替えUIなど、
- * 「プレビュー中でも本当の権限で判定したい」ところだけで使う。
- */
-export const getRealCurrentProfile = getStoredProfile;
-
 /** 一般部員プレビューが有効か。システム管理者以外では常に false。 */
 export const isMemberPreviewActive = cache(async (): Promise<boolean> => {
   const store = await cookies();

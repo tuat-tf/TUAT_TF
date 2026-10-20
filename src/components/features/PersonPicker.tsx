@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, Plus, Search, Trash2, Users } from "lucide-react";
 import { Avatar } from "@/components/common/Avatar";
 import { PeopleFilterButton } from "@/components/features/PeopleFilterButton";
 import { Button } from "@/components/ui/button";
-import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
+import { FormDraftGuard, FormModal, FormModalFooter } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { GRADE_OPTIONS, matchSimpleBlock } from "@/lib/constants";
@@ -28,8 +28,8 @@ function readMemberLists(): MemberList[] {
   }
 }
 
-export function PersonPicker({ people, value, onChange, label = "対象者", excludeIds = [], includedIds = [], excludedIncludedIds = [], onExcludedIncludedIdsChange }: {
-  people: AuthorMini[]; value: string[]; onChange: (ids: string[]) => void; label?: string; excludeIds?: string[]; includedIds?: string[]; excludedIncludedIds?: string[]; onExcludedIncludedIdsChange?: (ids: string[]) => void;
+export function PersonPicker({ people, value, onChange, pending = false, label = "対象者", excludeIds = [], includedIds = [], excludedIncludedIds = [], onExcludedIncludedIdsChange }: {
+  people: AuthorMini[]; value: string[]; onChange: (ids: string[]) => void | boolean | Promise<void | boolean>; pending?: boolean; label?: string; excludeIds?: string[]; includedIds?: string[]; excludedIncludedIds?: string[]; onExcludedIncludedIdsChange?: (ids: string[]) => void;
 }) {
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
@@ -41,6 +41,8 @@ export function PersonPicker({ people, value, onChange, label = "対象者", exc
   const [memberLists, setMemberLists] = useState<MemberList[]>([]);
   const [listName, setListName] = useState("");
   const [creatingList, setCreatingList] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const excluded = useMemo(() => new Set(excludeIds), [excludeIds]);
   const included = useMemo(() => new Set(includedIds), [includedIds]);
   const availableGrades = useMemo(() => {
@@ -56,6 +58,7 @@ export function PersonPicker({ people, value, onChange, label = "対象者", exc
   }), [blocks, excluded, grades, people, query]);
 
   function launch() {
+    if (saveLock.current) return;
     setDraft(value);
     setDraftExcludedIncludedIds(excludedIncludedIds);
     setMemberLists(readMemberLists());
@@ -95,13 +98,31 @@ export function PersonPicker({ people, value, onChange, label = "対象者", exc
     const selectable = new Set(people.filter((person) => !excluded.has(person.id)).map((person) => person.id));
     setDraft(list.ids.filter((id) => selectable.has(id)));
   }
+  async function complete() {
+    if (saveLock.current) return;
+    saveLock.current = true;
+    setSaving(true);
+    try {
+      if (await onChange([...draft]) === false) return;
+      onExcludedIncludedIdsChange?.(draftExcludedIncludedIds.filter(id => included.has(id)));
+      setOpen(false);
+    } catch {
+      showToast("選択を保存できませんでした。入力は残っています。保存先を確認してください。");
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
+    }
+  }
+  const dirty = pending || [...draft].sort().join(",") !== [...value].sort().join(",") ||
+    [...draftExcludedIncludedIds].sort().join(",") !== [...excludedIncludedIds].sort().join(",");
 
   return <>
     <button data-ui-field aria-haspopup="dialog" aria-expanded={open} type="button" onClick={launch} className="flex min-h-11 w-full items-center justify-between rounded-xl border border-separator bg-card px-3 text-left">
       <span><span className="block text-sm font-semibold">{label}</span><span className="text-micro text-muted">{excludedIncludedIds.length ? `${excludedIncludedIds.length}人を個別に除外` : value.length ? `個別に${value.length}人を選択中` : includedIds.length ? `${includedIds.length}人が条件で対象` : "選択なし"}</span></span><ChevronRight size={17} className="text-muted" />
     </button>
     <FormModal open={open} onOpenChange={setOpen} title={`${label}を選択`} autoFocus={false}>
-      <div className="space-y-3 pb-4">
+      <FormDraftGuard dirty={dirty} busy={saving} onSave={complete} intent={pending ? "check" : "save"} />
+      <fieldset disabled={saving || pending} className="min-w-0 space-y-3 pb-4">
         <div className="space-y-2 rounded-xl border border-separator bg-bg p-3">
           <div className="flex items-center justify-between gap-2"><p className="inline-flex items-center gap-1.5 text-sm font-semibold"><Users size={16} className="text-accent" />メンバーリスト</p>{draft.length > 0 && !creatingList && <button data-ui-action="text" data-ui-tone="primary" type="button" onClick={() => setCreatingList(true)} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-accent"><Plus size={14} />現在の選択を保存</button>}</div>
           {memberLists.length === 0 && !creatingList && <p className="py-1 text-xs text-muted">部員を選ぶと、この組み合わせをリストとして保存できます</p>}
@@ -125,8 +146,8 @@ export function PersonPicker({ people, value, onChange, label = "対象者", exc
           const active = explicit || (byCondition && !excludedByCondition);
           return <button data-ui-row aria-pressed={active} key={person.id} type="button" onClick={() => togglePerson(person.id)} className={cn("flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left", active ? "bg-accent/10" : excludedByCondition ? "bg-danger/5" : "active:bg-bg")}><Avatar name={person.display_name} avatarUrl={person.avatar_url} blocks={person.blocks} size="sm" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{person.display_name}</span><span className={cn("text-micro text-muted", excludedByCondition && "text-danger")}>{explicit ? "個別指定" : excludedByCondition ? "個別に除外" : byCondition ? "条件で対象" : person.grade ?? "学年未設定"}</span></span>{active && <Check size={18} className="text-accent" />}</button>;
         })}</div>
-      </div>
-      <FormModalFooter><Button size="lg" onClick={() => { onChange(draft); onExcludedIncludedIdsChange?.(draftExcludedIncludedIds.filter((id) => included.has(id))); setOpen(false); }}>完了（追加 {draft.length}人・除外 {draftExcludedIncludedIds.filter((id) => included.has(id)).length}人）</Button></FormModalFooter>
+      </fieldset>
+      <FormModalFooter><Button size="lg" disabled={saving} onClick={() => void complete()}>{saving ? "保存中…" : pending ? "保存結果を確認" : `完了（追加 ${draft.length}人・除外 ${draftExcludedIncludedIds.filter((id) => included.has(id)).length}人）`}</Button></FormModalFooter>
     </FormModal>
   </>;
 }

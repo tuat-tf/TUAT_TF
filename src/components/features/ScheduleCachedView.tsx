@@ -1,9 +1,9 @@
 "use client";
 
 import { RefreshStatus } from "@/components/ui/refresh-status";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ScheduleView } from "@/components/features/ScheduleView";
+import { ScheduleView, filterSchedules } from "@/components/features/ScheduleView";
 import type { SchedulePageData } from "@/lib/schedule-page-data";
 import {
   applyMiddleLongMenuSnapshot,
@@ -23,6 +23,8 @@ async function loadSchedulePageData(signal: AbortSignal): Promise<SchedulePageDa
 
 export function ScheduleCachedView({ initialData, openId }: { initialData: SchedulePageData; openId?: string }) {
   const queryClient = useQueryClient();
+  const [type, setType] = useState("all");
+  const [block, setBlock] = useState<"all" | "middle_long" | "short">("all");
   const queryKey = ["schedule", initialData.userId];
   const { data, isError, refetch } = useQuery({
     queryKey,
@@ -35,9 +37,10 @@ export function ScheduleCachedView({ initialData, openId }: { initialData: Sched
   });
   // サーバーが新しいデータを返したらセッションキャッシュにも反映する
   // （initialDataは初回マウント時のみ有効。無いと予定の編集・出欠変更が古いまま見える）。
+  const displayedSchedules = useMemo(() => filterSchedules(data.schedules, type, block), [data.schedules, type, block]);
   const menuQuery = useQuery(middleLongMenuQueryOptions({
     userId: initialData.userId,
-    schedules: data.schedules,
+    schedules: displayedSchedules,
     initialData: data.middleLongMenuSnapshot ?? undefined,
     enabled: data.wantsSheetMenus,
   }));
@@ -56,5 +59,5 @@ export function ScheduleCachedView({ initialData, openId }: { initialData: Sched
   }, [data, menuQuery.data]);
 
   // CSV is supplemental to the DB schedule. Refresh silently so the list never jumps.
-  return <><RefreshStatus failed={isError} busy={false} retry={() => { void refetch(); }} /><ScheduleView {...viewData} openId={openId} /></>;
+  return <><RefreshStatus failed={isError} busy={false} retry={() => { void refetch(); }} /><ScheduleView {...viewData} openId={openId} type={type} onTypeChange={setType} block={block} onBlockChange={setBlock} /></>;
 }

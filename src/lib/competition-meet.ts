@@ -1,4 +1,4 @@
-import { emptyPerformance, withoutMeetPlacement, type MeetEventData, type MeetEventRule, type MeetPerformance } from "./meet-operations";
+import { withoutMeetPlacement, type MeetEventData, type MeetEventRule, type MeetPerformance } from "./meet-operations";
 import { fieldOrderRows } from "./meet-field-order";
 
 export type MeetParticipant = { id: string; competition_id: string; profile_id: string | null; name: string; grade: string; absent: boolean; deleted: boolean; revision: number };
@@ -9,7 +9,26 @@ export type MeetDuty = { id: string; participant_id: string; slot_time: string; 
 export type MeetDutyRole = { id: string; slot_time: string; event_name: string; name: string; required_count: number; revision: number; abbreviation?:string };
 export type MeetParty = { id: string; participant_id: string | null; name: string; group_label: string; status: "参加" | "不参加" | "未回答"; needs_review: boolean; revision: number };
 export type CompetitionMeet = { competitionId: string; name: string; meetKey: string; backend: "pc" | "cloud"; program?: {time:string;label:string;events:string[];note?:string}[]; partyInfo?: {time:string;venue:string;fee:number}|null; staffRoleId?:string|null; roleOptions?:{id:string;name:string}[]; participants: MeetParticipant[]; appearances: MeetAppearance[]; events: ManagedMeetEvent[]; duties: MeetDuty[]; roles: MeetDutyRole[]; party: MeetParty[]; permissions: { manage: boolean; groups: boolean; record: boolean; register?:boolean; configure: boolean; history?:boolean }; members: { id: string; display_name: string; grade: string | null }[] };
-export type MeetCommand = { backend?: "pc" | "cloud"; expectedConfirmed?: boolean; confirmDuties?:boolean; action: "participant.save" | "participant.attendance" | "participant.delete" | "participant.restore" | "appearance.add" | "appearance.edit" | "appearance.moveDivision" | "relay.save" | "appearance.cancel" | "appearance.delete" | "appearance.restore" | "event.save" | "event.configure" | "duty.save" | "role.save" | "role.delete" | "party.save" | "meet.configure"; id?: string; revision?: number; name?: string; grade?: string; profileId?: string | null; absent?: boolean; participantId?: string; event?: string; mark?: string | null; changes?: { id: string; revision: number; performance: MeetPerformance }[]; confirmed?: boolean; relayResults?:RelayTeamResult[]; roleIds?: string[]; assignment?: string; status?: string; time?:string; requiredCount?:number; staffRoleId?:string|null; expectedStaffRoleId?:string|null; config?: Omit<ManagedMeetEvent, "competition_id" | "revision" | "confirmed"> };
+type ExistingMeetRow = { id: string; revision: number };
+type NewMeetRow = { id?: never; revision?: never };
+/** The request ledger receives this object unchanged, including the captured backend. */
+export type MeetCommand = { backend?: CompetitionMeet["backend"] } & (
+  | ({ action: "participant.save"; name: string; grade: string; profileId: string | null } & (ExistingMeetRow | NewMeetRow))
+  | ({ action: "participant.attendance"; absent: boolean } & ExistingMeetRow)
+  | ({ action: "participant.delete" | "participant.restore" } & ExistingMeetRow)
+  | { action: "appearance.add"; participantId: string; event: string; mark?: string | null; confirmDuties?: boolean }
+  | ({ action: "appearance.edit"; mark: string | null } & ExistingMeetRow)
+  | ({ action: "appearance.moveDivision"; event: string; mark: string | null; confirmDuties?: boolean } & ExistingMeetRow)
+  | ({ action: "appearance.cancel" | "appearance.delete" | "appearance.restore" } & ExistingMeetRow)
+  | { action: "event.save"; event: string; revision: number; expectedConfirmed: boolean; changes: { id: string; revision: number; performance: MeetPerformance }[]; confirmed: boolean }
+  | { action: "relay.save"; event: string; revision: number; relayResults: RelayTeamResult[]; confirmed: boolean }
+  | { action: "event.configure"; config: Omit<ManagedMeetEvent, "competition_id" | "revision" | "confirmed" | "relay_results"> }
+  | ({ action: "duty.save"; participantId: string; roleIds: string[]; assignment: string } & (ExistingMeetRow | (NewMeetRow & { event: string; time: string })))
+  | ({ action: "role.save"; name: string; event: string; time: string; requiredCount: number } & (ExistingMeetRow | NewMeetRow))
+  | ({ action: "role.delete" } & ExistingMeetRow)
+  | ({ action: "party.save"; status: MeetParty["status"] } & ((ExistingMeetRow & { participantId?: string }) | (NewMeetRow & { participantId: string })))
+  | { action: "meet.configure"; staffRoleId: string | null; expectedStaffRoleId: string | null }
+);
 export type MeetMutationResult = { ok: boolean; message?: string; uncertain?: boolean; notSaved?: boolean; stale?: boolean; requestId?: string; id?: string };
 
 export function availableAppearance(person: MeetParticipant | undefined, appearance: MeetAppearance) {
@@ -29,7 +48,6 @@ export function meetEventCounts(meet: Pick<CompetitionMeet, "participants" | "ap
   const ids = new Set(active.map(value => meet.appearances.find(appearance => appearance.id === value.entryId)!.participant_id));
   return { people: ids.size, appearances: active.length, dns: data.participants.filter(value => value.status === "DNS").length, dnf: data.participants.filter(value => value.status === "DNF").length, dq: data.participants.filter(value => value.status === "DQ").length };
 }
-export function newAppearancePerformance(id: string) { return emptyPerformance(id); }
 export function meetRule(event: ManagedMeetEvent): MeetEventRule { return { name: event.name, discipline: event.discipline, wind: event.wind }; }
 export function meetDutyText(duty: MeetDuty, roles: MeetDutyRole[]) { return duty.role_ids.length ? duty.role_ids.map(id => roles.find(role => role.id === id)?.name ?? "担当確認中").join("・") : duty.assignment; }
 

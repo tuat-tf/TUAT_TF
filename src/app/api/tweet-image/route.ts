@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getAppPublicOrigin } from "@/lib/app-public-origin";
+import { authorizedImageResponse } from "@/lib/image-response";
 import { createClient } from "@/lib/supabase/server";
 import { isSafeTweetImagePath,TWEET_IMAGE_BUCKET } from "@/lib/tweet-image";
-import { ImageNotFoundError,logImageFailure,signedImageUrl } from "@/lib/image-storage";
+import { ImageNotFoundError,logImageFailure } from "@/lib/image-storage";
 
 export async function GET(request: Request) {
   try {
@@ -18,17 +18,12 @@ export async function GET(request: Request) {
     if(!tweet) return NextResponse.json({ error: "Image not found" },{ status: 404 });
     const ttl=tweet.expires_at? Math.min(300,Math.floor((Date.parse(tweet.expires_at)-Date.now())/1000)):300;
     if(ttl<=0) return NextResponse.json({ error: "Image not found" },{ status: 404 });
-    let url: string;
     try {
-      url=await signedImageUrl(supabase,TWEET_IMAGE_BUCKET,path,ttl);
+      return await authorizedImageResponse(request,supabase,TWEET_IMAGE_BUCKET,path,ttl,Math.min(240,Math.max(0,ttl-30)));
     } catch(error) {
       if(error instanceof ImageNotFoundError) return NextResponse.json({ error: "Image not found" },{ status: 404,headers: { "Cache-Control": "private, no-store" } });
       throw error;
     }
-    const response=NextResponse.redirect(new URL(url,getAppPublicOrigin(request.url)),307);
-    response.headers.set("Cache-Control",`private, max-age=${Math.min(240,Math.max(0,ttl-30))}`);
-    response.headers.set("Vary","Cookie");
-    return response;
   } catch {
     logImageFailure("tweet-image-read");
     return NextResponse.json({ error: "画像を取得できませんでした" },{ status: 503,headers: { "Cache-Control": "private, no-store" } });

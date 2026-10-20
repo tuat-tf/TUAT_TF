@@ -50,6 +50,7 @@ describe("on-demand home menus", () => {
     }
     expect(middleLongMenuQueryOptions({ userId: "me", schedules: [practice], enabled: false }).enabled).toBe(false);
     expect(middleLongMenuQueryOptions({ userId: undefined, schedules: [practice], enabled: true }).enabled).toBe(false);
+    expect(middleLongMenuQueryOptions({ userId: "me", schedules: [practice], enabled: false }).refetchInterval).toBe(false);
   });
 
   it("keeps users in separate caches, refreshes sheet data, and disables automatic error retries", async () => {

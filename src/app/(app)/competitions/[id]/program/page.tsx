@@ -45,7 +45,7 @@ export default async function CompetitionProgramPage({
   if (isObCompetition(competition.id)) {
     const normalized = await getCompetitionMeet(competition.id);
     if (normalized) {
-      return <>{header}<CompetitionMeetResults meet={normalized} date={competition.starts_on} canOperate={normalized.permissions.manage && !preview} /></>;
+      return <>{header}<CompetitionMeetResults meet={normalized} date={competition.starts_on} endsOn={competition.ends_on} canOperate={normalized.permissions.manage && !preview} /></>;
     }
     const staff = canManageObMeet(profile.roles);
     if (!staff || preview) {
@@ -73,6 +73,7 @@ export default async function CompetitionProgramPage({
       footer={canViewObHistory(profile.roles) ? <ObEntryHistory /> : undefined}
     /> : undefined;
     return <>{header}<ObMeetWorkspace key={`${view}:${section}:${edit ?? ""}`}
+      startsOn={competition.starts_on} endsOn={competition.ends_on}
       userId={profile.id}
       view={view} section={section} canOperate={canOperate} staff={staff}
       dutyIssues={obDutyIssues(program.entries,program.members,program.duties,program.roles,program.operations)}
@@ -87,7 +88,7 @@ export default async function CompetitionProgramPage({
 
   if (!competition.program_source_url) {
     const managed = await getCompetitionMeet(id);
-    if (managed) return <>{header}<CompetitionMeetResults meet={managed} date={competition.starts_on} canOperate={managed.permissions.manage && !preview} /></>;
+    if (managed) return <>{header}<CompetitionMeetResults meet={managed} date={competition.starts_on} endsOn={competition.ends_on} canOperate={managed.permissions.manage && !preview} /></>;
   }
   const entries = await getCompetitionProgramEntries(id);
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getAppPublicOrigin } from "@/lib/app-public-origin";
+import { authorizedImageResponse } from "@/lib/image-response";
 import { uploadImageDecoder } from "@/lib/upload-image";
 import { createClient } from "@/lib/supabase/server";
-import { ImageNotFoundError,ImageUploadError,logImageFailure,readImageUpload,signedImageUrl,uploadImage } from "@/lib/image-storage";
+import { ImageNotFoundError,ImageUploadError,logImageFailure,readImageUpload,uploadImage } from "@/lib/image-storage";
 import { cleanupNoteImages } from "@/lib/note-image-cleanup";
 import { TWEET_IMAGE_MAX_UPLOAD_BYTES } from "@/lib/tweet-image";
 import { admitImageUpload } from "@/lib/image-upload-admission";
@@ -34,11 +34,7 @@ export async function GET(request: Request) {
         { status: 404 },
       );
     try {
-      const url=await signedImageUrl(sb,"note-images",data.path,300);
-      const response=NextResponse.redirect(new URL(url,getAppPublicOrigin(request.url)),307);
-      response.headers.set("Cache-Control","private, max-age=240");
-      response.headers.set("Vary","Cookie");
-      return response;
+      return await authorizedImageResponse(request,sb,"note-images",data.path,300,240);
     } catch(error) {
       if(error instanceof ImageNotFoundError) return NextResponse.json({ error: "画像が見つかりません" },{ status: 404,headers: { "Cache-Control": "private, no-store" } });
       throw error;

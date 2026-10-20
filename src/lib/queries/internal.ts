@@ -13,7 +13,7 @@ import type { Notice, NoticeReaction, NoticeWithReactions, QuotedPost, QuotedPos
 export const RECORD_LIST_SELECT = "condition, created_at, custom, dist_actual, dist_high, dist_low, dist_mid, dist_speed, focus_text, from_sheet, id, likes_count, memo, menu_text, pending_sheet_push, record_fields_version, recorded_date, result_text, strength_text, strides, synced_at, updated_at, user_id";
 export const RECORD_LIST_AUTHOR_SELECT = "author:profiles!user_id(id, display_name, avatar_url, blocks, grade, record_source)";
 
-export async function attachRecordFieldGroups<T extends PracticeRecord>(
+export async function attachRecordFieldGroups<T extends Pick<PracticeRecord, "id" | "record_fields_version" | "record_fields_snapshot">>(
   supabase: Awaited<ReturnType<typeof createClient>>, records: T[],
 ): Promise<T[]> {
   if (records.length === 0) return records;

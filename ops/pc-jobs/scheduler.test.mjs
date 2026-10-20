@@ -167,6 +167,19 @@ test('backend/backup maintenance guard prevents dispatch and preserves catch-up 
   assert.deepEqual(state.jobs, {});
   assert.equal(dueJobs(state, at).length, 1);
 });
+
+test('idle ticks do not fetch readiness, and each due dispatch still checks it', async () => {
+  const state = initialState(at);
+  let probes = 0;
+  const args = { state, now: at, ready: async () => { probes++; return true; },
+    save: async () => {}, execute: async job => success(job) };
+  await tick(args);
+  assert.equal(probes, 1);
+  for (let elapsed = 10000; elapsed < 300000; elapsed += 10000) await tick({ ...args, now: at + elapsed });
+  assert.equal(probes, 1);
+  await tick({ ...args, now: at + 300000 });
+  assert.equal(probes, 2);
+});
 test('loopback HTTP integration: exact path, method, body, credentials; one dispatch per slot', async () => {
   const calls = [];
   const server = createServer(async (request, response) => {

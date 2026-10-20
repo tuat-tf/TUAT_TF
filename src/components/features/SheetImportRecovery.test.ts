@@ -52,7 +52,7 @@ vi.mock("@/lib/supabase/client-auth", () => ({ getCurrentUserId: async () => "us
 import { MenuSheetImportManager } from "./MenuSheetImportManager";
 import { useScheduleSheetImport } from "./schedule-sheets/useScheduleSheetImport";
 import { useFormDraft } from "@/components/ui/form-modal";
-import { MenuCreatePanel } from "@/components/post/MenuForm";
+import { MenuEditModal } from "@/components/post/MenuEditModal";
 import { ScheduleCreatePanel, ScheduleForm } from "@/components/post/ScheduleForm";
 
 function render<T>(view: () => T): T {
@@ -444,8 +444,8 @@ describe("schedule import recovery", () => {
 });
 
 describe("input method switching", () => {
-  it.each(["menu", "schedule"])("keeps the %s form mounted until unsaved input is explicitly discarded", (kind) => {
-    const view = kind === "menu" ? () => MenuCreatePanel({ onDone: vi.fn() }) : () => ScheduleCreatePanel({ onDone: vi.fn() });
+  it.each(["schedule"])("keeps the %s form mounted until unsaved input is explicitly discarded", () => {
+    const view = () => ScheduleCreatePanel({ onDone: vi.fn() });
     let tree = render(view);
     const child = elements(tree).find((element) => typeof element.props.onDraftChange === "function")!;
     (child.props.onDraftChange as (state: unknown) => void)({ dirty: true, busy: false, onSave: vi.fn() });
@@ -460,8 +460,8 @@ describe("input method switching", () => {
     expect(elements(render(view)).find((element) => Array.isArray(element.props.items))?.props.value).toBe("sheets");
   });
 
-  it.each(["menu", "schedule"])("blocks switching the %s form while normal save or an import result is pending", (kind) => {
-    const view = kind === "menu" ? () => MenuCreatePanel({ onDone: vi.fn() }) : () => ScheduleCreatePanel({ onDone: vi.fn() });
+  it.each(["schedule"])("blocks switching the %s form while normal save or an import result is pending", () => {
+    const view = () => ScheduleCreatePanel({ onDone: vi.fn() });
     let tree = render(view);
     const child = elements(tree).find((element) => typeof element.props.onDraftChange === "function")!;
     const notify = child.props.onDraftChange as (state: unknown) => void;
@@ -483,13 +483,17 @@ describe("input method switching", () => {
   });
 
   it.each(["menu", "schedule"])("registers actual %s normal input and saving state with the close guard", async (kind) => {
-    const panel = render(() => MenuCreatePanel({ onDone: vi.fn() }));
-    const editor = elements(panel).find((element) => typeof element.props.onDraftChange === "function")!;
+    const menu = { id: "saved-id", schedule_id: "schedule-1", author_id: "user-1", group_name: null,
+      content: "", status: "published", target_block: "middle_long", targets: [], pace: null, remark: null,
+      supplement: null, created_at: "2026-10-20T00:00:00Z", updated_at: "2026-10-20T00:00:00Z",
+    } as import("@/types").PracticeMenu;
+    const panel = render(() => MenuEditModal({ menu, scheduleId: "schedule-1", open: true, onOpenChange: vi.fn() }));
+    const editor = elements(panel).find((element) => typeof element.props.onDone === "function")!;
     harness.states = [];
     harness.effects = [];
     harness.dependencies = [];
     const view = kind === "menu"
-      ? () => (editor.type as (props: Record<string, unknown>) => ReactElement)({ scheduleId: "schedule-1", onDone: vi.fn() })
+      ? () => (editor.type as (props: Record<string, unknown>) => ReactElement)({ menu, scheduleId: "schedule-1", onDone: vi.fn() })
       : () => ScheduleForm({ onDone: vi.fn() });
     let tree = render(view);
     expect(vi.mocked(useFormDraft).mock.calls.at(-1)![0].dirty).toBe(false);

@@ -198,10 +198,15 @@ SELECT set_config('storage.install_roles','false',false),
       SqlFile 'tuat_rls_review' "/review/supabase/tests/$test" | Out-Null
       $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$test") -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
     }
-    foreach ($test in @('integration-meets.sql', 'atomic-save-backup.sql')) {
+    foreach ($test in @('integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql')) {
       $report.stage = "test:$test"
       $output = SqlFile 'tuat_rls_review' "/review/db-review/$test"
       if ($output -notmatch 'PASS:') { throw 'Integration SQL test did not produce its completion evidence' }
+      if ($test -eq 'integration-meets.sql') {
+        $snapshotResult = $output | & $NodePath (Join-Path $PSScriptRoot 'validate-meet-snapshots.mjs')
+        if ($LASTEXITCODE -ne 0) { throw 'Actual synthetic meet RPC validation failed' }
+        $report.meetSnapshots = ($snapshotResult | Out-String).Trim() | ConvertFrom-Json
+      }
       $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $test) -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
     }
     $report.meetFixtureSources = @('meet-fixture.sql', 'integration-meets.sql') | ForEach-Object {

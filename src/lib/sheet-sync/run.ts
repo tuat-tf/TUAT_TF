@@ -1,4 +1,4 @@
-import { OCTOBER_SHEET_ID, legacySyncOpen, parseSheetTransition, periodContains } from "@/lib/sheet-period";
+import { OCTOBER_SHEET_ID, OCTOBER_START, legacySyncOpen, parseSheetTransition, periodContains } from "@/lib/sheet-period";
 
 // 毎時同期の本体。上のモジュールを順に呼ぶ進行役。
 
@@ -63,26 +63,26 @@ async function runSheetSyncBatch(
   const allUserIds = linked.map((profile) => profile.id);
   const [
     { data: syncStates, error: stateError },
-    { data: pendingRows, error: pendingError },
-    { data: clearRows, error: clearError },
+    pendingRows,
+    clearRows,
   ] = await Promise.all([
     admin
       .from("sheet_member_sync_state")
       .select("profile_id, content_signature, config_signature")
       .in("profile_id", allUserIds),
-    admin
+    fetchAllPages((from, to) => admin
       .from("practice_records")
       .select("user_id, recorded_date")
       .in("user_id", allUserIds)
-      .eq("pending_sheet_push", true),
-    admin
+      .eq("pending_sheet_push", true)
+      .order("user_id").order("recorded_date").range(from, to)),
+    fetchAllPages((from, to) => admin
       .from("sheet_pending_clears")
       .select("user_id, recorded_date, created_at")
-      .in("user_id", allUserIds),
+      .in("user_id", allUserIds)
+      .order("user_id").order("recorded_date").range(from, to)),
   ]);
   if (stateError) throw stateError;
-  if (pendingError) throw pendingError;
-  if (clearError) throw clearError;
   // アプリで消した（日付を変えた）記録の、スプシ側を空にする予定。user_id -> 日付
   const clearsByUser = new Map<string, Set<string>>();
   const clearByKey = new Map<string, PendingClear>();
@@ -102,21 +102,31 @@ async function runSheetSyncBatch(
   // the sheet read must still face the earlier DB timestamp at the guarded UPDATE.
   // The DB endpoint caps each page at 1,000 rows; read every existing date so
   // missing pages never become duplicate inserts or hide pending app writes.
-  const existing = await fetchAllPages<DbRecord>((from, to) =>
-    admin
+  const existing = await fetchAllPages<DbRecord>((from, to) => {
+    let query = admin
       .from("practice_records")
       .select(
         "id, user_id, recorded_date, from_sheet, dist_low, dist_mid, dist_high, dist_speed, dist_actual, strides, strength_text, result_text, memo, menu_text, focus_text, custom, updated_at, synced_at, pending_sheet_push, record_fields_snapshot",
       )
       .in("user_id", allUserIds)
-      .gte("recorded_date", SHEET_HISTORY_START)
+      .gte("recorded_date", period === "october" ? OCTOBER_START : SHEET_HISTORY_START)
+      .lte("recorded_date", today);
+    if (period === "legacy") query = query.lt("recorded_date", OCTOBER_START);
+    return query
       .order("id", { ascending: true })
-      .range(from, to) as unknown as PromiseLike<{ data: DbRecord[] | null; error: unknown }>,
-  );
+      .range(from, to) as unknown as PromiseLike<{ data: DbRecord[] | null; error: unknown }>;
+  });
   // The earlier pending-only read may precede an app edit seen by this snapshot.
   for (const record of existing) {
     if (record.pending_sheet_push && inRange(record.recorded_date)) profilesWithPendingPush.add(record.user_id);
   }
+  // App-only members have no pull work. Keep CSV access when a write, clear or
+  // unresolved receipt needs it; decide after the guarded DB snapshot so a
+  // pending edit first seen there is not skipped.
+  const receiptProfiles = new Set(activeReceipts.filter(receipt => inRange(receipt.recorded_date)).map(receipt => receipt.profile_id));
+  const fetchingProfiles = linked.filter(profile => !profile.appOnly || profilesWithPendingPush.has(profile.id)
+    || clearsByUser.has(profile.id) || receiptProfiles.has(profile.id));
+  if (fetchingProfiles.length === 0) return result;
   const currentConfigSignatures = new Map(linked.map((profile) => [
     profile.id,
     sheetContentSignature(JSON.stringify({
@@ -132,14 +142,14 @@ async function runSheetSyncBatch(
     })),
   ]));
 
-  const fetched = await fetchAllRaw(linked.map((profile) => ({
+  const fetched = await fetchAllRaw(fetchingProfiles.map((profile) => ({
     name: profile.sheet_name,
     previousSignature: period === "legacy" ? null : signatureByProfile.get(profile.id) ?? null,
     forceParse: period === "legacy" || profilesWithPendingPush.has(profile.id)
       || clearsByUser.has(profile.id)
       || configSignatureByProfile.get(profile.id) !== currentConfigSignatures.get(profile.id),
   })), spreadsheetId).catch(error => ({ members: [], signatures: new Map<string, string>(), unchangedMembers: [],
-    failedMembers: linked.map(profile => ({ member: profile.sheet_name, reason: error instanceof Error ? error.message : "CSVを取得できませんでした" })) }));
+    failedMembers: fetchingProfiles.map(profile => ({ member: profile.sheet_name, reason: error instanceof Error ? error.message : "CSVを取得できませんでした" })) }));
   result.failedMembers.push(...fetched.failedMembers);
   result.unchangedMembers.push(...fetched.unchangedMembers);
   const members = fetched.members;

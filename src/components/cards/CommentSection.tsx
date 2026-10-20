@@ -35,6 +35,8 @@ export function CommentSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const countChange = useRef(onCountChange);
+  useEffect(() => { countChange.current = onCountChange; }, [onCountChange]);
 
   useEffect(() => {
     let active = true;
@@ -63,7 +65,7 @@ export function CommentSection({
         }];
       });
       setComments(rows);
-      onCountChange(rows.length);
+      countChange.current(rows.length);
       setLoading(false);
 
       // いいねはコメント本文より後でよいので、表示を待たせない。
@@ -86,7 +88,7 @@ export function CommentSection({
     return () => {
       active = false;
     };
-  }, [onCountChange, targetId, targetType]);
+  }, [targetId, targetType]);
 
   async function add() {
     const content = text.trim();

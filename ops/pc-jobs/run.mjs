@@ -104,6 +104,11 @@ export async function run(configFile, execute = false, {
     };
     const ready = probeReady;
     while (!stopping) {
+      // Poll the local stop switch even when there are no due jobs and thus no
+      // network readiness probe. Invalid/unreadable configuration also stops.
+      try {
+        if (JSON.parse(readFileSync(configFile, 'utf8')).enabled !== true) break;
+      } catch { break; }
       await tick({ state, now: Date.now(), ready, save: value => saveFile(journal, value), execute: job => executeLocalJob(base, env, job), localPushEnabled: env.LOCAL_WEB_PUSH_ENABLED === 'true' });
       saveFile(resolve(config.stateDirectory, 'status.json'), { checkedAt: new Date().toISOString(), jobs: state.jobs });
       if (!stopping) await pause(10000);

@@ -1,7 +1,6 @@
 import sanitizeHtml from "sanitize-html";
 
 export const BLOG_HOME_URL = "https://nokotandf.livedoor.blog/";
-export const BLOG_FEED_URL = `${BLOG_HOME_URL}index.rdf`;
 export const BLOG_PAGE_SIZE = 20;
 const BLOG_SOURCE_PAGE_SIZE = 3;
 
@@ -36,22 +35,6 @@ function decodeEntities(value: string): string {
     }
     return named[entity.toLowerCase()] ?? match;
   });
-}
-
-function textOf(xml: string, tag: string): string {
-  const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = xml.match(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "i"));
-  if (!match) return "";
-  return decodeEntities(
-    match[1]
-      .replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\r/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim(),
-  );
 }
 
 export function safeBlogUrl(value: string): string | null {
@@ -115,31 +98,6 @@ export function parseBlogArticle(html: string, expectedId: string): BlogArticle 
   return { id: expectedId, title: decodeEntities(title), url, description: "", publishedAt: attributeOf(dateTag, "datetime"), category: null, author: null, html: sanitizeBlogArticleHtml(body) };
 }
 
-export function parseBlogFeed(xml: string): BlogFeedItem[] {
-  return Array.from(xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)).flatMap((match) => {
-    const item = match[1];
-    const url = safeBlogUrl(textOf(item, "link"));
-    const title = textOf(item, "title");
-    if (!url || !title) return [];
-    return [{
-      title,
-      url,
-      description: textOf(item, "description"),
-      publishedAt: textOf(item, "dc:date"),
-      category: textOf(item, "dc:subject") || null,
-      author: textOf(item, "dc:creator") || null,
-    }];
-  });
-}
-
-export async function getBlogFeed(): Promise<BlogFeedItem[]> {
-  const response = await fetch(BLOG_FEED_URL, {
-    headers: { Accept: "application/rdf+xml, application/xml, text/xml" },
-    next: { revalidate: 15 * 60 },
-  });
-  if (!response.ok) throw new Error(`Blog feed request failed: ${response.status}`);
-  return parseBlogFeed(await response.text());
-}
 function plainText(value: string): string {
   return decodeEntities(value.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 }

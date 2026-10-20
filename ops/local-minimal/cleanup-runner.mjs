@@ -6,7 +6,7 @@ import {posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseEnv} from 'node:util';
 import {readPrivateFile,verifyPrivatePath} from '../pc-backup/config.mjs';
-import {dryRunSnapshotCleanup,applySnapshotCleanup,writeSnapshotCleanupOutcome} from './snapshot-cleanup.mjs';
+import {inspectSnapshotCleanup,dryRunSnapshotCleanup,applySnapshotCleanup,writeSnapshotCleanupOutcome} from './snapshot-cleanup.mjs';
 
 export const SNAPSHOT_CLEANUP_POLICY='/var/lib/tuat-local/private/snapshot-cleanup-policy.json';
 const ROOT='/var/lib/tuat-local/backup';
@@ -62,7 +62,7 @@ export function snapshotProducerOwner(config,{read=readPrivateFile,readProc=read
 /** No policy is an opt-out. Retention failures never uncommit a verified backup
  * or change its strict three-field ACK. The private outcome is separate. */
 export async function runSnapshotCleanup(config,{client,now=Date.now,read=readPrivateFile,owner=snapshotProducerOwner,
-  dryRun=dryRunSnapshotCleanup,apply=applySnapshotCleanup,writeOutcome=writeSnapshotCleanupOutcome,onHeld=()=>{}}={}) {
+  inspect=inspectSnapshotCleanup,dryRun=dryRunSnapshotCleanup,apply=applySnapshotCleanup,writeOutcome=writeSnapshotCleanupOutcome,onHeld=()=>{}}={}) {
   if(config.profile!=='pc-private')return {state:'disabled'};
   let policy,policyBytes;
   try{policyBytes=read(SNAPSHOT_CLEANUP_POLICY,16384);policy=JSON.parse(policyBytes);}catch(error){if(error?.code==='ENOENT')return {state:'disabled'};policy=null;}
@@ -87,15 +87,23 @@ export async function runSnapshotCleanup(config,{client,now=Date.now,read=readPr
           &&receipt.archiveSha256===snapshot.archiveSha256&&iso(receipt.verifiedAt)===snapshot.capturedAt&&iso(receipt.restoreVerifiedAt)===snapshot.restoreVerifiedAt);
         return {verified:true,...scope,generation:identity.generation,archiveKey:snapshot.archiveKey,archiveSha256:snapshot.archiveSha256,checkedAt:new Date(now()).toISOString()};
       }};
-    const preview=await dryRun(config,options);
-    const counts={local:preview.plan.local.removalCandidates.length,remote:preview.plan.remote.removalCandidates.length,metadata:preview.metadataCandidates.length};
-    const empty=Object.values(counts).every(count=>count===0);
-    // dryRun already verified the retained archives. With no deletion there is
-    // no apply intent to authorize or second archive readback to perform.
+    const inspection=await inspect(config,options),counts=inspection.counts;
+    need(inspection.inspectionOnly===true&&counts&&Object.keys(counts).length===3
+      &&['local','remote','metadata'].every(key=>Number.isSafeInteger(counts[key])&&counts[key]>=0));
     assertOwner();
-    const result=policy.mode==='apply'&&!empty?await apply(config,preview,options):null;
-    outcome={version:1,state:result?'applied':'dry-run',checkedAt:new Date(now()).toISOString(),previewDigest:preview.previewDigest,counts,
-      ...(result?{completed:result.completed,remaining:result.remaining}:{}),reasonCode:result?'known-results':empty?'no-removal-candidates':'review-only'};
+    if(Object.values(counts).every(count=>count===0)) {
+      // The upload already performed its mandatory full readback. There is no
+      // deletion to authorize; distinguish inspection from a verified dry run.
+      outcome={version:1,state:'inspected',checkedAt:new Date(now()).toISOString(),counts,reasonCode:'no-removal-candidates'};
+    } else {
+      const preview=await dryRun(config,options);
+      const verifiedCounts={local:preview.plan.local.removalCandidates.length,remote:preview.plan.remote.removalCandidates.length,metadata:preview.metadataCandidates.length};
+      assertOwner();
+      const empty=Object.values(verifiedCounts).every(count=>count===0);
+      const result=policy.mode==='apply'&&!empty?await apply(config,preview,options):null;
+      outcome={version:1,state:result?'applied':'dry-run',checkedAt:new Date(now()).toISOString(),previewDigest:preview.previewDigest,counts:verifiedCounts,
+        ...(result?{completed:result.completed,remaining:result.remaining}:{}),reasonCode:result?'known-results':empty?'no-removal-candidates':'review-only'};
+    }
   } catch {
     outcome={version:1,state:'held',checkedAt:new Date(now()).toISOString(),reasonCode:'retention-proof-unavailable'};onHeld();
   }

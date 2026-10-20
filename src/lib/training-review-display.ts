@@ -1,7 +1,7 @@
 import { CONDITIONS, INTENSITY_LABELS } from "@/lib/constants";
 import { BUILTIN_RECORD_FIELD_KEYS } from "@/lib/record-fields";
 import { formatKm } from "@/lib/utils";
-import type { PracticeRecord, RecordFieldDef } from "@/types";
+import type { TrainingRecord, RecordFieldDef } from "@/types";
 
 /** A display preference shared by every training review for the viewer's account. */
 export function trainingReviewPreferenceKey(viewerId: string): string {
@@ -31,7 +31,7 @@ export type TrainingReviewField = {
 
 /** Match the existing card's historical-definition and legacy-setting rules. */
 export function trainingReviewFields(
-  record: PracticeRecord,
+  record: TrainingRecord,
   currentFields: RecordFieldDef[],
   showAllFields: boolean,
 ): TrainingReviewField[] {
@@ -56,7 +56,7 @@ export function trainingReviewFields(
       return [];
     }
     const builtin = BUILTIN_RECORD_FIELD_KEYS.includes(key as typeof BUILTIN_RECORD_FIELD_KEYS[number]);
-    let value = builtin ? record[key as keyof PracticeRecord] : record.custom?.[key];
+    let value = builtin ? record[key as keyof TrainingRecord] : record.custom?.[key];
     if (value === null || value === undefined || value === "" || (typeof value === "string" && !value.trim())) return [];
     // Legacy cards omit unentered numeric defaults. Explicit selections and
     // all-fields mode preserve zero, as do custom values whose definition moved.

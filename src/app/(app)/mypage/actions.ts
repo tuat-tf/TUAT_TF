@@ -1,10 +1,10 @@
 "use server";
 
 import { getCurrentProfile } from "@/lib/supabase/auth";
-import { getUserRecords } from "@/lib/queries";
-import type { PracticeRecord } from "@/types";
+import { getUserTrainingRecords } from "@/lib/queries";
+import type { TrainingRecord } from "@/types";
 
-export async function loadMyTrainingRecords(): Promise<PracticeRecord[]> {
+export async function loadMyTrainingRecords(): Promise<TrainingRecord[]> {
   const profile = await getCurrentProfile();
-  return (await getUserRecords(profile.id)) as PracticeRecord[];
+  return (await getUserTrainingRecords(profile.id));
 }

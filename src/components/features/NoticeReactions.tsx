@@ -7,6 +7,7 @@ import { NoticeAcknowledgersSheet } from "@/components/features/NoticeAcknowledg
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { NoticeReaction } from "@/types";
+import { saveNoticeReaction, type PendingNoticeReaction } from "@/lib/notice-reaction-save";
 
 export function NoticeReactions({ noticeId, userId, initialCounts, initialMine }: {
   noticeId: string;
@@ -17,6 +18,8 @@ export function NoticeReactions({ noticeId, userId, initialCounts, initialMine }
   const [count, setCount] = useState(initialCounts.ack);
   const [checked, setChecked] = useState(initialMine.includes("ack"));
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<PendingNoticeReaction | null>(null);
+  const saveLock = useRef(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const { showToast } = useToast();
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,26 +52,26 @@ export function NoticeReactions({ noticeId, userId, initialCounts, initialMine }
   }
 
   async function toggle() {
-    if (busy) return;
-    const wasChecked = checked;
+    if (saveLock.current) return;
+    saveLock.current = true;
     setBusy(true);
-    setChecked(!wasChecked);
-    setCount((current) => Math.max(0, current + (wasChecked ? -1 : 1)));
-
-    const supabase = createClient();
-    const result = wasChecked
-      ? await supabase.from("notice_reactions").delete().eq("notice_id", noticeId).eq("user_id", userId).eq("reaction", "ack").select("notice_id")
-      : await supabase.from("notice_reactions").upsert({ notice_id: noticeId, user_id: userId, reaction: "ack" }, { onConflict: "notice_id,user_id,reaction" })
-          .select("notice_id")
-          .single();
-
-    const deleteFailed = wasChecked && (!Array.isArray(result.data) || result.data.length !== 1);
-    if (result.error || deleteFailed) {
-      setChecked(wasChecked);
-      setCount((current) => Math.max(0, current + (wasChecked ? 1 : -1)));
-      showToast(wasChecked ? "確認を取り消せませんでした" : "確認を保存できませんでした");
+    const attempt = pending ?? { checked: !checked, uncertain: false };
+    try {
+      const result = await saveNoticeReaction(createClient(), noticeId, userId, attempt);
+      if (!result.ok) {
+        setPending(result.reason === "unknown" ? attempt : null);
+        showToast(result.reason === "unknown"
+          ? "保存結果を確認できませんでした。もう一度押すと結果だけ確認します。"
+          : "確認を保存できませんでした。時間をおいてもう一度お試しください。");
+        return;
+      }
+      setPending(null);
+      setChecked(attempt.checked);
+      setCount(current => Math.max(0, current + (attempt.checked === checked ? 0 : attempt.checked ? 1 : -1)));
+    } finally {
+      saveLock.current = false;
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return (
@@ -84,7 +87,7 @@ export function NoticeReactions({ noticeId, userId, initialCounts, initialMine }
         onContextMenu={(event) => event.preventDefault()}
         disabled={busy}
         aria-pressed={checked}
-        aria-label={checked ? "確認済みを取り消す。長押しで確認した人を表示" : "確認済みにする。長押しで確認した人を表示"}
+        aria-label={pending ? "保存結果を確認。長押しで確認した人を表示" : checked ? "確認済みを取り消す。長押しで確認した人を表示" : "確認済みにする。長押しで確認した人を表示"}
         className={cn(
           "flex select-none touch-manipulation items-center gap-1.5 text-[13px] pressable disabled:opacity-50 [-webkit-touch-callout:none]",
           checked ? "text-accent" : "text-muted",
@@ -92,6 +95,7 @@ export function NoticeReactions({ noticeId, userId, initialCounts, initialMine }
       >
         <Check size={18} strokeWidth={checked ? 3 : 2} />
         <span className={cn("inline-block w-5 text-left tabular-nums", count === 0 && "opacity-0")}>{count}</span>
+        {pending && <span className="text-micro">結果を確認</span>}
       </button>
       <NoticeAcknowledgersSheet noticeId={noticeId} open={peopleOpen} onOpenChange={setPeopleOpen} />
     </>
