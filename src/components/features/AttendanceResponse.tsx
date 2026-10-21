@@ -146,7 +146,7 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
   const savedNote = attendanceNote(value);
   const contactId = `attendance-contact-${scheduleId}-${attendDate}`;
   return <div className="min-w-0 space-y-2" onClick={event => event.stopPropagation()}>
-    <div className="grid grid-cols-2 gap-2" data-attendance-controls>
+    <div className={cn("grid gap-2", summary ? "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.75rem]" : "grid-cols-[minmax(0,1fr)_2.75rem]")} data-attendance-controls>
       <button type="button" data-system-glass data-glass-control data-glass-attendance={value.status}
         aria-label={style.label}
         aria-busy={saving === "attendance"} disabled={unknown} onClick={toggleAttendance}
@@ -154,14 +154,14 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
         <Icon size={15} />{style.label}
       </button>
       {summary}
-      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || unknown} aria-busy={saving === "late"} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
-        onClick={() => void save({ ...currentValue.current, isLate: !currentValue.current.isLate }, "late")}>{saving === "late" ? <LoaderCircle size={15} className="animate-spin" /> : <Clock3 size={15} />}{value.isLate ? "遅刻" : "遅刻を連絡"}</Button>}
-      {value.status !== "none" && <Button variant="ghost" size="sm" className={cn(CONTROL_CLASS, value.status === "absent" && !!summary && "col-span-2")} style={CONTROL_STYLE} disabled={busy || unknown} aria-expanded={open} aria-controls={contactId} aria-label={savedNote ? "連絡を編集" : "連絡する"} onClick={() => { if (!sending.current) setOpen(current => !current); }}><MessageSquare size={15} />{savedNote ? "連絡を編集" : "連絡する"}</Button>}
+      <Button variant="ghost" size="sm" className={cn(CONTROL_CLASS, value.isLate && "text-accent")} style={CONTROL_STYLE} disabled={value.status === "none" || busy || unknown} aria-expanded={open} aria-controls={contactId} aria-label={savedNote ? "連絡を編集" : "連絡する"} title="遅刻・連絡" onClick={() => { if (!sending.current) setOpen(current => !current); }}>{value.isLate ? <Clock3 size={18} /> : <MessageSquare size={18} />}</Button>
     </div>
     {!open && savedNote && <p className="whitespace-pre-wrap break-words text-caption">{savedNote}</p>}
     {unknown && !open && <Button variant="outline" size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy} onClick={() => void save(value)}>保存結果を確認</Button>}
     {error && !open && <p role="alert" className="text-caption text-danger">{error}</p>}
     {open && <div id={contactId} className="space-y-2">
+        {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || unknown} aria-busy={saving === "late"} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
+          onClick={() => void save({ ...currentValue.current, isLate: !currentValue.current.isLate }, "late")}>{saving === "late" ? <LoaderCircle size={15} className="animate-spin" /> : <Clock3 size={15} />}{value.isLate ? "遅刻" : "遅刻を連絡"}</Button>}
         <fieldset disabled={unknown} className="space-y-2">
           <label htmlFor={`${contactId}-input`} className="block text-caption">連絡事項（任意）</label>
           <Input id={`${contactId}-input`} className="h-11 lg:h-11 lg:text-base" value={note} onChange={event => changeNote(event.target.value)} onBlur={flushContact}

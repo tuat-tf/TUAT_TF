@@ -16,9 +16,9 @@ function render(status: "present" | "absent", late = false, note: string | null 
   }));
 }
 describe("future attendance contact entry points", () => {
-  it("shows direct lateness and general contact controls on a future attended day", () => {
+  it("keeps a compact contact entry without expanding lateness controls on an attended day", () => {
     const html = render("present");
-    expect(html).toContain("遅刻を連絡");
+    expect(html).not.toContain("遅刻を連絡");
     expect(html).toContain("連絡する");
     expect(html).toContain("11/15");
     expect(html).toContain("11/16");
@@ -31,9 +31,10 @@ describe("future attendance contact entry points", () => {
     expect(html).toContain("連絡を編集");
     expect(html).not.toContain("遅刻を取り消す");
   });
-  it("shows a lateness cancellation without hiding the general note", () => {
+  it("keeps lateness visible on the compact entry without hiding the general note", () => {
     const html = render("present", true, "10分ほど遅れます");
-    expect(html).toContain("遅刻を取り消す");
+    expect(html).toContain("lucide-clock-3");
+    expect(html).not.toContain("遅刻を取り消す");
     expect(html).toContain("10分ほど遅れます");
     expect(html).not.toContain("遅刻連絡済み");
     expect(html).not.toContain("遅刻中");

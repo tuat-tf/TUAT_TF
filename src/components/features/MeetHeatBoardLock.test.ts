@@ -14,6 +14,19 @@ vi.mock("@/components/ui/select",()=>({Select:()=>null}));
 vi.mock("@/components/ui/form-modal",()=>({FormModalFooter:({children}:{children:ReactNode})=>children}));
 import {MeetHeatBoard} from "./MeetHeatBoard";
 beforeEach(()=>{state.values=[];state.cursor=0;capture.buttons.clear();capture.props=null;});
+it("keeps entrant identity after exchanging distant lanes and leaves the middle lane and records intact",()=>{
+ let data={confirmed:false,participants:["one","two","three"].map((id,index)=>({...emptyPerformance(id),group:1,order:index+1,trials:[{mark:"12.34",status:"valid" as const,wind:"0"}]}))};
+ const original=data;
+ const render=()=>{state.cursor=0;return renderToStaticMarkup(createElement(MeetHeatBoard,{data,entrants:data.participants.map(p=>({id:p.entryId,name:p.entryId,grade:"B1",mark:"",alumni:false,eligible:true})),orderLabel:"レーン",capacity:3,disabled:false,onChange:next=>{data=next as typeof data;},statusActions:false}));};
+ render();const [one,two,three]=capture.props!.items;
+ capture.props!.onReorder([three,two,one]);const html=render();
+ expect(capture.props!.items.map(slot=>slot.id)).toEqual([three.id,two.id,one.id]);
+ expect(data.participants[1]).toBe(original.participants[1]);
+ expect(data.participants[0].trials).toBe(original.participants[0].trials);
+ expect(html.indexOf('role="status"')).toBeGreaterThan(html.indexOf('</section>'));
+ capture.buttons.get("元に戻す")!();render();
+ expect(data).toEqual(original);
+});
 it("pins confirmed male slots while allowing female lanes in the same heat to be reordered",()=>{
  const data={confirmed:false,participants:["male","female1","female2"].map((id,index)=>({...emptyPerformance(id),group:1,order:index+1}))};
  const change=vi.fn();const html=renderToStaticMarkup(createElement(MeetHeatBoard,{data,entrants:data.participants.map(p=>({id:p.entryId,name:p.entryId,grade:"B1",mark:"",alumni:false,eligible:true,placementLocked:p.entryId==="male"})),orderLabel:"レーン",capacity:3,disabled:false,onChange:change,statusActions:false}));

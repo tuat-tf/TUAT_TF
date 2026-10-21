@@ -46,6 +46,22 @@ beforeEach(() => {
 });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
+it("keeps contact collapsed through attendance changes and opens lateness only explicitly", async () => {
+  const empty: AttendanceChange = { status: "none", isLate: false, lateNote: null, absenceNote: null };
+  render(empty);
+  expect(capture.buttons.get("連絡する")?.disabled).toBe(true);
+  for (const label of ["出欠を入力", "出席", "欠席", "出欠を入力"]) {
+    await click(label); render(empty);
+    expect(capture.input).toBeNull();
+    expect(capture.buttons.has("遅刻を連絡")).toBe(false);
+    expect(capture.buttons.get("連絡する")?.["aria-expanded"]).toBe(false);
+  }
+  await click("連絡する"); render(empty);
+  expect(capture.buttons.has("遅刻を連絡")).toBe(true);
+  expect(capture.input).not.toBeNull();
+  expect(capture.save).toHaveBeenCalledTimes(4);
+});
+
 it("switches attendance immediately and accepts the next choice while the first save is pending", async () => {
   const empty: AttendanceChange = { status: "none", isLate: false, lateNote: null, absenceNote: null };
   let finish!: (result: { ok: true; value: AttendanceChange }) => void;

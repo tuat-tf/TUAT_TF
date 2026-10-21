@@ -13,6 +13,8 @@ import {
 import {
   SortableContext,
   arrayMove,
+  arraySwap,
+  rectSwappingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -27,6 +29,7 @@ export function ReorderList<T extends { id: string }>({
   renderItem,
   isItemDisabled,
   getDragLabel,
+  mode = "insert",
 }: {
   items: T[];
   enabled: boolean;
@@ -34,6 +37,7 @@ export function ReorderList<T extends { id: string }>({
   renderItem: (item: T) => ReactNode;
   isItemDisabled?: (item: T) => boolean;
   getDragLabel?: (item: T) => string;
+  mode?: "insert" | "swap";
 }) {
   const keyboardTarget = useRef<string | null>(null);
   const sensors = useSensors(
@@ -52,7 +56,7 @@ export function ReorderList<T extends { id: string }>({
     const newIndex = items.findIndex((item) => item.id === target);
     if (oldIndex < 0 || newIndex < 0) return;
     if (isItemDisabled?.(items[oldIndex]) || isItemDisabled?.(items[newIndex])) return;
-    onReorder(arrayMove(items, oldIndex, newIndex));
+    onReorder((mode === "swap" ? arraySwap : arrayMove)(items, oldIndex, newIndex));
   }
   function keyboardMove(event: KeyboardEvent<HTMLDivElement>) {
     if (keyboardTarget.current === null || !["ArrowUp", "ArrowDown"].includes(event.code)) return;
@@ -70,7 +74,7 @@ export function ReorderList<T extends { id: string }>({
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={event => { keyboardTarget.current = event.activatorEvent.type === "keydown" ? String(event.active.id) : null; }} onDragCancel={() => { keyboardTarget.current = null; }} onDragEnd={dragEnd}>
-      <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={items.map((item) => item.id)} strategy={mode === "swap" ? rectSwappingStrategy : verticalListSortingStrategy}>
         <div className="space-y-2" onKeyDownCapture={keyboardMove}>
           {items.map((item) => (
             <SortableRow key={item.id} id={item.id} disabled={isItemDisabled?.(item)} dragLabel={getDragLabel?.(item)}>
