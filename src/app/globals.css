@@ -20,12 +20,8 @@
   --color-success: #34c759;
   --color-warning: #ff9500;
   --color-danger: #ff3b30;
-  --color-accent-ink: #075db5;
-  --color-success-ink: #087438;
-  --color-warning-ink: #8a5200;
-  --color-danger-ink: #b4231c;
   --color-ink: #000000;
-  --color-muted: #6c6c70;
+  --color-muted: #8e8e93;
   --color-muted2: #6c6c70;
   --color-faint: #6c6c70;
 
@@ -53,12 +49,6 @@
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Yu Gothic", "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
 }
-
-/* Keep the original bright accents; amber warning text needs a darker foreground. */
-.text-accent:where(:not(svg)) { color: var(--color-accent); }
-.text-success:where(:not(svg)) { color: var(--color-success); }
-.text-warning:where(:not(svg)) { color: var(--color-warning-ink); }
-.text-danger:where(:not(svg)) { color: var(--color-danger); }
 
 html {
   height: 100%;

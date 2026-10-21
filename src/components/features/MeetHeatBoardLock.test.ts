@@ -1,13 +1,19 @@
 import {createElement,type ReactNode} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
-import {expect,it,vi} from "vitest";
+import {beforeEach,expect,it,vi} from "vitest";
 import {emptyPerformance,type MeetPerformance} from "@/lib/meet-operations";
+import {competitionFamilyData,meetFamilyGroupLabel} from "@/lib/competition-meet";
+import {fixtureMeet} from "@/lib/__fixtures__/competition-meet";
 type Slot={id:string;order:number;person?:MeetPerformance;locked:boolean};
-const capture=vi.hoisted(()=>({props:null as null|{items:Slot[];enabled:boolean;isItemDisabled:(slot:Slot)=>boolean;onReorder:(slots:Slot[])=>void}}));
+const state=vi.hoisted(()=>({values:[] as unknown[],cursor:0}));
+const capture=vi.hoisted(()=>({buttons:new Map<string,()=>void>(),props:null as null|{items:Slot[];enabled:boolean;isItemDisabled:(slot:Slot)=>boolean;onReorder:(slots:Slot[])=>void}}));
+vi.mock("react",async original=>({...await original<typeof import("react")>(),useState(initial:unknown){const i=state.cursor++;if(!(i in state.values))state.values[i]=initial;return[state.values[i],(next:unknown)=>{state.values[i]=typeof next==="function"?next(state.values[i]):next;}];}}));
+vi.mock("@/components/ui/button",()=>({Button:({children,onClick,disabled}:{children:ReactNode;onClick:()=>void;disabled:boolean})=>{if(typeof children==="string")capture.buttons.set(children,onClick);return createElement("button",{disabled},children);}}));
 vi.mock("@/components/ui/reorder-list",()=>({ReorderList:(props:{items:Slot[];enabled:boolean;isItemDisabled:(slot:Slot)=>boolean;onReorder:(slots:Slot[])=>void;renderItem:(slot:Slot)=>ReactNode})=>{capture.props=props;return createElement("div",null,props.items.map(slot=>createElement("div",{key:slot.id},props.renderItem(slot))));}}));
 vi.mock("@/components/ui/select",()=>({Select:()=>null}));
 vi.mock("@/components/ui/form-modal",()=>({FormModalFooter:({children}:{children:ReactNode})=>children}));
 import {MeetHeatBoard} from "./MeetHeatBoard";
+beforeEach(()=>{state.values=[];state.cursor=0;capture.buttons.clear();capture.props=null;});
 it("pins confirmed male slots while allowing female lanes in the same heat to be reordered",()=>{
  const data={confirmed:false,participants:["male","female1","female2"].map((id,index)=>({...emptyPerformance(id),group:1,order:index+1}))};
  const change=vi.fn();const html=renderToStaticMarkup(createElement(MeetHeatBoard,{data,entrants:data.participants.map(p=>({id:p.entryId,name:p.entryId,grade:"B1",mark:"",alumni:false,eligible:true,placementLocked:p.entryId==="male"})),orderLabel:"レーン",capacity:3,disabled:false,onChange:change,statusActions:false}));
@@ -15,4 +21,15 @@ it("pins confirmed male slots while allowing female lanes in the same heat to be
  const [male,one,two]=capture.props!.items;capture.props!.onReorder([male,two,one]);
  expect(change.mock.lastCall![0].participants.map((p:MeetPerformance)=>[p.entryId,p.order])).toEqual([["male",1],["female1",3],["female2",2]]);
  expect(data.participants.map(p=>p.order)).toEqual([1,2,3]);
+});
+it("keeps successively added empty heats distinct without changing saved heat identities",()=>{
+ const meet=fixtureMeet(),male=meet.events[0],female={...male,name:"女子100m",division:"女子" as const};
+ const first=meet.appearances[0],second={...structuredClone(first),id:"female",event_name:female.name,performance:{...structuredClone(first.performance),entryId:"female",heatScope:"女子" as const}};
+ meet.events=[male,female];meet.appearances=[first,second];
+ const before=structuredClone(meet),data=competitionFamilyData(meet,male),change=vi.fn();
+ const render=()=>{state.cursor=0;return renderToStaticMarkup(createElement(MeetHeatBoard,{data,entrants:data.participants.map(p=>({id:p.entryId,name:p.entryId,grade:"B1",mark:"",alumni:false,eligible:true})),orderLabel:"レーン",capacity:3,disabled:false,onChange:change,statusActions:false,nextGroup:200,groupLimit:297,modelLimits:{maxGroups:297},groupLabel:(group,shownGroups)=>meetFamilyGroupLabel(meet,male,group,data,shownGroups)}));};
+ render();capture.buttons.get("新しい組を追加")!();render();capture.buttons.get("新しい組を追加")!();
+ const html=render();
+ expect([...html.matchAll(/<section[^>]*aria-label="([^"]+)"/g)].map(match=>match[1])).toEqual(["男子1組","女子2組","3組","4組"]);
+ expect(data.participants.map(p=>p.group)).toEqual([1,100]);expect(change).not.toHaveBeenCalled();expect(meet).toEqual(before);
 });

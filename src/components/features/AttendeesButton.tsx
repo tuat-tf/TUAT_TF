@@ -80,7 +80,7 @@ export function AttendeesButton({
           e.stopPropagation();
           setOpen(true);
         }}
-        className={cn("inline-flex items-center justify-center gap-2 h-12 rounded-full bg-bg border border-separator text-[14px] font-semibold text-muted2 whitespace-nowrap pressable shrink-0 px-4")}
+        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-bg border border-separator text-[13px] font-semibold text-muted2 whitespace-nowrap pressable shrink-0"
       >
         <Users size={15} />
         <>

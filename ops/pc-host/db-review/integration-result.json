@@ -2,7 +2,7 @@
   "version": 1,
   "mode": "integration",
   "owner": "codex-auth-db-review",
-  "generation": "2ef278c1057742bfaff4c925479e146b",
+  "generation": "fef630b6c07c459f8ceb0286a8b59043",
   "image": "supabase/postgres:17.6.1.136",
   "imageId": "sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00",
   "authImage": "supabase/gotrue:v2.196.0",
@@ -1119,6 +1119,21 @@
       "name": "20261021010100_ob_relay_second_heat.sql",
       "sha256": "edba6ab49789fb40ec73b2a755d7d39ee368953eafa26b1ca7e0dd828aa5b2f1",
       "passed": true
+    },
+    {
+      "name": "20261021010200_meet_unmeasured_mark.sql",
+      "sha256": "439e5cea81574a5b1599802af84adb2d3c62c093c8ad6aeac3a110e6f4c5cd12",
+      "passed": true
+    },
+    {
+      "name": "20261022010000_competition_relay_heats.sql",
+      "sha256": "d4c7744bc1cb7673255037515d482c7077bee8c7a913a5fe82e3383e6c6c1082",
+      "passed": true
+    },
+    {
+      "name": "20261022010100_competition_shared_heats.sql",
+      "sha256": "260b1fa3bc6e9a6289741a9679030c8f9f0599305467301d4d0c9b2921947bc1",
+      "passed": true
     }
   ],
   "tests": [
@@ -1163,13 +1178,13 @@
       "passed": true
     },
     {
-      "name": "relay-second-heat.sql",
-      "sha256": "515b0211344d3444f53f10ac348e056547a9223745958dcf18d598299f58f070",
+      "name": "relay-heats.sql",
+      "sha256": "61dddbd6d18fd7c85ea377be997df886a3a540300a6237970864a6ce6e14982d",
       "passed": true
     },
     {
       "name": "integration-meets.sql",
-      "sha256": "e4e168c84ba6e3b8e1f52e99373ebb3c75366dfff0779df2b8fd36aae79449ca",
+      "sha256": "bd42d598e26fc98c90ebf75f50ae06a3f6c7b923265e5b9ddc36233b50758c9d",
       "passed": true
     },
     {
@@ -1184,7 +1199,7 @@
     },
     {
       "name": "legacy-meet-audit-test.sql",
-      "sha256": "204e3852078b7f8d82ffa4fcda51dfc5ded9979aab135e96dcff72ca99b98aea",
+      "sha256": "116fd7aec39304dea2f0295872a78093750124f831ed8fd11b917e80eb0cb845",
       "passed": true
     }
   ],
@@ -1285,7 +1300,7 @@
     "adapterSha256": "fd017db15d3d2963397685251ab494ce4ee2ce4dfd3739fd162d6ba207c7f954"
   },
   "meetSnapshots": {
-    "passed": 2,
+    "passed": 3,
     "syntheticOnly": true,
     "validatorSources": [
       {
@@ -1294,11 +1309,11 @@
       },
       {
         "path": "competition-meet-relay.ts",
-        "sha256": "ffd6a99974170df5baa12f2d8482b4c570642e74b464f78b44cecf07b8c4c6a3"
+        "sha256": "49dcac9786f6fbcb3aee4e88bb1846ac7e568fdd9aea62f1aaa8414a7b8abe7d"
       },
       {
         "path": "meet-operations.ts",
-        "sha256": "39546e1df5e8a53f1bbcda88d8161ca4dd53a434e1493759d97bfda3ff377345"
+        "sha256": "bc7b8fd565d7b65a3e3dd1e6eca2be29659c75d59fc029cdad4fdeb45ae0420f"
       }
     ]
   },
@@ -1314,7 +1329,7 @@
     },
     {
       "name": "integration-meets.sql",
-      "sha256": "e4e168c84ba6e3b8e1f52e99373ebb3c75366dfff0779df2b8fd36aae79449ca"
+      "sha256": "bd42d598e26fc98c90ebf75f50ae06a3f6c7b923265e5b9ddc36233b50758c9d"
     }
   ],
   "legacyMeetAuditSources": [
@@ -1345,6 +1360,14 @@
       "sha256": "66480e0e56673fdf8a85f8255c55dfad5fc4ade56dee7246e5fe0a02d21e2796"
     },
     {
+      "name": "competition-relay-heats.sql",
+      "sha256": "c975066351fc38eb793fdfb0bf6d5df86062dfc50ae3cc122549fdc891ad6ab3"
+    },
+    {
+      "name": "competition-shared-heats.sql",
+      "sha256": "3fc1c606094426d4b5794b847d6d251eaa9853476a68f8644ffe240fc61cb730"
+    },
+    {
       "name": "ob-results-operator-permissions.sql",
       "sha256": "4c644a553ea551723fd7f5ee3f4520debe31e1708cc213d2b0518958efb69145"
     }
@@ -1366,5 +1389,5 @@
     "absent": 2
   },
   "cleanupDriverSha256": "de7c1ff32d6b9174ba5bdd62534603359f68acc49392f741d3f8c525dd532741",
-  "completedAt": "2026-10-21T14:41:04.6823253Z"
+  "completedAt": "2026-10-21T16:38:46.0610546Z"
 }

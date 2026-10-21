@@ -73,7 +73,7 @@ export function CompetitionResultRow({ row, showEntryPreview = true }: { row: Pa
                   <p key={entry.id ?? i} className="flex flex-wrap items-baseline justify-between gap-2">
                     <span>{formatAthleteLabel(entry)}</span>
                     <span className="shrink-0 font-semibold tabular-nums">
-                      {entry.result ? describeResult(entry, row.eventLabel) : <span className="font-normal text-muted2">結果待ち</span>}
+                      {entry.resultDivision&&<span className="mr-2 font-normal text-muted2">{entry.resultDivision}</span>}{entry.result ? describeResult(entry, row.eventLabel) : <span className="font-normal text-muted2">結果待ち</span>}
                     </span>
                     {!!entry.details?.length && <span className="block basis-full text-micro text-muted2">{entry.details.join(" / ")}</span>}
                   </p>

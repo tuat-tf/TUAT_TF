@@ -20,9 +20,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401, headers });
   }
   try {
-    const { entries, operations, relaySheets=[] } = await getObPublishedResults(createAdminClient());
+    const { entries, operations, heatLabels, relaySheets=[] } = await getObPublishedResults(createAdminClient());
     // Older deployed GAS accepts exactly twelve tabs. Include relay only for a compatible publisher.
-    const sheets = [...obPublishedResultSheets(entries, operations),...(request.headers.get("x-ob-relay-results")==="1"?relaySheets:[])];
+    const sheets = [...obPublishedResultSheets(entries, operations, heatLabels),...(request.headers.get("x-ob-relay-results")==="1"?relaySheets:[])];
     const statusTargets = obSheetStatusTargets(entries, operations, sheets, secret);
     const editSource = obSheetEditSource(entries, operations, secret);
     const revision = createHash("sha256").update(JSON.stringify([sheets, statusTargets, editSource])).digest("hex");

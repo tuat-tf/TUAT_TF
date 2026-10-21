@@ -9,6 +9,7 @@ export interface ProgramAthlete {
   details?: string[];
   positionLabel?: string;
   separateResult?: boolean;
+  resultDivision?: string;
   heat: number | null;
   lane: number | null;
   bib: string | null;

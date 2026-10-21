@@ -71,15 +71,15 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
       <button type="button" data-system-glass data-glass-control data-glass-attendance={value.status}
         aria-label={style.label}
         aria-busy={busy} disabled={busy || unknown} onClick={toggleAttendance}
-        className={cn("inline-flex h-12 w-[116px] shrink-0 items-center justify-center gap-1 rounded-full border px-4 text-[15px] font-semibold whitespace-nowrap pressable disabled:opacity-60", style.cls)}>
-        {busy ? <LoaderCircle size={15} className="animate-spin" /> : value.status !== "none" ? <Icon size={15} /> : null}{style.label}
+        className={cn("inline-flex h-8 w-[116px] shrink-0 items-center justify-center gap-1 rounded-full border px-3 text-[13px] font-semibold whitespace-nowrap pressable disabled:opacity-60", style.cls)}>
+        {busy ? <LoaderCircle size={15} className="animate-spin" /> : <Icon size={15} />}{style.label}
       </button>
       {summary}
     </div>
     {value.status !== "none" && <div className="flex flex-wrap items-center gap-2">
-      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} className="min-h-11 rounded-full px-4" disabled={busy || unknown} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
-        onClick={() => void save({ ...value, isLate: !value.isLate })}><Clock3 size={16} />{value.isLate ? "遅刻連絡済み" : "遅刻を連絡"}</Button>}
-      <Button variant="outline" className="min-h-11 rounded-full px-4" disabled={busy || unknown} aria-haspopup="dialog" aria-label={savedNote ? "連絡を編集" : "連絡する"} onClick={() => setOpen(true)}><MessageSquare size={16} />{savedNote ? "連絡を編集" : "連絡する"}</Button>
+      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" disabled={busy || unknown} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
+        onClick={() => void save({ ...value, isLate: !value.isLate })}><Clock3 size={15} />{value.isLate ? "遅刻連絡済み" : "遅刻を連絡"}</Button>}
+      <Button variant="ghost" size="sm" disabled={busy || unknown} aria-haspopup="dialog" aria-label={savedNote ? "連絡を編集" : "連絡する"} onClick={() => setOpen(true)}><MessageSquare size={15} />{savedNote ? "連絡を編集" : "連絡する"}</Button>
     </div>}
     {savedNote && <p className="whitespace-pre-wrap break-words text-caption">{savedNote}</p>}
     {unknown && <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(value, open)}>保存結果を確認</Button>}

@@ -5,6 +5,11 @@ SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 \ir meet-fixture.sql
 SELECT set_config('request.headers','{"x-tuat-mirror":"1"}',true);
+-- Recreate a pre-import synthetic meet: the full-chain relay repair journal
+-- belongs to its later activated state. This transaction is always rolled back.
+DELETE FROM public.competition_meet_requests
+WHERE id='438bf967-7a44-473a-a4b5-9027dc76c5af'
+  AND competition_id='3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5' AND command->>'action'='relay.heats.merge';
 UPDATE public.competition_meets SET ready=false,source_frozen=false,
   staff_role_id='d6102002-0000-4000-8100-000000000001'
 WHERE competition_id='3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5';

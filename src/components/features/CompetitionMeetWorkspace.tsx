@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { GRADE_OPTIONS } from "@/lib/constants";
 import { OB_MEET } from "@/lib/ob-meet";
 import { MeetEvent } from "@/lib/meet-operations";
-import { meetAppearancePositionLabel, meetDutyText, meetDutyConflict, meetEventCounts, meetRule, type CompetitionMeet, type ManagedMeetEvent, type MeetAppearance, type MeetCommand, type MeetParticipant } from "@/lib/competition-meet";
+import { meetAppearancePositionLabel, meetDutyText, meetDutyConflict, meetEventFamilies, meetFamilyCounts, meetRule, type CompetitionMeet, type ManagedMeetEvent, type MeetAppearance, type MeetCommand, type MeetParticipant } from "@/lib/competition-meet";
 import { mutateCompetitionMeet, checkCompetitionMeetMutation } from "@/app/(app)/competitions/meet-actions";
 import { CompetitionMeetEventEditor } from "./CompetitionMeetEventEditor";
 import { CompetitionMeetRelayEditor } from "./CompetitionMeetRelayEditor";
@@ -98,10 +98,12 @@ export function CompetitionMeetWorkspace({ meet, me, startsOn, endsOn, initialSe
     {section === "events" ? <>
       {(meet.program?.length??0)>0&&<Disclosure title="大会予定"><ul className="divide-y divide-separator">{meet.program!.map(slot=><li key={slot.time+slot.label} className="flex gap-3 py-2 text-body"><span className="w-12 shrink-0">{slot.time}</span><span>{slot.label}{slot.note?`（${slot.note}）`:""}</span></li>)}</ul></Disclosure>}
       <div className="flex flex-wrap gap-2">{(meet.permissions.manage || canRegister&&mine && !mine.deleted) && <Button disabled={mutation.locked} onClick={() => setEditor({ kind: "appearance" })}>出場を追加</Button>}{meet.permissions.configure && <Button variant="outline" onClick={() => setEditor({ kind: "configure" })}>種目を追加</Button>}</div>
-      <div className="space-y-2">{meet.events.map(event => {
-        const counts = meetEventCounts(meet, event);
+      <div className="space-y-2">{meetEventFamilies(meet).map(({event,events,label}) => {
+        const counts = meetFamilyCounts(meet, events);
+        const confirmed=events.every(e=>e.confirmed),partlyConfirmed=events.some(e=>e.confirmed);
+        const heatCount=event.relay_results?Math.max(1,...event.relay_results.map(team=>team.heat??1)):0;
         return <Card key={event.name}><button data-ui-row className="flex min-h-16 w-full items-center gap-3 p-3.5 text-left pressable" onClick={() => setEditor({ kind: "event", name: event.name })}>
-          <span className="w-12 shrink-0 text-caption tabular-nums">{event.starts_at ?? "未定"}</span><span className="min-w-0 flex-1"><span className="block text-body font-semibold">{event.name}</span><span className="block text-caption">{event.relay_results?`チーム ${event.relay_results.filter(team=>team.name.trim()).length} / 6レーン` : <>出場 {counts.people}人・{counts.appearances}件{counts.dns > 0 ? ` / DNS ${counts.dns}件` : ""}{counts.dnf > 0 ? ` / DNF ${counts.dnf}件` : ""}{counts.dq > 0 ? ` / DQ ${counts.dq}件` : ""}</>}</span></span><span className="text-caption">{event.confirmed ? "確定" : event.relay_results?"チーム・タイム":"組・記録"} →</span>
+          <span className="w-12 shrink-0 text-caption tabular-nums">{event.starts_at ?? "未定"}</span><span className="min-w-0 flex-1"><span className="block text-body font-semibold">{label}</span><span className="block text-caption">{event.relay_results?`${heatCount}組・${event.relay_results.filter(team=>team.name.trim()).length}チーム` : <>出場 {counts.people}人・{counts.appearances}件{counts.dns > 0 ? ` / DNS ${counts.dns}件` : ""}{counts.dnf > 0 ? ` / DNF ${counts.dnf}件` : ""}{counts.dq > 0 ? ` / DQ ${counts.dq}件` : ""}</>}</span></span><span className="text-caption">{confirmed ? "確定" : partlyConfirmed?"一部確定":event.relay_results?"組・タイム":"組・記録"} →</span>
         </button></Card>;
       })}</div>
       {!meet.events.length && <EmptyState title="種目はまだありません" description="大会の管理者が種目を追加すると、出場登録と記録入力を始められます。" />}
@@ -161,6 +163,8 @@ function AppearanceEditor({appearance,participantId,event,meet,me,mutation,onClo
   const sourceEvent=meet.events.find(e=>e.name===original?.event_name);
   const moving=!!original&&eventName!==original.event_name;
   const eventOptions=original?meet.events.filter(e=>e.name===original.event_name||sourceEvent&&e.family===sourceEvent.family&&e.discipline===sourceEvent.discipline&&e.wind===sourceEvent.wind&&e.capacity===sourceEvent.capacity&&e.division!==sourceEvent.division&&["男子","女子"].includes(e.division)&&["男子","女子"].includes(sourceEvent.division)):meet.events.filter(e=>!e.relay_results);
+  const selectedEvent=eventOptions.find(e=>e.name===eventName);
+  const families=meetEventFamilies({events:eventOptions});
   const conflicts=(!original||moving)?meet.duties.filter(d=>d.participant_id===person&&d.slot_time===meet.events.find(e=>e.name===eventName)?.starts_at&&(d.assignment||d.role_ids.length)):[];
   async function save(confirmed=false){
     if((moving||conflicts.length)&&!confirmed){setConfirmDuties(true);return;}
@@ -172,7 +176,8 @@ function AppearanceEditor({appearance,participantId,event,meet,me,mutation,onClo
     <FormDraftGuard dirty={dirty} busy={mutation.locked} onSave={save}/>
     <fieldset disabled={mutation.locked} className="space-y-4">
       <label className="block space-y-2 text-body">参加者<Select ariaLabel="出場する参加者" disabled={!!appearance} value={person} onValueChange={setPerson} options={meet.participants.filter(p=>!p.deleted&&!p.absent&&(meet.permissions.manage||p.profile_id===me)).map(p=>({value:p.id,label:`${p.grade} ${p.name}`}))}/></label>
-      <label className="block space-y-2 text-body">種目<Select ariaLabel="出場種目" value={eventName} onValueChange={setEvent} options={eventOptions.map(e=>({value:e.name,label:`${e.starts_at??""} ${e.name}`,disabled:original?e.name!==original.event_name&&(e.confirmed||!!sourceEvent?.confirmed):e.confirmed}))}/></label>
+      <label className="block space-y-2 text-body">種目<Select ariaLabel="出場種目" disabled={!!original} value={selectedEvent?.family??""} onValueChange={family=>{const candidates=eventOptions.filter(e=>e.family===family&&!e.confirmed);setEvent((candidates.find(e=>e.division===selectedEvent?.division)??candidates[0])?.name??"");}} options={families.map(f=>({value:f.label,label:f.label,disabled:f.events.every(e=>e.confirmed)}))}/></label>
+      {selectedEvent&&<label className="block space-y-2 text-body">出場区分<Select ariaLabel="出場区分" value={eventName} onValueChange={setEvent} options={eventOptions.filter(e=>e.family===selectedEvent.family).map(e=>({value:e.name,label:e.division,disabled:original?e.name!==original.event_name&&(e.confirmed||!!sourceEvent?.confirmed):e.confirmed}))}/></label>}
       <label className="block space-y-2 text-body">資格記録（任意）<Input maxLength={1000} value={mark} onChange={e=>setMark(e.target.value)}/></label>
       <p className="text-caption">{original?"同じ種目の男子・女子を訂正できます。保存済みの記録は保持し、組・レーン・試技順は未配置に戻します。":"同じ種目への出場も1件ずつ追加できます。ほかの出場の資格記録や結果は変更しません。"}</p>
       {conflicts.length>0&&<p className="text-caption">補助担当：{conflicts.map(d=>`${d.slot_time} ${d.event_name} ${meetDutyText(d,meet.roles)}`).join("・")}。保存後に担当の調整が必要です。</p>}

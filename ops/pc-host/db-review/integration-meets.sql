@@ -17,6 +17,7 @@ SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 \ir meet-fixture.sql
 \ir /review/supabase/tests/competition-relay-results.sql
+\ir /review/supabase/tests/competition-relay-heats.sql
 -- Feed actual RPC JSON to the application's read-contract validator.
 INSERT INTO public.competition_appearances(id,competition_id,participant_id,event_name,ordinal,operation_key,performance)
 SELECT 'd6102101-0000-4000-8300-000000000001',competition_id,id,'男子100m',1,'synthetic-snapshot',
@@ -33,6 +34,12 @@ BEGIN;
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 \ir meet-fixture.sql
+\ir /review/supabase/tests/competition-shared-heats.sql
+ROLLBACK;
+BEGIN;
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='60s';
+\ir meet-fixture.sql
 \ir /review/supabase/tests/ob-results-operator-permissions.sql
 ROLLBACK;
 DO $$ BEGIN
@@ -40,4 +47,4 @@ DO $$ BEGIN
     RAISE EXCEPTION 'Meet fixture did not roll back';
   END IF;
 END $$;
-\echo 'PASS: current division, mirror ordering, relay, and OB operator acceptance'
+\echo 'PASS: current division, shared heats, mirror ordering, multiheat relay, and OB operator acceptance'

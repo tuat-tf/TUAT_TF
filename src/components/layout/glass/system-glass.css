@@ -79,7 +79,7 @@
 /* touchend commits through click() + focus(); browsers can treat that as
    keyboard focus. Restore the ring on keydown or when focus leaves the group. */
 [data-system-glass][data-glass-segments][data-glass-pointer-focus] > button:focus-visible { outline: none; }
-[data-system-glass][data-glass-segments] > button[aria-pressed="true"] { color: var(--color-accent); }
+[data-system-glass][data-glass-segments] > button[aria-pressed="true"] { color: #075db5; }
 /* Keep the server-rendered selection visible until its moving lens hydrates. */
 [data-system-glass][data-glass-segments]:not(:has(> [data-glass-selection])) > button[aria-pressed="true"] { background: var(--color-card); }
 [data-system-glass][data-glass-segments] > [data-glass-selection] {
@@ -98,24 +98,24 @@
 }
 [data-system-glass][data-glass-motion] > [data-glass-selection] { transition: none; }
 [data-system-glass][data-glass-sliding] > button { color: var(--color-muted2); }
-[data-system-glass][data-glass-sliding] > button[data-glass-preview] { color: var(--color-accent); }
+[data-system-glass][data-glass-sliding] > button[data-glass-preview] { color: #075db5; }
 [data-system-glass][data-glass-sliding] > button:is(:active, [data-glass-pressed]) { background: transparent; }
 
 /* Role flags travel with portal controls. Status also retains words and icons. */
 [data-system-glass][data-glass-control][data-glass-attendance] {
   min-height: 44px;
-  --attendance-ink: var(--color-accent);
+  --attendance-ink: #075db5;
   --attendance-tint: #007aff0a;
   color: var(--attendance-ink);
   background: linear-gradient(145deg, #ffffff99, #ffffff24 65%), var(--attendance-tint);
   border: 1px solid #ffffffa8;
 }
-[data-system-glass][data-glass-control][data-glass-attendance="none"] { border-style: dashed; border-color: #007aff59; }
-[data-system-glass][data-glass-control][data-glass-attendance="present"] { --attendance-ink: #fff; --attendance-tint: #34c759; background: linear-gradient(145deg, #50d66c, #34c759); }
-[data-system-glass][data-glass-control][data-glass-attendance="absent"] { --attendance-ink: #fff; --attendance-tint: #ff3b30; background: linear-gradient(145deg, #ff6961, #ff3b30); }
+[data-system-glass][data-glass-control][data-glass-attendance="none"] { border-style: dashed; border-color: #075db559; }
+[data-system-glass][data-glass-control][data-glass-attendance="present"] { --attendance-ink: #087438; --attendance-tint: #16a34a16; }
+[data-system-glass][data-glass-control][data-glass-attendance="absent"] { --attendance-ink: #bd2923; --attendance-tint: #e43b3012; }
 [data-system-glass][data-glass-control][data-glass-attendance="summary"] { --attendance-ink: var(--color-muted2); --attendance-tint: #ffffff38; }
-[data-system-glass][data-glass-attendance="summary"] .text-success { color: var(--color-success); }
-[data-system-glass][data-glass-attendance="summary"] .text-danger { color: var(--color-danger); }
+[data-system-glass][data-glass-attendance="summary"] .text-success { color: #087438; }
+[data-system-glass][data-glass-attendance="summary"] .text-danger { color: #bd2923; }
 [data-system-glass][data-glass-control][data-glass-attendance]:disabled { opacity: .6; cursor: wait; }
 
 /* A single continuous surface, with quiet icons and a highlight per pressed row. */

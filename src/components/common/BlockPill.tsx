@@ -6,7 +6,7 @@ import type { Block } from "@/types";
 export function BlockPill({ block, full = false }: { block: Block; full?: boolean }) {
   const b = BLOCKS[block];
   return (
-    <Badge style={{ backgroundColor: b.bg, color: b.textColor }}>
+    <Badge style={{ backgroundColor: b.bg, color: b.color }}>
       {full ? b.label : b.short}
     </Badge>
   );

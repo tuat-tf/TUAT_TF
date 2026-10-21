@@ -32,6 +32,23 @@ it("keeps women's 100m placements editable after men's 100m results are confirme
  board.onChange({...board.data,participants:board.data.participants.map(p=>p.entryId==="female"?{...p,group:200,order:1}:p)});render(data);await capture.guard!.onSave();
  expect(capture.run).toHaveBeenCalledWith(expect.objectContaining({event:female.name,confirmed:false,changes:[expect.objectContaining({id:"female",performance:expect.objectContaining({group:2,order:1,heatScope:"混合"})})]}));expect(first.performance.group).toBe(1);
 });
+it("opens both divisions together and saves women's placement without unconfirming the men's entrance",async()=>{
+ const data=meet(),male={...event,name:"男子1500m",family:"1500m",division:"男子" as const,discipline:"track" as const,confirmed:true},female={...male,name:"女子1500m",division:"女子" as const,confirmed:false};
+ data.events=[male,female];data.appearances[0].event_name=male.name;data.appearances[0].performance={...data.appearances[0].performance,group:1,order:1,trials:[{mark:"4:30.00",status:"valid",wind:""}]};
+ data.appearances.push({...structuredClone(data.appearances[0]),id:"female",event_name:female.name,performance:{...structuredClone(data.appearances[0].performance),entryId:"female",group:2,order:2,trials:[{mark:"5:00.00",status:"valid",wind:""}]}});
+ render(data);expect(capture.inputs.map(p=>p.value)).toEqual(["4:30.00","5:00.00"]);
+ expect(capture.buttons.has("男子の確定を解除")).toBe(true);expect(capture.buttons.has("女子の結果を確定")).toBe(true);
+ capture.view!("groups");render(data);
+ const board=capture.board.mock.lastCall![0];board.onChange({...board.data,confirmed:false,participants:board.data.participants.map((p:{entryId:string})=>p.entryId==="female"?{...p,group:201,order:1}:p)});render(data);await capture.guard!.onSave();
+ expect(capture.run).toHaveBeenCalledWith(expect.objectContaining({event:female.name,expectedConfirmed:false,confirmed:false,changes:[expect.objectContaining({id:"female"})]}));
+});
+it("confirms one division from the unified record page and includes its edited record in one save",async()=>{
+ const data=meet(),male={...event,name:"男子100m",family:"100m",division:"男子" as const,discipline:"track" as const},female={...male,name:"女子100m",division:"女子" as const};data.events=[male,female];
+ data.appearances[0].event_name=male.name;data.appearances[0].performance={...data.appearances[0].performance,group:1,order:1,trials:[{mark:"12.00",status:"valid",wind:""}]};
+ data.appearances.push({...structuredClone(data.appearances[0]),id:"female",event_name:female.name,performance:{...structuredClone(data.appearances[0].performance),entryId:"female",order:2,trials:[{mark:"15.00",status:"valid",wind:""}]}});
+ render(data);capture.inputs[1].onChange({target:{value:"14.50"}});render(data);await capture.buttons.get("女子の結果を確定")!.onClick();
+ expect(capture.run).toHaveBeenCalledWith(expect.objectContaining({event:female.name,confirmed:true,changes:[expect.objectContaining({id:"female",performance:expect.objectContaining({trials:[{mark:"14.50",status:"valid",wind:""}]})})]}));
+});
 it("can unconfirm results and close without validating or resaving unrelated stored trials",async()=>{
  const data=meet();data.events=[{...event,confirmed:true}];data.appearances[0].performance.trials=[{mark:"legacy invalid mark",status:"valid",wind:""}];
  render(data);capture.confirmation!({target:{checked:false}});render(data);await capture.guard!.onSave();

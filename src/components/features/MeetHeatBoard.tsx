@@ -11,7 +11,7 @@ import type { MeetEventData, MeetOperationLimits, MeetPerformance } from "@/lib/
 export type HeatEntrant = { id: string; name: string; grade: string; mark: string; alumni: boolean; eligible: boolean; absent?: boolean; division?: "男子" | "女子"; placementLocked?: boolean };
 type HeatSlot = { id: string; order: number; person?: MeetPerformance; locked: boolean };
 
-export function MeetHeatBoard({ data: savedData, entrants, orderLabel, capacity, disabled, onChange, groupLabel = group => `${group}組`, nextGroup: requestedNextGroup, groupLimit = 99, modelLimits, statusActions = true, countUnit = "人", validateMove, renderActions }: { renderActions?: (id: string) => ReactNode; statusActions?: boolean; countUnit?: "人" | "件"; validateMove?: (ids: string[], group: number | null) => string | null; data: MeetEventData; entrants: HeatEntrant[]; orderLabel: string; capacity?: number; disabled: boolean; onChange: (data: MeetEventData) => void; groupLabel?: (group: number) => string; nextGroup?: number | null; groupLimit?: number; modelLimits?: MeetOperationLimits }) {
+export function MeetHeatBoard({ data: savedData, entrants, orderLabel, capacity, disabled, onChange, groupLabel: labelGroup = group => `${group}組`, nextGroup: requestedNextGroup, groupLimit = 99, modelLimits, statusActions = true, countUnit = "人", validateMove, renderActions }: { renderActions?: (id: string) => ReactNode; statusActions?: boolean; countUnit?: "人" | "件"; validateMove?: (ids: string[], group: number | null) => string | null; data: MeetEventData; entrants: HeatEntrant[]; orderLabel: string; capacity?: number; disabled: boolean; onChange: (data: MeetEventData) => void; groupLabel?: (group: number, shownGroups?: readonly number[]) => string; nextGroup?: number | null; groupLimit?: number; modelLimits?: MeetOperationLimits }) {
   const anchor = useId();
   const [selected, setSelected] = useState<string[]>([]);
   const [past, setPast] = useState<MeetEventData[]>([]);
@@ -27,6 +27,7 @@ export function MeetHeatBoard({ data: savedData, entrants, orderLabel, capacity,
   const present = data.participants.filter(person=>presentIds.has(person.entryId)&&person.status==="entered");
   const savedGroups = data.participants.flatMap(person => person.group !== null ? [person.group] : []);
   const groups = [...new Set([...savedGroups, ...emptyGroups, ...(!savedGroups.length && !emptyGroups.length ? [requestedNextGroup ?? 1] : [])])].sort((a, b) => a - b);
+  const groupLabel = (group: number) => labelGroup(group, groups);
   let nextGroup = requestedNextGroup === null ? groupLimit + 1 : requestedNextGroup ?? Math.max(0, ...groups) + 1;
   while (groups.includes(nextGroup) && nextGroup <= groupLimit) nextGroup++;
   const ids = selected.filter(id => model.active.some(person => person.entryId === id));

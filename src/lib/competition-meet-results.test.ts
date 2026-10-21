@@ -2,6 +2,13 @@ import { expect, it } from "vitest";
 import { meetResultRows } from "./competition-meet-results";
 import { meetDutyCell, meetDutySlots, validRolePeople } from "./competition-meet-duties";
 import {fixtureMeet} from "./__fixtures__/competition-meet";
+it("uses one event result entrance with both divisions and independent rankings",()=>{
+ const meet=fixtureMeet(),male=meet.events[0],female={...male,name:"女子100m",division:"女子" as const,confirmed:false};meet.events.push(female);
+ const first=meet.appearances[0];meet.appearances.push({...structuredClone(first),id:"female",event_name:female.name,performance:{...structuredClone(first.performance),entryId:"female",order:3,heatScope:"男子",trials:[{mark:"15.00",status:"valid",wind:""}]}});
+ const rows=meetResultRows(meet,"2026-10-22"),track=rows.filter(row=>row.eventLabel==="100m");
+ expect(track).toHaveLength(1);expect(track[0].tuatEntries).toHaveLength(3);
+ expect(track[0].tuatEntries.at(-1)).toMatchObject({resultDivision:"女子",positionLabel:"混合1組 3レーン",result:{place:"1",record:"15.00"}});
+});
 
 
 it("keeps independent repeated appearances, wind and overall ranks without sending operational/private fields",()=>{

@@ -15,7 +15,6 @@ import { ja } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { jstToday } from "@/lib/date";
-import { recentTrainingRecords } from "@/lib/training-review-display";
 import { Card } from "@/components/ui/card";
 import { Disclosure } from "@/components/ui/disclosure";
 import { KeyValue } from "@/components/ui/key-value";
@@ -24,7 +23,7 @@ import { INTENSITY_ORDER, INTENSITY_LABELS } from "@/lib/constants";
 import { cn, formatKm, roundKm } from "@/lib/utils";
 import { displayedDistance, unclassifiedDistance } from "@/lib/record-distance";
 import { useBooleanPreference } from "@/hooks/use-boolean-preference";
-import { trainingReviewFields, trainingReviewPreferenceKey } from "@/lib/training-review-display";
+import { recentTrainingRecords, trainingReviewFields, trainingReviewPreferenceKey } from "@/lib/training-review-display";
 import type { TrainingRecord, Intensity, RecordFieldDef } from "@/types";
 
 type Period = "recent" | "day" | "week" | "month";
@@ -170,9 +169,9 @@ export function TrainingChart({
       <IntensitySummary summary={sel} period={recent ? "recent" : period === "recent" ? "day" : period} label={recent ? `直近7日間（${format(sel.start, "M/d")}〜${format(new Date(today+"T00:00:00"), "M/d")}）` : bucketLabel(sel, true)} previousTotal={previousTotal} />
       {period === "recent" && selected !== null && <Button variant="ghost" onClick={() => { setSelected(null); setShowDetail(false); }}>直近7日間の合計に戻る</Button>}
 
-      {/* 横スクロールできる棒グラフ */}
+      {/* 直近7日は全幅、長い期間は横スクロールで表示する。 */}
       <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1">
-        <div className="relative w-max">
+        <div className={cn("relative", period === "recent" ? "w-full" : "w-max")}>
           {/* 目盛り線 */}
           <div
             className="pointer-events-none absolute left-0 right-0 flex flex-col justify-between"
@@ -199,7 +198,7 @@ export function TrainingChart({
                     setSelected(i);
                     setShowDetail(false);
                   }}
-                  className="relative h-full w-6 shrink-0"
+                  className={cn("relative h-full", period === "recent" ? "min-w-0 flex-1" : "w-6 shrink-0")}
                 >
                   {barH > 0 ? (
                     <>
@@ -214,7 +213,8 @@ export function TrainingChart({
                       </span>
                       <div
                         className={cn(
-                          "absolute bottom-0 left-0 flex w-full flex-col-reverse overflow-hidden rounded-t-[4px] border shadow-sm transition-all",
+                          "absolute bottom-0 left-1/2 flex w-full -translate-x-1/2 flex-col-reverse overflow-hidden rounded-t-[4px] border shadow-sm transition-all",
+                          period === "recent" && "max-w-12",
                           isSel ? "border-accent ring-2 ring-inset ring-accent/60" : "border-separator/70 opacity-95",
                         )}
                         style={{ height: `${barH}px` }}
@@ -236,7 +236,7 @@ export function TrainingChart({
                       </div>
                     </>
                   ) : (
-                    <div className="absolute bottom-0 h-1 w-full rounded-t-[3px] bg-separator/60" />
+                    <div className={cn("absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded-t-[3px] bg-separator/60", period === "recent" && "max-w-12")} />
                   )}
                 </button>
               );
@@ -244,14 +244,17 @@ export function TrainingChart({
           </div>
 
           {/* ラベル（間引き） */}
-          <div className="flex gap-2 mt-1.5">
+          <div data-training-axis aria-hidden="true" className="flex gap-2 mt-1.5">
             {buckets.map((b, i) => {
               const show = (buckets.length - 1 - i) % labelEvery === 0;
+              const label = period === "recent" && i > 0 && b.start.getMonth() === buckets[i - 1].start.getMonth()
+                ? format(b.start, "d")
+                : bucketLabel(b);
               return (
-                <div key={i} className="shrink-0 w-6 h-4 whitespace-nowrap text-center leading-4">
+                <div key={i} className={cn("h-4 whitespace-nowrap text-center leading-4", period === "recent" ? "min-w-0 flex-1" : "w-6 shrink-0")}>
                   {show && (
                     <span className={cn("text-[9px]", !recent && i === selIndex ? "text-accent font-bold" : "text-muted2")}>
-                      {bucketLabel(b)}
+                      {label}
                     </span>
                   )}
                 </div>
@@ -261,21 +264,21 @@ export function TrainingChart({
         </div>
       </div>
 
-      {/* 内訳は0kmでも同じ行を保ち、期間切替で操作を動かさない。 */}
+      {/* 表示項目の選択は切替ボタンから直接開く。 */}
       <div data-training-detail className="rounded-xl bg-bg p-3">
-
-        <div className="mt-3 space-y-1.5">
+        <div className="space-y-1.5">
           <p className="text-caption">練習内容の表示</p>
           <SegmentedControl
             items={[
-              { key: "specified", label: "選んだ項目" },
-              { key: "all", label: "すべてを表示" },
+              { key: "specified", label: "項目選択" },
+              { key: "all", label: "すべて表示" },
             ]}
             value={showAllFields ? "all" : "specified"}
-            onChange={(key) => setShowAllFields(key === "all")}
+            onChange={(key) => {
+              setShowAllFields(key === "all");
+              if (key === "specified") setFieldPickerOpen(true);
+            }}
           />
-          <Button variant="outline" onClick={() => setFieldPickerOpen(true)}>表示項目を選ぶ</Button>
-          {!showAllFields && <p className="text-caption">{effectiveFields.length ? availableFields.filter(f => effectiveFields.includes(f.key)).map(f => f.label).join("・") : "表示項目が選ばれていません"}</p>}
         </div>
         <Sheet open={fieldPickerOpen} onOpenChange={setFieldPickerOpen}>
           <SheetContent title="練習内容の表示項目">

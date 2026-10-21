@@ -41,7 +41,7 @@ export function Avatar({
   const displayUrl = avatarDisplayUrl(avatarUrl, "thumbnail");
 
   const primary = blocks && blocks.length > 0 ? blocks[0] : null;
-  const color = primary ? BLOCKS[primary].textColor : "#6c6c70";
+  const color = primary ? BLOCKS[primary].color : "#8e8e93";
   const bg = primary ? BLOCKS[primary].bg : "#e5e5ea";
 
   if (displayUrl && !imgError) {

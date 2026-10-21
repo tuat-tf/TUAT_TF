@@ -8,6 +8,7 @@ import type { TableCell, TableSheet } from "./export-table";
 import { obResultRanks } from "./ob-result-ranking";
 
 type Row = ReturnType<typeof obFamilyRows>[number];
+export type ObHeatLabels = Record<string, Record<number, string>>;
 const symbols: Record<MeetTrial["status"], string> = { valid: "○", foul: "×", pass: "−", pending: "" };
 
 /** Events in program order, from registrations and saved operations alike. */
@@ -17,8 +18,8 @@ export function obResultFamilies(entries: ObEntry[], operations: ObEventOperatio
 }
 
 /** The timetable first, then one start list per event. Qualification marks are not exported. */
-export function obResultSheets(entries: ObEntry[], operations: ObEventOperation[]): TableSheet[] {
-  return [obProgramSheet(), ...obResultFamilies(entries, operations).map(family => obResultSheet(family, entries, operations))];
+export function obResultSheets(entries: ObEntry[], operations: ObEventOperation[], heatLabels:ObHeatLabels={}): TableSheet[] {
+  return [obProgramSheet(), ...obResultFamilies(entries, operations).map(family => obResultSheet(family, entries, operations, false, heatLabels[family]))];
 }
 
 export function obProgramSheet(): TableSheet {
@@ -26,15 +27,15 @@ export function obProgramSheet(): TableSheet {
 }
 
 /** Fixed public workbook: attendance and withdrawals stay visible after later app edits. */
-export function obPublishedResultSheets(entries: ObEntry[], operations: ObEventOperation[]): TableSheet[] {
-  return [obProgramSheet(), ...OB_PROGRAM.flatMap(slot => slot.events).map(family => obResultSheet(family, entries, operations, true))];
+export function obPublishedResultSheets(entries: ObEntry[], operations: ObEventOperation[], heatLabels:ObHeatLabels={}): TableSheet[] {
+  return [obProgramSheet(), ...OB_PROGRAM.flatMap(slot => slot.events).map(family => obResultSheet(family, entries, operations, true, heatLabels[family]))];
 }
 
 /**
  * Start list sent to alumni: only people who compete or already have a result, without internal status columns.
  * Record columns appear once the event has a result, so a pre-meet sheet is just the start list.
  */
-export function obResultSheet(family: string, entries: ObEntry[], operations: ObEventOperation[], published = false): TableSheet {
+export function obResultSheet(family: string, entries: ObEntry[], operations: ObEventOperation[], published = false, heatLabels?:Record<number,string>): TableSheet {
   const rule = obEventRule(family), rows = obFamilyRows(family, entries, operations).filter(row => published || row.state.canParticipate || row.state.recorded);
   const recorded = rows.some(row => row.state.recorded);
   const results = published || recorded;
@@ -59,7 +60,7 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
     const lines: TableCell[][] = [["組", ...(lanes ? ["レーン"] : []), ...personHeaders, ...(results ? ["記録"] : [])]];
     let heat: string | undefined;
     for (const row of rows) {
-      const label = row.group === null ? "組未定" : obMixedGroupLabel(row.group);
+      const label = row.group === null ? "組未定" : heatLabels?.[row.group] ?? obMixedGroupLabel(row.group);
       // The heat is named once on its first line; a blank line separates heats.
       if (heat !== undefined && label !== heat) lines.push([]);
       lines.push([label === heat ? null : label, ...(lanes ? [row.group === null ? null : row.performance.order] : []), ...person(row), ...result(row)]);

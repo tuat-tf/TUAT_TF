@@ -198,7 +198,7 @@ SELECT set_config('storage.install_roles','false',false),
       SqlFile 'tuat_rls_review' "/review/supabase/tests/$test" | Out-Null
       $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$test") -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
     }
-    foreach ($test in @('relay-second-heat.sql', 'integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql', 'legacy-meet-audit-test.sql')) {
+    foreach ($test in @('relay-heats.sql', 'integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql', 'legacy-meet-audit-test.sql')) {
       $report.stage = "test:$test"
       $output = SqlFile 'tuat_rls_review' "/review/db-review/$test"
       if ($output -notmatch 'PASS:') { throw 'Integration SQL test did not produce its completion evidence' }
@@ -220,7 +220,7 @@ SELECT set_config('storage.install_roles','false',false),
     $report.legacyMeetAuditSources = @('legacy-meet-audit.sql', 'legacy-meet-missing-appearances.sql', 'validate-legacy-meet-audit.mjs') | ForEach-Object {
       [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
-    $report.meetTestSources = @('meet-appearance-division.sql', 'meet-division-mirror.sql', 'competition-relay-results.sql', 'ob-results-operator-permissions.sql') | ForEach-Object {
+    $report.meetTestSources = @('meet-appearance-division.sql', 'meet-division-mirror.sql', 'competition-relay-results.sql', 'competition-relay-heats.sql', 'competition-shared-heats.sql', 'ob-results-operator-permissions.sql') | ForEach-Object {
       [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$_") -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
   }
