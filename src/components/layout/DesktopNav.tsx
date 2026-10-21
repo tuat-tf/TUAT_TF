@@ -26,6 +26,13 @@ export function DesktopNav() {
               data-ui-row
               key={href}
               href={href}
+              onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+                if (pathname === href) {
+                  event.preventDefault();
+                  window.scrollTo({ top: 0, behavior: "instant" });
+                }
+              }}
               aria-label={label}
               title={label}
               aria-current={active ? "page" : undefined}

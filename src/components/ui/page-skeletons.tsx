@@ -86,7 +86,7 @@ export function HomeSkeleton({ withHeader = true }: { withHeader?: boolean } = {
 }
 
 export function ScheduleSkeleton({ withHeader = true }: { withHeader?: boolean } = {}) {
-  return <LoadingRegion label="予定">{withHeader && <Title title="予定" action />}<div className="px-4 pb-3 pt-1 md:px-6 lg:pb-2"><div className="md:max-w-[520px]"><Filters count={4} /></div><div className="mt-2 md:max-w-[520px]"><Filters /></div></div><div data-schedule-grid className="px-4 pt-1 md:px-6 lg:grid lg:grid-cols-2 lg:gap-x-6"><Skeleton className="mb-2 h-[18px] w-20 lg:col-span-2" />{[0, 1, 2, 3].map(i => <div key={i} className="mb-3 min-w-0"><ScheduleCard /></div>)}</div></LoadingRegion>;
+  return <LoadingRegion label="予定">{withHeader && <Title title="予定" action />}<div className="px-4 pb-3 pt-1 md:px-6 lg:pb-2"><div className="w-full"><Filters count={4} /></div><div className="mt-2 w-full"><Filters /></div></div><div data-schedule-grid className="px-4 pt-1 md:px-6 lg:grid lg:grid-cols-2 lg:gap-x-6"><Skeleton className="mb-2 h-[18px] w-20 lg:col-span-2" />{[0, 1, 2, 3].map(i => <div key={i} className="mb-3 min-w-0"><ScheduleCard /></div>)}</div></LoadingRegion>;
 }
 
 
@@ -96,7 +96,7 @@ export function NotesSkeleton({ withHeader = true }: { withHeader?: boolean } = 
 export function FeedSkeleton({ withHeader = true }: { withHeader?: boolean } = {}) {
   return <LoadingRegion label="タイムライン">
     {withHeader && <Title title="タイムライン" action />}
-    <div className="w-full px-4 pb-3 pt-1 md:mx-auto md:max-w-[1120px] md:px-6 lg:pb-2"><div className="flex min-h-9 items-center gap-2 lg:min-h-8"><div className="min-w-0 flex-1 md:max-w-[420px]"><Filters /></div><div className="flex h-11 w-[70px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-separator bg-card px-3"><Skeleton className="h-3.5 w-3.5 shrink-0" /><Skeleton className="h-2.5 w-6 shrink-0" /></div><Skeleton className="h-11 w-11 shrink-0 rounded-full" /></div></div>
+    <div className="w-full px-4 pb-3 pt-1 md:mx-auto md:max-w-[1120px] md:px-6 lg:pb-2"><div className="flex min-h-9 items-center gap-2 lg:min-h-8"><div className="min-w-0 flex-1"><Filters /></div><div className="flex h-11 w-[70px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-separator bg-card px-3"><Skeleton className="h-3.5 w-3.5 shrink-0" /><Skeleton className="h-2.5 w-6 shrink-0" /></div></div></div>
     <div className="w-full space-y-3 px-4 pt-1 md:mx-auto md:max-w-[1120px] md:px-6 lg:space-y-2">{[0, 1].map(i => <section key={i}><div className="mb-1.5 flex h-[18px] items-center gap-1.5 px-1"><Skeleton className="h-2.5 w-28" /><Skeleton className="h-2 w-8" /></div><div className="space-y-3 lg:space-y-2"><Card lines={i === 0 ? 2 : 1} /><Card lines={1} /></div></section>)}</div>
   </LoadingRegion>;
 }

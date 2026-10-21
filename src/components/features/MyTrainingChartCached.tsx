@@ -25,6 +25,7 @@ export function MyTrainingChartCached({
   const { data, isError, isFetching, refetch } = useQuery({
     queryKey,
     queryFn: loadMyTrainingRecords,
+    enabled: showIntensitySummary,
     initialData: initialRecords,
     staleTime: 60_000,
     refetchOnMount: false,

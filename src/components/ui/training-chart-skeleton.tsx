@@ -8,7 +8,7 @@ export function TrainingChartSkeleton() {
       <span className="sr-only">練習量を読み込み中</span>
       <div className="space-y-3">
         <div className="flex h-[18px] items-center"><Skeleton className="h-3 w-24" /></div>
-        <Skeleton className="h-[34px] w-full rounded-[10px] lg:h-8 lg:rounded-lg" />
+        <Skeleton className="h-12 w-full rounded-[10px] lg:rounded-lg" />
       </div>
       <div>
         <div className="flex h-6 items-center justify-between gap-3">
@@ -31,7 +31,7 @@ export function TrainingChartSkeleton() {
       <div className="rounded-xl bg-bg p-3">
         <div className="space-y-1.5">
           <div className="flex h-[18px] items-center"><Skeleton className="h-2.5 w-24" /></div>
-          <Skeleton className="h-[34px] w-full rounded-[10px] lg:h-8 lg:rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-[10px] lg:rounded-lg" />
         </div>
         <div className="mt-3 border-t border-separator/70">
           <div className="flex h-11 items-center justify-between gap-3">

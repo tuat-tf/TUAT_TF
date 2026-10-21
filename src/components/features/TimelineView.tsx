@@ -52,7 +52,7 @@ function isInteractiveFeedTarget(target: EventTarget | null, row: HTMLElement) {
  * 前回開いたあとに増えた投稿を「新着の投稿」として先頭に数え、そこが終わる位置に区切りを出す。
  * ブロックの絞り込みはサーバー往復せず
  * 読み込み済みアイテムをクライアント側でフィルタするため、タブ切替が即時。
- * 「もっと見る」のときだけサーバーから追加取得する。
+ * 絞り込み結果が足りない場合と「もっと見る」で続きのページを取得する。
  */
 export function TimelineView({
   initialItems,
@@ -81,6 +81,7 @@ export function TimelineView({
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    retry: false,
     getNextPageParam: (lastPage) => nextFeedCursor(lastPage, PAGE),
   });
   // A server refresh must replace the old first page too. Otherwise initialData
@@ -133,19 +134,27 @@ export function TimelineView({
       !hasActiveFilter ||
       filtered.length >= PAGE ||
       !feedQuery.hasNextPage ||
-      feedQuery.isFetchingNextPage ||
+      feedQuery.isFetching ||
+      feedQuery.isError ||
       filterAutoLoadCount.current >= FILTER_AUTOLOAD_PAGES
     ) return;
 
     filterAutoLoadCount.current += 1;
-    void feedQuery.fetchNextPage();
+    void feedQuery.fetchNextPage({ cancelRefetch: false });
   }, [
     feedQuery,
     filtered.length,
     hasActiveFilter,
   ]);
 
-  function loadMore() { void feedQuery.fetchNextPage(); }
+  function loadMore() {
+    if (feedQuery.isFetching) return;
+    if (feedQuery.isError && !feedQuery.isFetchNextPageError) {
+      void feedQuery.refetch({ cancelRefetch: false });
+    } else {
+      void feedQuery.fetchNextPage({ cancelRefetch: false });
+    }
+  }
 
   function renderItem(
     item: FeedItem,
@@ -197,7 +206,9 @@ export function TimelineView({
 
       <div className="w-full px-4 pt-1 md:mx-auto md:max-w-[1120px] md:px-6">
         {filtered.length === 0 ? (
-          <EmptyState title="条件に合う投稿はありません" description="条件を変えてみてください。" />
+          feedQuery.isError ? <EmptyState title="投稿を取得できませんでした" description="もう一度お試しください。" /> : feedQuery.hasNextPage ? (
+            <EmptyState title={feedQuery.isFetching ? "条件に合う投稿を探しています" : "続きの投稿を確認できます"} />
+          ) : <EmptyState title="条件に合う投稿はありません" description="条件を変えてみてください。" />
         ) : (
           <div className="space-y-3 lg:space-y-2">
             {boundaryIndex > 0 && <UnreadHeading count={boundaryIndex} />}
@@ -271,13 +282,14 @@ export function TimelineView({
               });
             })()}
 
-            {feedQuery.hasNextPage && (
-              <div className="pt-1 pb-2">
-                <Button variant="outline" size="lg" onClick={loadMore} disabled={feedQuery.isFetchingNextPage}>
-                  {feedQuery.isFetchingNextPage ? "読み込み中…" : "もっと見る"}
-                </Button>
-              </div>
-            )}
+          </div>
+        )}
+        {(feedQuery.hasNextPage || feedQuery.isError) && (
+          <div className="pt-3 pb-2">
+            {feedQuery.isError && filtered.length > 0 && <p role="status" className="mb-2 text-caption text-muted2">投稿を取得できませんでした。もう一度お試しください。</p>}
+            <Button variant="outline" size="lg" onClick={loadMore} disabled={feedQuery.isFetching}>
+              {feedQuery.isFetching ? "読み込み中…" : feedQuery.isError ? "再試行" : "もっと見る"}
+            </Button>
           </div>
         )}
       </div>
