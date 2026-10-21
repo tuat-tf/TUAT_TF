@@ -115,7 +115,7 @@ def seal(config):
     need(digest(immutable(p['configPath'], True)) == value['configSha256'] and
          read_json(p['configPath']) == config, 'periodic-config-pin')
     required = {'backup.py', 'backup-codec.mjs', 'runtime.py', 'periodic.py', 'transport.py'}
-    if pc: required |= {'offsite.mjs', 'cleanup-runner.mjs', 'snapshot-cleanup.mjs', 'snapshot-retention.mjs',
+    if pc: required |= {'offsite.mjs', 'drive-storage.mjs', 'cleanup-runner.mjs', 'snapshot-cleanup.mjs', 'snapshot-retention.mjs',
                         'pc-backup/config.mjs', 'pc-backup/status.mjs', 'pc-backup/application-status.mjs', 'pc-backup/retention.mjs'}
     need(isinstance(value['sources'], dict) and set(value['sources']) == required, 'periodic-source-set')
     base = Path(__file__).resolve().parent

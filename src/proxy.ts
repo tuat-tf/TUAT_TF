@@ -3,7 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { pcVercelProxy } from "@/lib/pc-vercel-proxy";
 import { isMaintenanceWindow } from "@/lib/maintenance";
 
-const nativeOrigin = "https://tuat-pc-app.track-app.workers.dev";
+const nativeOrigin = "https://app.tuat-tf.workers.dev";
 // Match the previous static exclusions after the old production cutover guard.
 const staticPath = /^\/(?:api|_next\/static|_next\/image|favicon.ico|sw.js|apple-icon|icon|manifest.webmanifest)|\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/;
 

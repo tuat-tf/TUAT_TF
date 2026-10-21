@@ -30,6 +30,15 @@ const pcConfig=()=>{
   return c;
 };
 
+test('Drive credentials are accepted only by the private combined-snapshot observer',()=>{
+  const env={BACKUP_STORAGE:'google-drive',DRIVE_OWNER_EMAIL:'club@example.test',DRIVE_FOLDER_ID:'synthetic-folder-id',
+    DRIVE_CLIENT_FILE:resolve('private/client.json'),DRIVE_TOKEN_FILE:resolve('private/token.json'),PC_BACKUP_ENCRYPTION_KEY:'a'.repeat(64)};
+  assert.doesNotThrow(()=>validateBackupConfig(pcConfig(),env));
+  assert.throws(()=>validateBackupConfig(nativeConfig(),env));
+  assert.throws(()=>validateBackupConfig(pcConfig(),{...env,R2_SECRET_ACCESS_KEY:'unused-secret'}));
+  assert.throws(()=>validateBackupConfig(pcConfig(),{...env,DRIVE_OWNER_EMAIL:''}));
+});
+
 test('pc-private binds actual source labels and admits combined snapshots only',()=>{
   const c=pcConfig();assert.doesNotThrow(()=>validateBackupConfig(c));
   const changes=[{...c,profile:'automatic'},{...c,profile:null},{...c,executionMode:'wsl'},{...c,dockerSocket:undefined},

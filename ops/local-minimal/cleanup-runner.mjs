@@ -5,6 +5,7 @@ import {readFileSync,lstatSync} from 'node:fs';
 import {posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseEnv} from 'node:util';
+import {snapshotStorageScope} from './drive-storage.mjs';
 import {readPrivateFile,verifyPrivatePath} from '../pc-backup/config.mjs';
 import {inspectSnapshotCleanup,dryRunSnapshotCleanup,applySnapshotCleanup,writeSnapshotCleanupOutcome} from './snapshot-cleanup.mjs';
 
@@ -73,7 +74,7 @@ export async function runSnapshotCleanup(config,{client,now=Date.now,read=readPr
       &&Object.keys(policy).every(key=>['version','enabled','mode','immutableSourceNamespace',...fields].includes(key)));
     const environment=parseEnv(read(config.environmentFile,16384).toString('utf8'));
     const scope={sourceId:config.sourceId,databaseSystemIdentifier:config.databaseSystemIdentifier,
-      storageScopeId:digest({account:environment.R2_ACCOUNT_ID,bucket:config.bucket}),archiveKeyId:hash(Buffer.from(environment.PC_BACKUP_ENCRYPTION_KEY??'','hex'))};
+      storageScopeId:snapshotStorageScope(environment,config.bucket),archiveKeyId:hash(Buffer.from(environment.PC_BACKUP_ENCRYPTION_KEY??'','hex'))};
     need(fields.every(key=>policy[key]===scope[key]));
     const initial=owner(config,{read});
     const assertOwner=()=>{need(read(SNAPSHOT_CLEANUP_POLICY,16384).equals(policyBytes));const current=owner(config,{read});

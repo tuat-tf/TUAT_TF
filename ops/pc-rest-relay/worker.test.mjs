@@ -5,7 +5,7 @@ import { createRelay } from './worker.mjs';
 
 const app = 'https://tuat-tf.vercel.app';
 const relay = 'https://synthetic-relay.workers.dev';
-const canonical = 'https://tuat-pc-app.track-app.workers.dev';
+const canonical = 'https://app.tuat-tf.workers.dev';
 const request = (path, method='GET', origin=app, extra={}) => new Request(relay+path, {
   method, headers:{...(origin ? {origin} : {}),...extra},
 });

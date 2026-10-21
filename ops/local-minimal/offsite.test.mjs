@@ -3,6 +3,7 @@ import {mkdtemp,mkdir,writeFile,readFile,rm,readdir} from 'node:fs/promises';imp
 import {createHash} from 'node:crypto';import {Readable} from 'node:stream';
 import {readFileSync} from 'node:fs';
 import {transferSnapshot} from './offsite.mjs';import {encryptBackup,decryptBackup} from '../laptop/backup-backend.mjs';
+import {snapshotStorageScope} from './drive-storage.mjs';
 
 const sourceId='11111111-1111-4111-8111-111111111111',generation='22222222-2222-4222-8222-222222222222',now=Date.parse('2026-10-12T02:00:00.000Z');
 const pcEnvironment=(bucket,account='a'.repeat(32),key='a'.repeat(64))=>`R2_ACCOUNT_ID=${account}\nR2_BUCKET_NAME=${bucket}\nPC_BACKUP_ENCRYPTION_KEY=${key}\n`;
@@ -91,6 +92,17 @@ test('PC transfer derives active host generation and preserves fully ordered cap
   assert.equal(history.localArchiveFile,f.config.archiveFile);assert.equal(history.objectEtag,'"synthetic"');
   assert.equal(history.storageScopeId,createHash('sha256').update(JSON.stringify({account:'a'.repeat(32),bucket:f.config.bucket})).digest('hex'));
   assert.equal(history.archiveKeyId,f.receipt.recoveryKeyFingerprint);
+});
+
+test('Drive receipts bind the club owner and folder without retaining R2 credentials',async t=>{
+  const f=await pcFixture(t),env={BACKUP_STORAGE:'google-drive',DRIVE_OWNER_EMAIL:'club@example.test',DRIVE_FOLDER_ID:'synthetic-folder-id',
+    DRIVE_CLIENT_FILE:join(f.root,'client.json'),DRIVE_TOKEN_FILE:join(f.root,'token.json'),PC_BACKUP_ENCRYPTION_KEY:'a'.repeat(64)};
+  await writeFile(f.config.environmentFile,Object.entries(env).map(([k,v])=>`${k}=${JSON.stringify(v)}`).join('\n'),{mode:0o600});
+  const result=await transferSnapshot(f.config,f.options);assert.equal(result.verified,true);
+  const name=(await readdir(f.config.stateDirectory)).find(n=>n.endsWith('.offsite-verified.json'));
+  const history=JSON.parse(await readFile(join(f.config.stateDirectory,name),'utf8'));
+  assert.equal(history.storageScopeId,snapshotStorageScope(env));assert.equal(history.archiveKeyId,f.receipt.recoveryKeyFingerprint);
+  assert.notEqual(history.storageScopeId,snapshotStorageScope({...env,DRIVE_FOLDER_ID:'another-folder-id'}));
 });
 
 test('PC transfer preserves prior verified history when a later capture becomes current',async t=>{

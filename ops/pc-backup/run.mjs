@@ -9,6 +9,7 @@ import { createAdapters,createCycleBudget,inventoryBounds,STORAGE_LIMITS } from 
 import { classifyBackupReceipts,reconcileBackupInventory,planBackupAdmission,planBackupRetention } from './retention.mjs';
 import { STATUS_VERSION,STATUS_FILE,HEARTBEAT_INTERVAL_MS,BACKUP_INTERVAL_MS,localSnapshotReady } from './status.mjs';
 import { writeApplicationStatus } from './application-status.mjs';
+import {snapshotStorageScope} from '../local-minimal/drive-storage.mjs';
 
 export {loadBackup};
 export function backupPlan(config) {
@@ -38,7 +39,7 @@ export async function startBackupSupervisor({configFile,config:providedConfig,en
     target:{...config.target,checkedAt:identity.startedAt,healthy:false},backup:null};
   const scope={
     targetFingerprint:backupTargetFingerprint(config),
-    storageScopeId:sha256(JSON.stringify({account:env.R2_ACCOUNT_ID,bucket:env.R2_BUCKET_NAME})),
+    storageScopeId:snapshotStorageScope(env,env.R2_BUCKET_NAME),
     archiveKeyId:sha256(Buffer.from(env.PC_BACKUP_ENCRYPTION_KEY,'hex')),
   };
   const expected={...identity,databaseSystemIdentifier:config.target.databaseSystemIdentifier};

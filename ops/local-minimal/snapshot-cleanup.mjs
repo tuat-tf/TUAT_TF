@@ -6,6 +6,7 @@ import {resolve,dirname,basename,isAbsolute} from 'node:path';
 import {parseEnv} from 'node:util';
 import {ListObjectsV2Command,HeadObjectCommand,GetObjectCommand,DeleteObjectCommand} from '@aws-sdk/client-s3';
 import {activePcSnapshotHost} from './offsite.mjs';
+import {snapshotStorageScope} from './drive-storage.mjs';
 import {readPrivateFile} from '../pc-backup/config.mjs';
 import {MAX_RETENTION_INVENTORY} from '../pc-backup/retention.mjs';
 import {planSnapshotRetention,verifiedSnapshotReceipt} from './snapshot-retention.mjs';
@@ -154,14 +155,21 @@ export async function createSnapshotCleanupAdapter(config,{client,conditionalDel
   need(config.imageRoot==='/var/lib/tuat-local/images'&&absolute(config.stateDirectory)&&absolute(config.environmentFile),'Dedicated snapshot paths required');
   need(typeof verifyRetainedRecovery==='function','Retained recovery verifier required');
   need(typeof client.config?.maxAttempts==='function'&&await client.config.maxAttempts()===1,'Cleanup storage client must disable retries');
+  // Drive v3 ignores If-Match on DELETE. Its local content-identity check must
+  // never be promoted to a provider-enforced conditional deletion guarantee.
+  need(client.storageProvider!=='google-drive'||conditionalDeleteSupported===false,'Drive requires immutable namespace deletion proof');
   const host=()=>activePcSnapshotHost(config,{read,...(assertRoot?{assertRoot}:{}),now});
   const boundHost=host(),environment=read(config.environmentFile,16384),env=parseEnv(environment.toString('utf8'));
-  need(/^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID??'')&&env.R2_BUCKET_NAME===config.bucket&&/^[a-f0-9]{64}$/.test(env.PC_BACKUP_ENCRYPTION_KEY??''),'Dedicated storage scope required');
-  need(typeof client.config.endpoint==='function','Pinned R2 endpoint required');
-  const endpoint=await client.config.endpoint();
-  need(endpoint?.protocol==='https:'&&endpoint.hostname===`${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-    &&(!endpoint.port||endpoint.port===443)&&(!endpoint.path||endpoint.path==='/')&&!endpoint.query,'Cleanup client storage endpoint mismatch');
-  const identity={sourceId:config.sourceId,storageScopeId:digest({account:env.R2_ACCOUNT_ID,bucket:config.bucket}),
+  need(/^[a-f0-9]{64}$/.test(env.PC_BACKUP_ENCRYPTION_KEY??''),'Dedicated storage scope required');
+  const storageScopeId=snapshotStorageScope(env,config.bucket),drive=env.BACKUP_STORAGE==='google-drive';
+  if(drive)need(client.storageProvider==='google-drive'&&client.storageScopeId===storageScopeId,'Cleanup Drive scope mismatch');
+  else {
+    need(typeof client.config.endpoint==='function','Pinned R2 endpoint required');
+    const endpoint=await client.config.endpoint();
+    need(endpoint?.protocol==='https:'&&endpoint.hostname===`${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+      &&(!endpoint.port||endpoint.port===443)&&(!endpoint.path||endpoint.path==='/')&&!endpoint.query,'Cleanup client storage endpoint mismatch');
+  }
+  const identity={sourceId:config.sourceId,storageScopeId,
     archiveKeyId:bytesDigest(Buffer.from(env.PC_BACKUP_ENCRYPTION_KEY,'hex')),databaseSystemIdentifier:config.databaseSystemIdentifier,
     generation:boundHost.generation,startedAt:boundHost.startedAt};
   const prefix=`ops/pc-backend/${config.sourceId}/backups/`;
@@ -327,7 +335,7 @@ export async function createSnapshotCleanupAdapter(config,{client,conditionalDel
         // IfNoneMatch:* namespace; outside writers remain a documented limit.
         await remoteCiphertext(client,config.bucket,snapshot);await recheck();
       }
-      await send(new DeleteObjectCommand({Bucket:config.bucket,Key:snapshot.archiveKey,...(deletionMode==='if-match'?{IfMatch:snapshot.objectEtag}:{})}));
+      await send(new DeleteObjectCommand({Bucket:config.bucket,Key:snapshot.archiveKey,...(deletionMode==='if-match'||drive?{IfMatch:snapshot.objectEtag}:{})}));
       let missing=false;try{await send(new HeadObjectCommand({Bucket:config.bucket,Key:snapshot.archiveKey}));}catch(error){if(!absent(error))throw error;missing=true;}
       need(missing,'Remote DELETE result is unknown');
     },

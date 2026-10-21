@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { S3Client,ListObjectsV2Command,PutObjectCommand,HeadObjectCommand,GetObjectCommand } from '@aws-sdk/client-s3';
 import { readPrivateFile,validateBackupProfile,backupTargetFingerprint } from '../pc-backup/config.mjs';
 import { utcTime,HEARTBEAT_MAX_AGE_MS,BACKUP_MAX_AGE_MS,STATUS_FILE } from '../pc-backup/status.mjs';
+import {createDriveSnapshotClient,snapshotStorageScope} from './drive-storage.mjs';
 
 const need=(value)=>{if(!value)throw Error('Encrypted offsite snapshot validation failed');};
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value);
@@ -53,8 +54,8 @@ export async function transferSnapshot(config,{client,now=Date.now,apply=false,r
     need(absolute(config.environmentFile));
     storageEnvironment=read(config.environmentFile,16384);
     const environment=parseEnv(storageEnvironment.toString('utf8'));
-    need(/^[a-f0-9]{32}$/.test(environment.R2_ACCOUNT_ID??'')&&environment.R2_BUCKET_NAME===config.bucket&&/^[a-f0-9]{64}$/.test(environment.PC_BACKUP_ENCRYPTION_KEY??''));
-    storageScopeId=createHash('sha256').update(JSON.stringify({account:environment.R2_ACCOUNT_ID,bucket:config.bucket})).digest('hex');
+    need(/^[a-f0-9]{64}$/.test(environment.PC_BACKUP_ENCRYPTION_KEY??''));
+    storageScopeId=snapshotStorageScope(environment,config.bucket);
     archiveKeyId=createHash('sha256').update(Buffer.from(environment.PC_BACKUP_ENCRYPTION_KEY,'hex')).digest('hex');
   }
   const recheck=()=>{if(binding) {
@@ -138,8 +139,13 @@ async function offsiteMain() {
     const config=JSON.parse(readPrivateFile(file,16384).toString('utf8'));
     if(flag==='--apply') {
       const env=parseEnv(readPrivateFile(config.environmentFile,16384).toString('utf8'));
-      need(/^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID??'')&&env.R2_ACCESS_KEY_ID&&env.R2_SECRET_ACCESS_KEY);
-      client=new S3Client({region:'auto',endpoint:`https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,credentials:{accessKeyId:env.R2_ACCESS_KEY_ID,secretAccessKey:env.R2_SECRET_ACCESS_KEY},maxAttempts:1,requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED'});
+      if(env.BACKUP_STORAGE==='google-drive') {
+        need(config.profile==='pc-private');
+        client=createDriveSnapshotClient(env,{read:readPrivateFile});
+      } else {
+        need(env.BACKUP_STORAGE===undefined&&/^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID??'')&&env.R2_ACCESS_KEY_ID&&env.R2_SECRET_ACCESS_KEY);
+        client=new S3Client({region:'auto',endpoint:`https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,credentials:{accessKeyId:env.R2_ACCESS_KEY_ID,secretAccessKey:env.R2_SECRET_ACCESS_KEY},maxAttempts:1,requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED'});
+      }
     }
     const result=await transferSnapshot(config,{client,apply:flag==='--apply'});
     if(result.verified===true&&config.profile==='pc-private') {

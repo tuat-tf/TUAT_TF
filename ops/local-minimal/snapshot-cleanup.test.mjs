@@ -167,6 +167,8 @@ test('partial result cannot hide a new object added after review',async()=>{
 test('native storage adapter refuses retrying clients before host or storage I/O',async()=>{
   const config={version:1,profile:'pc-private',enabled:true,imageRoot:'/var/lib/tuat-local/images',stateDirectory:resolve(tmpdir()),environmentFile:resolve(tmpdir(),'env')};
   await assert.rejects(createSnapshotCleanupAdapter(config,{client:{config:{maxAttempts:async()=>3}},verifyRetainedRecovery:async()=>{}}),/disable retries/);
+  await assert.rejects(createSnapshotCleanupAdapter(config,{client:{storageProvider:'google-drive',config:{maxAttempts:async()=>1}},
+    conditionalDeleteSupported:true,verifyRetainedRecovery:async()=>{}}),/Drive requires immutable namespace/);
 });
 
 test('native local hash rejects hardlinks, substituted inode and hash mismatch while preserving files',async()=>{

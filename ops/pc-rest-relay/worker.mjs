@@ -43,7 +43,7 @@ export function createRelay(fetchUpstream = fetch) { return {
         headers.set('access-control-expose-headers', 'retry-after');
       }
       return new Response(JSON.stringify({ error: 'アプリのURLが変わりました。新しいURLを開いてください。',
-        url: 'https://tuat-pc-app.track-app.workers.dev' }), { status: 503, headers });
+        url: 'https://app.tuat-tf.workers.dev' }), { status: 503, headers });
     }
     if (new URL(request.url).pathname === '/jobs-health') return jobsHealth(request, env);
     const headers = new Headers({ 'cache-control': 'private, no-store', 'vary': 'Origin', 'x-content-type-options': 'nosniff' });

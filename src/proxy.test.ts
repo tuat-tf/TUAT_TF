@@ -8,7 +8,7 @@ vi.mock("@/lib/supabase/middleware", () => ({ updateSession: mocks.session }));
 vi.mock("@/lib/pc-vercel-proxy", () => ({ pcVercelProxy: mocks.trial }));
 vi.mock("@/lib/maintenance", () => ({ isMaintenanceWindow: mocks.maintenance }));
 
-const canonical = "https://tuat-pc-app.track-app.workers.dev";
+const canonical = "https://app.tuat-tf.workers.dev";
 const legacy = "https://tuat-tf.vercel.app";
 const request = (path: string, method = "GET", headers: HeadersInit = {}) => new NextRequest(legacy + path, { method, headers });
 beforeEach(() => {

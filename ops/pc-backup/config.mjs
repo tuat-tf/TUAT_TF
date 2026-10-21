@@ -4,6 +4,7 @@ import { parseEnv } from 'node:util';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { validateApplicationStatus } from './application-status.mjs';
+import {driveStorageEnvironment} from '../local-minimal/drive-storage.mjs';
 
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value);
 const hash=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
@@ -78,9 +79,14 @@ export function validateBackupConfig(config,env) {
   if(config.localSnapshotReceiptFile!==undefined && (!isAbsolute(config.localSnapshotReceiptFile)||resolve(config.localSnapshotReceiptFile)!==config.localSnapshotReceiptFile||
       (!pc&&(!isAbsolute(config.localImageRoot??'')||resolve(config.localImageRoot)!==config.localImageRoot)))) throw Error('Explicit private local snapshot receipt and image root required');
   if(env!==undefined) {
-    const allowed=['PC_BACKUP_ENCRYPTION_KEY','R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET_NAME'];
+    const drive=env.BACKUP_STORAGE==='google-drive';
+    const allowed=drive?['PC_BACKUP_ENCRYPTION_KEY','BACKUP_STORAGE','DRIVE_CLIENT_FILE','DRIVE_TOKEN_FILE','DRIVE_FOLDER_ID','DRIVE_OWNER_EMAIL']:
+      ['PC_BACKUP_ENCRYPTION_KEY','R2_ACCOUNT_ID','R2_ACCESS_KEY_ID','R2_SECRET_ACCESS_KEY','R2_BUCKET_NAME'];
     if(Object.keys(env).some(name=>!allowed.includes(name))||!hash(env.PC_BACKUP_ENCRYPTION_KEY)) throw Error('Dedicated backup environment required');
-    if(!/^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID??'')||!allowed.slice(2).every(name=>typeof env[name]==='string'&&env[name].length>0&&!/[\r\n\0]/.test(env[name]))) throw Error('Dedicated backup storage credentials required');
+    if(drive) {
+      if(!pc||!config.localSnapshotReceiptFile)throw Error('Drive requires the private combined snapshot observer');
+      driveStorageEnvironment(env);
+    } else if(!/^[a-f0-9]{32}$/.test(env.R2_ACCOUNT_ID??'')||!allowed.slice(2).every(name=>typeof env[name]==='string'&&env[name].length>0&&!/[\r\n\0]/.test(env[name]))) throw Error('Dedicated backup storage credentials required');
   }
   return config;
 }
