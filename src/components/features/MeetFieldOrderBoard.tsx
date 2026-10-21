@@ -1,24 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { MeetFieldPlan, fieldOrderRows } from "@/lib/meet-field-order";
 import { MeetHeatPlan } from "@/lib/meet-heat-plan";
+import { MeetMark } from "@/lib/meet-operations";
 import type { MeetEventData, MeetOperationLimits, MeetPerformance } from "@/lib/meet-operations";
 
-type FieldEntrant = { id: string; name: string; grade: string; mark: string; alumni: boolean; eligible: boolean; absent?: boolean; division?: "男子" | "女子" };
+type FieldEntrant = { id: string; name: string; grade: string; mark: string; alumni: boolean; eligible: boolean; absent?: boolean; division?: "男子" | "女子"; placementLocked?: boolean };
 type FieldRow = { id: string; person: MeetPerformance; number: number | null; locked: boolean };
 
-export function MeetFieldOrderBoard({ data, entrants, disabled, onChange, modelLimits, statusActions = true, countUnit = "人" }: {
-  statusActions?: boolean; countUnit?: "人" | "件"; data: MeetEventData; entrants: FieldEntrant[]; disabled: boolean; onChange: (data: MeetEventData) => void; modelLimits?: MeetOperationLimits;
+export function MeetFieldOrderBoard({ data, entrants, disabled, onChange, modelLimits, statusActions = true, countUnit = "人", renderActions }: {
+  renderActions?: (id: string) => ReactNode; statusActions?: boolean; countUnit?: "人" | "件"; data: MeetEventData; entrants: FieldEntrant[]; disabled: boolean; onChange: (data: MeetEventData) => void; modelLimits?: MeetOperationLimits;
 }) {
   const [past, setPast] = useState<MeetEventData[]>([]);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const people = new Map(entrants.map(entry => [entry.id, entry]));
   const labelledName = (id: string, fallback = "出場者") => { const entry = people.get(id), name = entry?.name ?? fallback; return entry?.division ? `${entry.division} ${name}` : name; };
-  const eligible = new Set(entrants.filter(entry => entry.eligible && !entry.absent).map(entry => entry.id));
+  const eligible = new Set(entrants.filter(entry => entry.eligible && !entry.absent && !entry.placementLocked).map(entry => entry.id));
   const model = new MeetFieldPlan(data, eligible, modelLimits);
   const active = (person: MeetPerformance) => eligible.has(person.entryId) && person.status === "entered";
   const rows: FieldRow[] = model.rows.map(row => ({ ...row, id: row.person.entryId, locked: !active(row.person) }));
@@ -35,14 +36,14 @@ export function MeetFieldOrderBoard({ data, entrants, disabled, onChange, modelL
   function row(person: MeetPerformance, number: number | null) {
     const entry = people.get(person.entryId), name = entry?.name ?? "登録解除済み";
     const editable = active(person);
-    const reason = entry?.absent ? "DNS" : !entry?.eligible ? "DNS" : person.status === "DNS" ? "DNS" : person.status;
-    const marks = person.trials.map((trial, index) => {
-      const result = trial.status === "foul" ? "失敗" : trial.status === "pass" ? "パス" : "";
-      return trial.mark || result ? `${index + 1}回目 ${trial.mark}${trial.wind ? `（風速 ${trial.wind}）` : ""}${result ? ` ${result}` : ""}` : "";
-    }).filter(Boolean);
+    const reason = entry?.placementLocked ? "記録確定済み" : entry?.absent ? "DNS" : !entry?.eligible ? "DNS" : person.status === "DNS" ? "DNS" : person.status;
+    const best=person.trials.filter(t=>t.status==="valid"&&MeetMark.parse(t.mark,"distance")!==null).sort((a,b)=>MeetMark.parse(b.mark,"distance")!-MeetMark.parse(a.mark,"distance")!)[0]
+      ??person.trials.find(t=>t.status==="valid"&&t.mark==="-");
+    const marks=best?[`最高記録 ${best.mark}${best.wind?`（風速 ${best.wind}）`:""}`]:[];
     return <div role="listitem" className="flex min-h-16 items-center gap-2 border-b border-separator bg-card p-2">
       <span aria-label={`${labelledName(person.entryId, "登録解除済み")}の試技順`} className={`w-12 shrink-0 text-center ${number === null ? "text-caption text-ink/75" : "text-body tabular-nums"}`}>{number === null ? "順番未定" : `${number}番`}</span>
       <div className="min-w-0 flex-1"><p className={`break-words text-body font-medium ${entry?.alumni ? "text-violet-700" : ""}`}>{name}</p><p className="text-caption">{entry?.division && <span className="font-medium text-ink/75">{entry.division}{entry.grade || entry.mark ? " · " : ""}</span>}{entry?.grade}{entry?.mark ? ` · 資格記録 ${entry.mark}` : ""}</p>{!!marks.length && <p className="break-words text-caption">{marks.join("、")}</p>}{!editable && <p className="text-caption text-ink/75">{reason}{number !== null ? " · 順番を保持" : ""}</p>}{statusActions && eligible.has(person.entryId) && person.status === "DNS" && <Button size="sm" variant="ghost" className="min-h-11 px-2" disabled={disabled} aria-label={`${labelledName(person.entryId)}を出場に戻す`} onClick={() => change(() => new MeetHeatPlan(data, eligible, modelLimits).setDns(person.entryId, false), `${labelledName(person.entryId)}を出場に戻しました`)}>出場に戻す</Button>}</div>
+      {renderActions?.(person.entryId)}
       {statusActions && editable && <Button size="sm" variant="ghost" className="min-h-11 shrink-0 px-2 text-muted2" disabled={disabled} aria-label={`${labelledName(person.entryId)}をDNSにする`} onClick={() => change(() => new MeetHeatPlan(data, eligible, modelLimits).setDns(person.entryId, true), `${labelledName(person.entryId)}をDNSにしました`)}>DNS</Button>}
     </div>;
   }
@@ -54,6 +55,6 @@ export function MeetFieldOrderBoard({ data, entrants, disabled, onChange, modelL
       <div role="list"><ReorderList items={rows} enabled={!disabled} isItemDisabled={item => item.locked} getDragLabel={item => `${item.number === null ? "順番未定" : `試技順${item.number}番`}の${labelledName(item.id)}をスライドして並べ替え`} onReorder={next => change(() => model.reorder(next.filter(item => !item.locked).map(item => item.id)), "試技順を変更しました")} renderItem={item => row(item.person, item.number)}/></div>
       {!rows.length && <p className="p-6 text-center text-body">出場予定の人はいません</p>}
     </section>
-    {!!unplacedInactive.length && <section aria-label="順番未定のDNS" className="overflow-hidden rounded-xl border border-separator"><h3 className="bg-bg p-3 text-headline">DNS <span className="text-caption">{unplacedInactive.length}{countUnit}</span></h3><div role="list">{unplacedInactive.map(item => <div key={item.person.entryId}>{row(item.person, null)}</div>)}</div></section>}
+    {!!unplacedInactive.length && <section aria-label="順番未定の出場者" className="overflow-hidden rounded-xl border border-separator"><h3 className="bg-bg p-3 text-headline">順番未定 <span className="text-caption">{unplacedInactive.length}{countUnit}</span></h3><div role="list">{unplacedInactive.map(item => <div key={item.person.entryId}>{row(item.person, null)}</div>)}</div></section>}
   </div>;
 }
