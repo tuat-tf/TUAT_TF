@@ -35,7 +35,7 @@ describe("future attendance contact entry points", () => {
     const html = render("present", true, "10分ほど遅れます");
     expect(html).toContain("遅刻を取り消す");
     expect(html).toContain("10分ほど遅れます");
-    expect(html).toContain("遅刻連絡済み");
+    expect(html).not.toContain("遅刻連絡済み");
     expect(html).not.toContain("遅刻中");
   });
   it("keeps absence contact accessible without offering lateness for an absent day", () => {

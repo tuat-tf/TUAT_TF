@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X, Minus, LoaderCircle, Clock3, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { attendanceNote, nextAttendance, saveAttendance, type AttendanceChange, type AttendancePending } from "@/lib/attendance-save";
@@ -21,52 +20,92 @@ const CONTROL_CLASS = "h-11 min-h-11 w-full min-w-0 gap-1 rounded-full px-2 text
 const CONTROL_STYLE = { paddingInline: 8 };
 
 /** Attendance and contact share one in-flight request, so neither can erase the other's pending save. */
-export function AttendanceToggle({ scheduleId, attendDate, userId, initial, initialLate = false, initialLateNote = null, initialAbsenceNote = null, refreshOnChange = false, summary, onChanged }: {
+export function AttendanceToggle({ scheduleId, attendDate, userId, initial, initialLate = false, initialLateNote = null, initialAbsenceNote = null, summary, onChanged }: {
   scheduleId: string; attendDate: string; userId: string; initial: AttendanceStatusOrNone;
   initialLate?: boolean; initialLateNote?: string | null; initialAbsenceNote?: string | null;
-  summary?: ReactNode; refreshOnChange?: boolean; onChanged?: (change: AttendanceChange) => void;
+  summary?: ReactNode; onChanged?: (change: AttendanceChange) => void;
 }) {
-  const router = useRouter();
   const [value, setValue] = useState<AttendanceChange>({ status: initial, isLate: initialLate, lateNote: initialLateNote, absenceNote: initialAbsenceNote });
   const [note, setNote] = useState(initial === "absent" ? initialAbsenceNote ?? "" : initialLateNote ?? "");
   const [open, setOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState<"attendance" | "late" | "contact" | null>(null);
+  const busy = saving !== null;
   const [unknown, setUnknown] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contactSaved, setContactSaved] = useState(false);
   const pending = useRef<AttendancePending | null>(null);
   const pendingContact = useRef(false);
   const sending = useRef(false);
-  async function save(after: AttendanceChange, saveContact = false) {
+  const currentValue = useRef(value);
+  const draft = useRef(note);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const composing = useRef(false);
+  const blocked = useRef(false);
+  const pendingKind = useRef<"attendance" | "late" | "contact">("attendance");
+  function clearTimer() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  }
+  function flushContact() {
+    clearTimer();
+    if (blocked.current || composing.current) return;
     if (sending.current) return;
-    sending.current = true; setBusy(true); setError(null); setContactSaved(false);
+    const current = currentValue.current, text = draft.current.trim() || null;
+    if (current.status === "none" || text === attendanceNote(current)) return;
+    void save(current.status === "absent" ? { ...current, absenceNote: text } : { ...current, lateNote: text }, "contact");
+  }
+  function changeNote(text: string) {
+    draft.current = text; setNote(text); setContactSaved(false);
+    clearTimer();
+    if (!blocked.current && !composing.current) timer.current = setTimeout(flushContact, 700);
+  }
+  useEffect(() => () => {
+    // Navigation may unmount the card before the debounce expires.
+    flushContact();
+    // The cleanup reads the latest draft and confirmed value from refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function save(after: AttendanceChange, kind: "attendance" | "late" | "contact" = "attendance") {
+    if (sending.current) return;
+    sending.current = true; setError(null); setContactSaved(false);
     if (!pending.current) {
-      pending.current = { before: value, after, uncertain: false };
-      pendingContact.current = saveContact;
+      pending.current = { before: currentValue.current, after, uncertain: false };
+      pendingContact.current = kind === "contact";
+      pendingKind.current = kind;
     }
+    setSaving(pendingKind.current);
+    let succeeded = false;
     try {
       const result = await saveAttendance(createClient(), { scheduleId, attendDate, userId }, pending.current);
       if (!result.ok) {
+        blocked.current = true; clearTimer();
         setUnknown(result.reason === "unknown");
         if (result.reason !== "unknown") pending.current = null;
         setError(result.reason === "unknown" ? "保存結果を確認できませんでした。入力は残っています。結果を確認してください" : result.reason === "conflict" ? "出欠や連絡が変更されています。画面を開き直して確認してください" : "保存できませんでした。入力は残っています。もう一度お試しください");
         return;
       }
       const savedContact = pendingContact.current;
+      currentValue.current = result.value; blocked.current = false; succeeded = true;
       setValue(result.value); setUnknown(false); pending.current = null; setConfirmClear(false);
-      // Checking a lateness save must not replace an unfinished contact note.
-      if (savedContact || result.value.status === "none") setNote(attendanceNote(result.value) ?? "");
+      // An older response must not replace text typed while it was in flight.
+      if (result.value.status === "none" || (savedContact && (draft.current.trim() || null) === attendanceNote(result.value))) {
+        draft.current = attendanceNote(result.value) ?? ""; setNote(draft.current);
+      }
       if (result.value.status === "none") setOpen(false);
-      if (savedContact) setContactSaved(true);
+      if (savedContact && (draft.current.trim() || null) === attendanceNote(result.value)) setContactSaved(true);
       onChanged?.(result.value);
-      if (refreshOnChange) router.refresh();
     } catch {
+      blocked.current = true; clearTimer();
       const uncertain = pending.current?.uncertain ?? false;
       setUnknown(uncertain);
       if (!uncertain) pending.current = null;
       setError(uncertain ? "保存結果を確認できませんでした。入力は残っています" : "保存できませんでした。入力は残っています。もう一度お試しください");
-    } finally { sending.current = false; setBusy(false); }
+    } finally {
+      sending.current = false; setSaving(null);
+      if (succeeded && !timer.current) flushContact();
+    }
   }
   function toggleAttendance() {
     const next = nextAttendance(value);
@@ -80,28 +119,31 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
     <div className="grid grid-cols-2 gap-2" data-attendance-controls>
       <button type="button" data-system-glass data-glass-control data-glass-attendance={value.status}
         aria-label={style.label}
-        aria-busy={busy} disabled={busy || unknown} onClick={toggleAttendance}
+        aria-busy={saving === "attendance"} disabled={busy || unknown} onClick={toggleAttendance}
         className={cn("inline-flex items-center justify-center border font-semibold whitespace-nowrap pressable disabled:opacity-60", CONTROL_CLASS, style.cls)}>
-        {busy ? <LoaderCircle size={15} className="animate-spin" /> : <Icon size={15} />}{style.label}
+        {saving === "attendance" ? <LoaderCircle size={15} className="animate-spin" /> : <Icon size={15} />}{style.label}
       </button>
       {summary}
-      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || unknown} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
-        onClick={() => void save({ ...value, isLate: !value.isLate })}><Clock3 size={15} />{value.isLate ? "遅刻連絡済み" : "遅刻を連絡"}</Button>}
+      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || unknown} aria-busy={saving === "late"} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
+        onClick={() => void save({ ...currentValue.current, isLate: !currentValue.current.isLate }, "late")}>{saving === "late" ? <LoaderCircle size={15} className="animate-spin" /> : <Clock3 size={15} />}{value.isLate ? "遅刻" : "遅刻を連絡"}</Button>}
       {value.status !== "none" && <Button variant="ghost" size="sm" className={cn(CONTROL_CLASS, value.status === "absent" && !!summary && "col-span-2")} style={CONTROL_STYLE} disabled={busy || unknown} aria-expanded={open} aria-controls={contactId} aria-label={savedNote ? "連絡を編集" : "連絡する"} onClick={() => { if (!sending.current) setOpen(current => !current); }}><MessageSquare size={15} />{savedNote ? "連絡を編集" : "連絡する"}</Button>}
     </div>
     {!open && savedNote && <p className="whitespace-pre-wrap break-words text-caption">{savedNote}</p>}
     {unknown && !open && <Button variant="outline" size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy} onClick={() => void save(value)}>保存結果を確認</Button>}
     {error && !open && <p role="alert" className="text-caption text-danger">{error}</p>}
     {open && <div id={contactId} className="space-y-2">
-        <fieldset disabled={busy || unknown} className="space-y-2">
+        <fieldset disabled={unknown} className="space-y-2">
           <label htmlFor={`${contactId}-input`} className="block text-caption">連絡事項（任意）</label>
-          <Input id={`${contactId}-input`} className="h-11 lg:h-11 lg:text-base" value={note} onChange={event => { setNote(event.target.value); setContactSaved(false); }} maxLength={60} placeholder="例: 練習の途中で早退します" />
+          <Input id={`${contactId}-input`} className="h-11 lg:h-11 lg:text-base" value={note} onChange={event => changeNote(event.target.value)} onBlur={flushContact}
+            onCompositionStart={() => { composing.current = true; clearTimer(); }} onCompositionEnd={event => { composing.current = false; changeNote(event.currentTarget.value); }}
+            maxLength={60} placeholder="例: 練習の途中で早退します" />
         </fieldset>
         <div className="grid grid-cols-2 items-center gap-2">
-        <Button variant="outline" size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || (!unknown && (note.trim() || null) === savedNote)} onClick={() => void save(value.status === "absent" ? { ...value, absenceNote: note.trim() || null } : { ...value, lateNote: note.trim() || null }, true)}>
-          {busy ? "保存中…" : unknown ? "保存結果を確認" : "保存する"}
-        </Button>
-        <p role="status" className="min-h-5 text-caption">{contactSaved ? "保存しました" : ""}</p>
+        <p role="status" className="col-span-2 min-h-5 text-caption">{saving === "contact" ? "保存中…" : contactSaved ? "保存しました" : error ? "" : "自動で保存します"}</p>
+        {error && (unknown || pendingKind.current === "contact") && <Button variant="outline" size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy} onClick={() => {
+          if (unknown) void save(currentValue.current);
+          else { blocked.current = false; flushContact(); }
+        }}>{unknown ? "保存結果を確認" : "もう一度保存する"}</Button>}
         </div>
         {error && <p role="alert" className="text-caption text-danger">{error}</p>}
     </div>}
