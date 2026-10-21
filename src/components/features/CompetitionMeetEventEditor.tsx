@@ -111,7 +111,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
             <div className="grid gap-3 sm:grid-cols-2">{Array.from({length:count},(_,index)=>{
               const t=performance.trials[index]??emptyTrial();
               return <fieldset key={index} disabled={locked} className="space-y-2">
-                <label className="block text-caption">{event.discipline==="track"?"タイム（秒・分:秒）":`${index+1}回目（m）`}
+                <label className="block text-caption">{event.discipline==="track"?"タイム（秒・分:秒・未計測は -）":`${index+1}回目（m）`}
                   <Input inputMode={event.discipline==="track"?"text":"decimal"} value={t.mark} onChange={e=>trial(a.id,index,{mark:e.target.value,status:e.target.value?(event.discipline==="height"&&t.status!=="pending"?t.status:"valid"):"pending"})} onBlur={e=>{const mark=formatObRecordInput(e.target.value,event.family);trial(a.id,index,{mark,status:mark?t.status==="pending"?"valid":t.status:"pending"});}}/>
                 </label>
                 {event.discipline!=="track"&&<Select ariaLabel={`${index+1}回目の結果`} value={t.status} onValueChange={status=>trial(a.id,index,{status:status as MeetTrial["status"],...(event.discipline!=="height"&&status!=="valid"?{mark:"",wind:""}:{})})} options={[{value:"pending",label:"未試技"},{value:"valid",label:"成功"},{value:"foul",label:"失敗"},{value:"pass",label:"パス"}]}/ >}

@@ -1,7 +1,8 @@
 {
   "version": 1,
+  "mode": "sql",
   "owner": "codex-auth-db-review",
-  "generation": "df1df94a37804b1e95b1ec289b752a3d",
+  "generation": "de7ea16ff3b74818be53eec44dbb2a2a",
   "image": "supabase/postgres:17.6.1.136",
   "imageId": "sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00",
   "authImage": "supabase/gotrue:v2.196.0",
@@ -1015,8 +1016,113 @@
       "passed": true
     },
     {
+      "name": "20261011060000_ob_double_entry.sql",
+      "sha256": "de0998f406d7cd0129f0376ab969c3bd267b541739f2090336ddfd54b20195c0",
+      "passed": true
+    },
+    {
+      "name": "20261011090000_ob_dns_free_positions.sql",
+      "sha256": "666e84437ba7ef41b7ea38fc3c5aadb6ef0d376662440e3ab2c3673adbc908d6",
+      "passed": true
+    },
+    {
+      "name": "20261011100000_ob_unified_dns.sql",
+      "sha256": "e4bcc2f03bc3f7e557dc1c4197f971ca8eca4549e5134a1130750d5a1397245e",
+      "passed": true
+    },
+    {
       "name": "20261011150000_confirmed_image_cleanup.sql",
-      "sha256": "67913e9a0ea016dbbdf5d6249b077f171add59e5b833458375d4f79b40cc14d3",
+      "sha256": "482e56116ec0906e55a38256ce5114a0f653e4ae990719f8e6c4fa9a741be2f3",
+      "passed": true
+    },
+    {
+      "name": "20261011170000_sheet_push_attempts.sql",
+      "sha256": "ba40ff4d62aa53e659839170b839572b42f97947b19092054fb35ea86ccc2394",
+      "passed": true
+    },
+    {
+      "name": "20261011190000_google_sheet_creation_attempts.sql",
+      "sha256": "724fb58e0d6371176e336105608538411942e829d02631b5bd6fe526a1d27145",
+      "passed": true
+    },
+    {
+      "name": "20261012010000_competition_participants_appearances.sql",
+      "sha256": "561d16de590193d9d615ea709ba66a77a166da3871b3afc1ed8a9525796f7cc7",
+      "passed": true
+    },
+    {
+      "name": "20261012180000_local_backup_write_guard.sql",
+      "sha256": "d507d185d498804d97375dfbb0fb104830b814997e14e054bc544b5f1d51d92b",
+      "passed": true
+    },
+    {
+      "name": "20261012181000_local_web_push.sql",
+      "sha256": "ecc31313106cc9edd9d5dd649022cf00cd483c59daff6fc1379510d9c796f61f",
+      "passed": true
+    },
+    {
+      "name": "20261013010000_ob_results_operator_permissions.sql",
+      "sha256": "10e8dfde90179401d6a828b82baf8e8735d337d570948cc38a5affd6fbbbe67f",
+      "passed": true
+    },
+    {
+      "name": "20261013020000_meet_appearance_division.sql",
+      "sha256": "0f13cf2a878c8fdd66542d4b2ab10834547dcf54d96d9dc291eb3f9fbb477b57",
+      "passed": true
+    },
+    {
+      "name": "20261013020100_meet_division_mirror.sql",
+      "sha256": "300525c80866cd522356cf422961284c14889c4c99d8fb2254fe985227c55d55",
+      "passed": true
+    },
+    {
+      "name": "20261013030000_competition_relay_results.sql",
+      "sha256": "8c5669eb7d6769571a0c5d2d3d7b9fdfce615818f3e509cc9c593c5e8a64571a",
+      "passed": true
+    },
+    {
+      "name": "20261015121500_admin_member_sheet_setup.sql",
+      "sha256": "af82139f04493864d849d6f184adae656bc3c16331ba9cf8d37e7849a6a14f61",
+      "passed": true
+    },
+    {
+      "name": "20261016010000_app_only_comments.sql",
+      "sha256": "60b57023e4efdfb0915792bce10b63f9a4116bbf0dd4cddae83a83684b907ea6",
+      "passed": true
+    },
+    {
+      "name": "20261020010000_atomic_note_competition_saves.sql",
+      "sha256": "dc71e22e25b4e6f11fa747fd94e3e88b80e8a8a15b1f39443338ffd1b07e8c4d",
+      "passed": true
+    },
+    {
+      "name": "20261020010100_atomic_tweet_save.sql",
+      "sha256": "7778334f67d07580eaa39e6e9cf78666914f79823b1aa34d8239c2def1d995df",
+      "passed": true
+    },
+    {
+      "name": "20261020010200_attendance_contact_without_late.sql",
+      "sha256": "30d758ebcd010b31c27e250e4a0b1e9f9b2b959f194109e0e6039378abec9f1f",
+      "passed": true
+    },
+    {
+      "name": "20261020010300_configured_role_capabilities.sql",
+      "sha256": "72358e93bd3cba6847d8d3092e2db5addbfb41a3da82eebd5e15c504fe90e854",
+      "passed": true
+    },
+    {
+      "name": "20261021010000_read_aggregates.sql",
+      "sha256": "e972a78b204158a04673a57123bdb24f15899b67685e3d42919e7ecf935ecd71",
+      "passed": true
+    },
+    {
+      "name": "20261021010100_ob_relay_second_heat.sql",
+      "sha256": "edba6ab49789fb40ec73b2a755d7d39ee368953eafa26b1ca7e0dd828aa5b2f1",
+      "passed": true
+    },
+    {
+      "name": "20261021010200_meet_unmeasured_mark.sql",
+      "sha256": "439e5cea81574a5b1599802af84adb2d3c62c093c8ad6aeac3a110e6f4c5cd12",
       "passed": true
     }
   ],
@@ -1033,19 +1139,19 @@
     },
     {
       "name": "confirmed_image_cleanup.sql",
-      "sha256": "4fa72f55eb1c2bdf53f62438891682aa947fe5bcd9a48547bcf7d6f1e7e26ce0",
+      "sha256": "da9bb7050bd5d46717ef2129fd6b27fb754b97c6ada9a8aab335149307c3bacb",
       "passed": true
     },
     {
       "name": "allowlist.sql",
-      "sha256": "d5fbcd1ae048f272789345e049e99ab0cf4d5e04bfece434b5ea378e77fbca21",
+      "sha256": "4d8d7a64de62fb7592ebc0cf307f736332c8d6a4bac69b26675063bdc05102d8",
       "passed": true
     }
   ],
   "cleanup": true,
   "stage": "test:image-races",
   "authMigrations": "77",
-  "storageSourceSha256": "291f531a4f34b6e780590d804c2aab3fb5a2e363e7c9a4fa80826dff72e407d8",
+  "storageSourceSha256": "ba0bbde8317026d26032d3b310127eb74ed1cbb7900e20e087e28c664849351b",
   "storageMigrations": 67,
   "storageMigrationNames": [
     "0001-initialmigration.sql",
@@ -1123,6 +1229,10 @@
     "storage_objects": true,
     "cron_enabled": "off"
   },
+  "relayMigrationFixture": {
+    "syntheticOnly": true,
+    "sha256": "8eaa33e14fa0a095dee05b01d68f97adc1c0a80e1d10a6931da3a50d527ba0c9"
+  },
   "imageMigrationReapply": true,
   "imageRaces": {
     "passed": 4,
@@ -1131,8 +1241,8 @@
     "r2Requests": 0
   },
   "imageRaceSources": {
-    "driverSha256": "d74bb6eb8dc1dad0faa82215c14203127a4120f1b44fd0fd7d6d8a73946378fa",
-    "adapterSha256": "cb1bc67f553731e63cc38baea3e4c561de1f01127c091065963a0d32955574eb"
+    "driverSha256": "45116a51b0d45439e4588b5211e358693eebaf67d43b3b9ccc2d3e0377c8c77a",
+    "adapterSha256": "fd017db15d3d2963397685251ab494ce4ee2ce4dfd3739fd162d6ba207c7f954"
   },
   "final": {
     "auth_users": 0,
@@ -1140,9 +1250,16 @@
     "allowlist": 0,
     "confirmed_images": 0,
     "legacy_image_queue": 0,
-    "rls_tables": 62,
+    "rls_tables": 72,
     "cron_enabled": "off"
   },
   "success": true,
-  "completedAt": "2026-10-10T23:50:31.2565067Z"
+  "resourceCleanup": {
+    "cleanup": true,
+    "inspected": 3,
+    "removed": 3,
+    "absent": 2
+  },
+  "cleanupDriverSha256": "de7c1ff32d6b9174ba5bdd62534603359f68acc49392f741d3f8c525dd532741",
+  "completedAt": "2026-10-21T14:46:13.9103585Z"
 }

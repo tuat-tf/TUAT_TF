@@ -259,8 +259,8 @@ async function runSheetSyncBatch(
         result.failedMembers.push({ member: sheetName, reason: `${date}: 前の送信結果を確認できていないため、送信を保留しました` });
         continue;
       }
-      const pushMap = app.record_fields_snapshot ? resolveFieldMap(member, app.record_fields_snapshot) : map;
       const pushFields = app.record_fields_snapshot ?? profileFields;
+      const pushMap = resolveFieldMap(member, pushFields, "write");
       const cells = appToCellsFull(pushMap, app);
       if (Object.keys(cells).length > 0) {
         pushes.push({ id: app.id, profileId: profile.id, memberName: sheetName, date, cells, clearsPending: true, updatedAt: app.updated_at,

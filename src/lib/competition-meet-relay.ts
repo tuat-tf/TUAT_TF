@@ -13,7 +13,7 @@ export function validateRelayResults(teams: RelayTeamResult[], confirmed=false):
     if(team.name.length>100)return `${team.lane}レーンのチーム名は100文字以内で入力してください`;
     if(!Array.isArray(team.members)||team.members.length!==4||team.members.some(name=>typeof name!=="string"||name.length>100))return `${team.lane}レーンの1走〜4走の氏名を確認してください`;
     if(team.members.some(name=>name.trim())&&!team.name.trim())return `${team.lane}レーンのチーム名を入力してください`;
-    if(team.time&&(!team.name.trim()||MeetMark.parse(team.time,"track")===null))return `${team.lane}レーンのチーム名とタイムを確認してください`;
+    if(team.time&&(!team.name.trim()||team.time!=="-"&&MeetMark.parse(team.time,"track")===null))return `${team.lane}レーンのチーム名とタイムを確認してください`;
     if(confirmed&&team.name.trim()&&!team.time)return `${team.lane}レーンのタイムを入力してから確定してください`;
   }
   if(confirmed&&!teams.some(team=>team.name.trim()))return "チームを入力してから確定してください";

@@ -198,7 +198,7 @@ SELECT set_config('storage.install_roles','false',false),
       SqlFile 'tuat_rls_review' "/review/supabase/tests/$test" | Out-Null
       $report.tests += [ordered]@{ name = $test; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$test") -Algorithm SHA256).Hash.ToLowerInvariant(); passed = $true }
     }
-    foreach ($test in @('integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql', 'legacy-meet-audit-test.sql')) {
+    foreach ($test in @('relay-second-heat.sql', 'integration-meets.sql', 'atomic-save-backup.sql', 'read-aggregates.sql', 'legacy-meet-audit-test.sql')) {
       $report.stage = "test:$test"
       $output = SqlFile 'tuat_rls_review' "/review/db-review/$test"
       if ($output -notmatch 'PASS:') { throw 'Integration SQL test did not produce its completion evidence' }

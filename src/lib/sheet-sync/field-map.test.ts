@@ -7,6 +7,13 @@ const member = { header: ["低強度", "低強度", "睡眠", "睡眠"], columns
 ] };
 
 describe("physical sheet column selection", () => {
+  it("imports total distance but never writes it even when explicitly configured", () => {
+    const sheet = { header: ["実際の距離"] };
+    expect(resolveFieldMap(sheet, []).builtin.has("dist_actual")).toBe(true);
+    expect(resolveFieldMap(sheet, [], "write").builtin.has("dist_actual")).toBe(false);
+    expect(resolveFieldMap(sheet, [{ key: "dist_actual", label: "実際の距離", type: "number" }], "write").builtin.has("dist_actual")).toBe(false);
+    expect(resolveFieldMap(sheet, [{ key: "dist_actual", label: "実際の距離", type: "number", hidden: true }], "write").builtin.has("dist_actual")).toBe(false);
+  });
   it("prefers an explicitly matched physical column over the first equal header", () => {
     const map = resolveFieldMap(member, [
       { key: "dist_low", label: "低強度", type: "number", sourceHeader: "低強度", sourceColumn: 5 },

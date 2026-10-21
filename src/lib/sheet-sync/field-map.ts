@@ -103,6 +103,7 @@ function configuredHeader(headers: HeaderCandidate[], usedColumns: Set<number>, 
 export function resolveFieldMap(
   member: Pick<RawMember, "header" | "columns">,
   fields: RecordFieldDef[],
+  direction: "read" | "write" = "read",
 ): FieldMap {
   const sourceColumns = member.columns?.length ? member.columns : member.header.map((label, index) => ({ index, label }));
   const headers: HeaderCandidate[] = sourceColumns.map((item) => ({ raw: item.label, n: norm(item.label), column: item.index }));
@@ -119,6 +120,7 @@ export function resolveFieldMap(
 
 
   for (const item of BUILTINS) {
+    if (direction === "write" && item.key === "dist_actual") continue;
     const configured = fields.find((field) => field.key === item.key);
     if (configured?.hidden) continue;
     const hit = configuredHeader(headers.filter((candidate) => item.key !== "memo" || candidate.n === "感想"
@@ -131,6 +133,8 @@ export function resolveFieldMap(
   for (const item of BUILTINS) {
     const configured = fields.find((field) => field.key === item.key);
     if (builtin.has(item.key) || configured?.hidden) continue;
+    // Total distance belongs to the sheet calculation, including old settings.
+    if (direction === "write" && item.key === "dist_actual") continue;
     const available = headers.filter((candidate) => !usedColumns.has(candidate.column) && !customSourceColumns.has(candidate.column));
     let hit: HeaderCandidate | undefined;
     if (item.key === "memo") {

@@ -36,7 +36,7 @@ export class MeetEvent {
 
   best(person: MeetPerformance): string {
     if (person.status !== "entered") return person.status;
-    return this.bestTrial(person)?.mark ?? (person.trials.some(t => t.status === "foul") ? "記録なし" : "—");
+    return this.bestTrial(person)?.mark ?? (person.trials.some(t => t.status === "valid" && t.mark === "-") ? "-" : person.trials.some(t => t.status === "foul") ? "記録なし" : "—");
   }
 
   /** The trial holding the best valid mark; equal marks keep the earlier attempt. */
@@ -64,6 +64,8 @@ export class MeetEvent {
       if (!["entered", "DNS", "DNF", "DQ"].includes(p.status) || !Array.isArray(p.trials) || p.trials.length > (this.rule.discipline === "track" ? 1 : this.rule.discipline === "height" ? 30 : 6)) return "試技数・出場状況を確認してください";
       for (const t of p.trials) {
         if (!t || typeof t.mark !== "string" || typeof t.wind !== "string" || !["pending", "valid", "foul", "pass"].includes(t.status)) return "試技を確認してください";
+        // Explicitly unmeasured appearances have no numeric rank.
+        if (t.mark === "-" && t.status === "valid" && !t.wind) continue;
         if (this.rule.discipline === "track" && !["pending", "valid"].includes(t.status)) return "欠場・途中棄権・失格は出場状況で選んでください";
         if (t.status === "valid" && MeetMark.parse(t.mark, this.rule.discipline) === null) return this.rule.discipline === "track" ? "タイムを秒または分:秒で入力してください" : "記録をメートルで入力してください";
         if (t.status === "pending" && (t.mark || t.wind)) return "数値を入力した試技は結果を選んでください";

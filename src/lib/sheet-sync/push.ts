@@ -20,6 +20,7 @@ export type PushRecordResult = {
 export function unmappedRecordFields(map: FieldMap, recordFields: RecordFieldDef[], rec: DbRecord): string[] {
   const unmapped: string[] = [];
   for (const b of BUILTINS) {
+    if (b.key === "dist_actual") continue;
     if (map.builtin.has(b.key) || recordFields.find((field) => field.key === b.key)?.hidden) continue;
     const v = appBuiltin(rec, b.key);
     const nonEmpty = b.numeric ? Number(v) > 0 : (v ?? "").toString().trim() !== "";
@@ -45,7 +46,7 @@ export async function pushRecordToSheet(
   rec: DbRecord,
 ): Promise<PushRecordResult> {
   const member = await fetchMemberRaw(target.sheetName, { spreadsheetId: target.spreadsheetId });
-  const map = resolveFieldMap(member, recordFields);
+  const map = resolveFieldMap(member, recordFields, "write");
   const cells = appToCellsFull(map, rec);
 
   // シートに列自体が無く、送信すらされなかった項目（可視化用）

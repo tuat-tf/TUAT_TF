@@ -2,7 +2,7 @@
   "version": 1,
   "mode": "integration",
   "owner": "codex-auth-db-review",
-  "generation": "f925d2c8aa124a669fe08d40fc254379",
+  "generation": "2ef278c1057742bfaff4c925479e146b",
   "image": "supabase/postgres:17.6.1.136",
   "imageId": "sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00",
   "authImage": "supabase/gotrue:v2.196.0",
@@ -1114,6 +1114,11 @@
       "name": "20261021010000_read_aggregates.sql",
       "sha256": "e972a78b204158a04673a57123bdb24f15899b67685e3d42919e7ecf935ecd71",
       "passed": true
+    },
+    {
+      "name": "20261021010100_ob_relay_second_heat.sql",
+      "sha256": "edba6ab49789fb40ec73b2a755d7d39ee368953eafa26b1ca7e0dd828aa5b2f1",
+      "passed": true
     }
   ],
   "tests": [
@@ -1155,6 +1160,11 @@
     {
       "name": "app-only-comments.sql",
       "sha256": "477c924261934f6565bd41bb05343d9a2a37a5b94b811a9598972eb754f1b507",
+      "passed": true
+    },
+    {
+      "name": "relay-second-heat.sql",
+      "sha256": "515b0211344d3444f53f10ac348e056547a9223745958dcf18d598299f58f070",
       "passed": true
     },
     {
@@ -1356,5 +1366,5 @@
     "absent": 2
   },
   "cleanupDriverSha256": "de7c1ff32d6b9174ba5bdd62534603359f68acc49392f741d3f8c525dd532741",
-  "completedAt": "2026-10-20T15:00:11.3363443Z"
+  "completedAt": "2026-10-21T14:41:04.6823253Z"
 }

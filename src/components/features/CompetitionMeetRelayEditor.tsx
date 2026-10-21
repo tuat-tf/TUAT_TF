@@ -36,7 +36,7 @@ export function CompetitionMeetRelayEditor({event,meet,mutation,onClose}:{event:
   return <FormModal open autoFocus={false} title={event.name} onOpenChange={open=>!open&&onClose()}>
     <FormDraftGuard dirty={dirty} busy={mutation.locked} onSave={save}/>
     <div className="space-y-4">
-      <p className="text-caption">各レーンのチーム名、タイム、1走〜4走の氏名を入力してください。</p>
+      <p className="text-caption">各レーンのチーム名、タイム、1走〜4走の氏名を入力してください。未計測のタイムは - を入力できます。</p>
       {changed&&dirty&&<div className="space-y-2"><p className="text-caption">ほかの操作で更新されています。入力は残っています。</p><Button variant="outline" disabled={mutation.locked} onClick={()=>setReviewing(true)}>最新の情報と入力を確認</Button></div>}
       <fieldset disabled={mutation.locked||!meet.permissions.record||event.confirmed} className="space-y-3">
         {teams.map(team=><Card key={team.lane} className="space-y-3 p-3.5"><h3 className="text-body font-semibold">{team.lane}レーン</h3>
