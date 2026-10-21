@@ -1,7 +1,7 @@
 // Standalone private project. Never bind this script to the link-shared workbook.
 // One-way app to workbook output. Credentials and row identities stay private.
 var OB_RESULTS_TARGET = '188DwdYDpRuk4a27whOiu5lhhNK4MDaSeYRfXTHDhBAw';
-var OB_RESULTS_FEED_URL = 'https://tuat-tf.vercel.app/api/ob-results/snapshot';
+var OB_RESULTS_FEED_URL = 'https://app.tuat-tf.workers.dev/api/ob-results/snapshot';
 var OB_EDIT_NAME = 'エントリー編集';
 var OB_EDIT_METADATA_KEY = 'TUAT_OB_EDIT_MANAGED_V1';
 var OB_RESULTS_STATUS_OPTIONS = ['出場', 'DNS（欠場）', 'DNF（途中棄権）', 'DQ（失格）'];

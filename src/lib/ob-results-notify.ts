@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { obResultsFeedToken } from "./ob-results-feed-auth";
 
 // A destination, not a credential. Requests require the private derived-key signature.
-const publisherUrl = "https://script.google.com/macros/s/AKfycbxwmB0ckBeWGvlBdLTydHcbayRIQn6F89NI_bbUewaL4RNJbiw-JT7xGU8QIoK6yjvUgA/exec";
+const publisherUrl = "https://script.google.com/macros/s/AKfycbwY-OnTP2np6YsXUzEy27J4TUX64agfP3VxBc07iRx9YbRKy67ONuYVnrDWhXjqwH4e/exec";
 
 export async function notifyObResults(): Promise<boolean> {
   const secret = process.env.SHEET_SYNC_SECRET;
