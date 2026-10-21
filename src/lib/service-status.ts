@@ -9,6 +9,7 @@ export type ServiceHealth = {
 };
 export type ServiceStatus = {
   checkedAt: string;
+  runtime?: "pc" | "cloud";
   health: Record<"vercel" | "supabase" | "cloudflare", ServiceHealth>;
   r2: { state: "ready" | "unconfigured" | "error"; bytes: number | null; objects: number | null };
   vercel: { state: "ready" | "unconfigured" | "error"; from: string; to: string; usage: { name: string; unit: string; quantity: number }[] };
@@ -90,17 +91,20 @@ async function vercelUsage(): Promise<ServiceStatus["vercel"]> {
 
 /** Only call after checking manage_system. No cookies/session inside this shared cache. */
 export async function getServiceStatus(): Promise<ServiceStatus> {
+  const pc = process.env.PC_LOCAL_RUNTIME === "true";
   const snapshot = await unstable_cache(async () => {
+    const unusedHealth: ServiceHealth = { indicator: "unknown", incidents: [] };
     const [vercel, supabase, cloudflare, r2, usage] = await Promise.all([
-      health("https://www.vercel-status.com/api/v2/summary.json"),
-      health("https://status.supabase.com/api/v2/summary.json"),
-      health("https://www.cloudflarestatus.com/api/v2/summary.json"), inventory(), vercelUsage(),
+      pc ? unusedHealth : health("https://www.vercel-status.com/api/v2/summary.json"),
+      pc ? unusedHealth : health("https://status.supabase.com/api/v2/summary.json"),
+      health("https://www.cloudflarestatus.com/api/v2/summary.json"), inventory(),
+      pc ? { state: "unconfigured" as const, from: "", to: "", usage: [] } : vercelUsage(),
     ]);
     return { checkedAt: new Date().toISOString(), health: { vercel, supabase, cloudflare }, r2, vercel: usage };
-  }, ["service-status-v2", process.env.IMAGE_STORAGE_DRIVER ?? "cloud", process.env.VERCEL_DEPLOYMENT_ID ?? "local", process.env.R2_ACCOUNT_ID ?? "", process.env.R2_BUCKET_NAME ?? "", process.env.SERVICE_STATUS_VERCEL_TEAM_ID ?? ""], { revalidate: 900 })();
+  }, ["service-status-v3", pc ? "pc" : "cloud", process.env.IMAGE_STORAGE_DRIVER ?? "cloud", process.env.VERCEL_DEPLOYMENT_ID ?? "local", process.env.R2_ACCOUNT_ID ?? "", process.env.R2_BUCKET_NAME ?? "", process.env.SERVICE_STATUS_VERCEL_TEAM_ID ?? ""], { revalidate: 900 })();
   const local = localImageStorageEnabled();
   const limit = Number((local ? process.env.LOCAL_IMAGE_MAX_STORAGE_BYTES : process.env.R2_MAX_STORAGE_BYTES) ?? 8_000_000_000);
-  return { ...snapshot, images: {
+  return { ...snapshot, runtime: pc ? "pc" : "cloud", images: {
     backend: local ? "pc" : "cloud",
     reads: local || process.env.R2_READ_ENABLED === "true", writes: local || process.env.R2_WRITE_ENABLED === "true", paused: (local ? process.env.LOCAL_IMAGE_UPLOADS_PAUSED : process.env.R2_UPLOADS_PAUSED) === "true",
     limitBytes: Number.isSafeInteger(limit) && limit > 0 ? limit : null,

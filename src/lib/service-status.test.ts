@@ -6,6 +6,20 @@ import { getR2Inventory } from "./image-storage";
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("service status summaries", () => {
+  it("does not call retired cloud providers or billing APIs for the club PC runtime", async () => {
+    vi.stubEnv("PC_LOCAL_RUNTIME", "true");
+    vi.stubEnv("IMAGE_STORAGE_DRIVER", "local");
+    vi.stubEnv("VERCEL_MONITORING_TOKEN", "unused-fixture-token");
+    vi.stubEnv("SERVICE_STATUS_VERCEL_TEAM_ID", "unused-fixture-team");
+    const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: { indicator: "none" } }) });
+    vi.stubGlobal("fetch", fetcher);
+    vi.mocked(getR2Inventory).mockResolvedValue({ bytes: 123, objects: 2 });
+    const result = await getServiceStatus();
+    expect(result.runtime).toBe("pc");
+    expect(result.images.backend).toBe("pc");
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual(["https://www.cloudflarestatus.com/api/v2/summary.json"]);
+    expect(JSON.stringify(result)).not.toContain("unused-fixture");
+  });
   it("reports local image capacity and pause state without requiring R2 credentials", async () => {
     vi.stubEnv("IMAGE_STORAGE_DRIVER", "local");
     vi.stubEnv("R2_ACCOUNT_ID", "");

@@ -20,6 +20,7 @@ export function ServiceStatusPanel({ embedded = false }: { embedded?: boolean })
     staleTime: 15 * 60 * 1000, gcTime: 0, retry: false, refetchOnWindowFocus: false,
   });
   const data = query.data;
+  const pc = data?.runtime === "pc";
   return <div className={embedded ? "space-y-4" : "space-y-4 px-4 pb-8 pt-1"}>
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm text-muted">システム管理者だけが確認できます。障害情報は各サービス全体の状況です。</p>
@@ -31,38 +32,71 @@ export function ServiceStatusPanel({ embedded = false }: { embedded?: boolean })
     {query.isError && <p role="alert" className="text-sm text-danger">{query.error.message}</p>}
     {data && <>
       <p className="text-micro text-muted">取得日時: {new Date(data.checkedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（日本時間）<br />通信量を抑えるため、結果を15分間再利用します。</p>
-      <ServiceCard name="Supabase" health={data.health.supabase} statusUrl="https://status.supabase.com" usageUrl="https://supabase.com/dashboard/org/cctqtlkeltdpjkyyjmfl/usage">
+      {pc && <Card className="space-y-3 p-4">
+        <h2 className="text-base font-bold">本番PC</h2>
+        <p className="text-sm">アプリ・ログイン認証・記録・画像が稼働しています。</p>
+        <ImageUsage data={data} />
+      </Card>}
+      {!pc && <ServiceCard name="Supabase" health={data.health.supabase} statusUrl="https://status.supabase.com" usageUrl="https://supabase.com/dashboard">
         <p className="text-sm">旧クラウドサービス。現在のデータとログイン認証はPCで稼働しています。</p>
         <p className="text-sm text-muted">月間転送量・DB容量・無料枠の残量: 未取得</p>
         <p className="text-micro text-muted">正確な使用量と利用制限は「使用量を開く」で確認してください。全体の稼働が正常でも、このプロジェクトに利用制限がかかっている場合があります。</p>
+      </ServiceCard>}
+      <ServiceCard name="Cloudflare（全サービス）" health={data.health.cloudflare} statusUrl="https://www.cloudflarestatus.com" usageUrl={pc ? "https://dash.cloudflare.com/f08f553737bd866b3a6f4ce1f94a8be3" : "https://dash.cloudflare.com"} usageLabel={pc ? "部活の管理画面を開く" : undefined}>
+        {pc ? <p className="text-sm">アプリの公開URLと本番PCへの接続を管理します。</p> : <ImageUsage data={data} />}
+        <p className="text-micro text-muted">月間の操作回数・アカウント全体の無料枠残量は「{pc ? "部活の管理画面を開く" : "使用量を開く"}」で確認できます。</p>
       </ServiceCard>
-      <ServiceCard name="Cloudflare（全サービス）" health={data.health.cloudflare} statusUrl="https://www.cloudflarestatus.com" usageUrl="https://dash.cloudflare.com/a4e843f4713c95818cb08594164541b7/r2/overview">
-        {data.r2.state === "ready" ? <>
-          <div className="flex justify-between gap-3 text-sm"><span>画像の保存容量</span><strong>{gb(data.r2.bytes!)} / {data.images.limitBytes === null ? "上限設定エラー" : gb(data.images.limitBytes)}</strong></div>
-          {data.images.limitBytes !== null && <progress aria-label="画像保存容量の使用率" max={data.images.limitBytes} value={data.r2.bytes!} className="h-2 w-full accent-current" />}
-          <p className="text-micro text-muted">{data.r2.objects!.toLocaleString("ja-JP")}ファイル。上限はアプリの保存停止目安です。保存先: {data.images.backend === "pc" ? "本番PC" : "R2"}。クラウドの請求上限とは異なります。</p>
-          {data.images.limitBytes !== null && data.r2.bytes! >= data.images.limitBytes * 0.8 && <p className="text-sm text-warning">保存容量が停止目安の80%以上です。</p>}
-        </> : <p className="text-sm text-muted">保存容量: {missing[data.r2.state]}</p>}
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <dt>画像の読み込み</dt><dd>{data.images.backend === "pc" ? "本番PC" : data.images.reads ? "R2優先" : "Supabase"}</dd>
-          <dt>新しい画像の保存</dt><dd>{data.images.paused ? "一時停止中" : data.images.backend === "pc" ? "本番PC" : data.images.writes ? "R2" : "Supabase"}</dd>
-        </dl>
-        {data.images.writes && !data.images.reads && <p className="text-sm text-danger">画像の読み込み設定が不足しています。保存できません。</p>}
-        <p className="text-micro text-muted">月間の操作回数・アカウント全体の無料枠残量は「使用量を開く」で確認できます。</p>
-      </ServiceCard>
-      <ServiceCard name="Vercel" health={data.health.vercel} statusUrl="https://www.vercel-status.com" usageUrl="https://vercel.com/paimondayos-projects/~/usage">
+      {!pc && <ServiceCard name="Vercel" health={data.health.vercel} statusUrl="https://www.vercel-status.com" usageUrl="https://vercel.com/dashboard">
         {data.vercel.state === "ready" ? <>
           <p className="text-sm">チーム全体の使用量（UTC暦月）</p>
           <p className="text-micro text-muted">{data.vercel.from.slice(0, 10)} ～ {data.vercel.to.slice(0, 10)}。請求期間とは異なり、集計には遅れがあります。</p>
           {data.vercel.usage.length ? <dl className="space-y-2">{data.vercel.usage.map((row) => <div key={`${row.name}:${row.unit}`} className="flex flex-wrap justify-between gap-1 text-sm"><dt className="break-words">{row.name}</dt><dd className="font-semibold">{row.quantity.toLocaleString("ja-JP", { maximumFractionDigits: 3 })} {row.unit}</dd></div>)}</dl> : <p className="text-sm text-muted">対象期間の使用量レコードはありません。未集計の可能性があります。</p>}
         </> : <p className="text-sm text-muted">呼び出し回数・使用量: {missing[data.vercel.state]}</p>}
         <p className="text-micro text-muted">契約プラン・請求額・無料枠の残量は「使用量を開く」で確認できます。</p>
-      </ServiceCard>
+      </ServiceCard>}
+      {pc && <>
+        <Card className="space-y-3 p-4">
+          <h2 className="text-base font-bold">Google Drive</h2>
+          <p className="text-sm">暗号化バックアップと復旧資材の保存先です。部活のGoogleアカウントで開いてください。</p>
+          <p className="text-micro text-muted">保存されたファイルと空き容量はGoogle Driveで確認できます。容量はGmail・Googleフォトなどと共有します。</p>
+          <div data-ui-group className="flex flex-wrap gap-4 border-t border-separator pt-3 text-sm">
+            <ManagementLink href="https://drive.google.com/drive/folders/1o5pLXSJqMehrRVZ9k250S9jjFpCXqhDS">バックアップを開く</ManagementLink>
+            <ManagementLink href="https://drive.google.com/file/d/1h7PQH3mmAydy5YpBNbtHIPmM0wP8zCJU/view">引き継ぎ・復旧手順を開く</ManagementLink>
+          </div>
+        </Card>
+        <Card className="space-y-3 p-4">
+          <h2 className="text-base font-bold">運用アカウント</h2>
+          <div data-ui-group className="flex flex-wrap gap-4 text-sm">
+            <ManagementLink href="https://github.com/tuat-tf/TUAT_TF">GitHubを開く</ManagementLink>
+            <ManagementLink href="https://console.cloud.google.com/apis/credentials?project=tuat-tf">Googleログインの設定を開く</ManagementLink>
+          </div>
+        </Card>
+      </>}
     </>}
   </div>;
 }
 
-function ServiceCard({ name, health, statusUrl, usageUrl, children }: { name: string; health: ServiceHealth; statusUrl: string; usageUrl: string; children: React.ReactNode }) {
+function ImageUsage({ data }: { data: ServiceStatus }) {
+  return <>
+    {data.r2.state === "ready" ? <>
+      <div className="flex justify-between gap-3 text-sm"><span>画像の保存容量</span><strong>{gb(data.r2.bytes!)} / {data.images.limitBytes === null ? "上限設定エラー" : gb(data.images.limitBytes)}</strong></div>
+      {data.images.limitBytes !== null && <progress aria-label="画像保存容量の使用率" max={data.images.limitBytes} value={data.r2.bytes!} className="h-2 w-full accent-current" />}
+      <p className="text-micro text-muted">{data.r2.objects!.toLocaleString("ja-JP")}ファイル。上限はアプリの保存停止目安です。保存先: {data.images.backend === "pc" ? "本番PC" : "R2"}。クラウドの請求上限とは異なります。</p>
+      {data.images.limitBytes !== null && data.r2.bytes! >= data.images.limitBytes * 0.8 && <p className="text-sm text-warning">保存容量が停止目安の80%以上です。</p>}
+    </> : <p className="text-sm text-muted">保存容量: {missing[data.r2.state]}</p>}
+    <dl className="grid grid-cols-2 gap-2 text-sm">
+      <dt>画像の読み込み</dt><dd>{data.images.backend === "pc" ? "本番PC" : data.images.reads ? "R2優先" : "Supabase"}</dd>
+      <dt>新しい画像の保存</dt><dd>{data.images.paused ? "一時停止中" : data.images.backend === "pc" ? "本番PC" : data.images.writes ? "R2" : "Supabase"}</dd>
+    </dl>
+    {data.images.writes && !data.images.reads && <p className="text-sm text-danger">画像の読み込み設定が不足しています。保存できません。</p>}
+  </>;
+}
+
+function ManagementLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return <a data-ui-action href={href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">{children}<ExternalLink size={13} /></a>;
+}
+
+function ServiceCard({ name, health, statusUrl, usageUrl, usageLabel = "使用量を開く", children }: { name: string; health: ServiceHealth; statusUrl: string; usageUrl: string; usageLabel?: string; children: React.ReactNode }) {
   return <Card className="space-y-3 p-4">
     <h2 className="text-base font-bold">{name}</h2>
     <p className={`text-sm font-semibold ${health.indicator === "none" ? "text-success" : health.indicator === "unknown" ? "text-muted" : "text-warning"}`}>{healthLabels[health.indicator]}</p>
@@ -70,7 +104,7 @@ function ServiceCard({ name, health, statusUrl, usageUrl, children }: { name: st
     {health.incidents.length > 0 && <ul className="list-disc space-y-1 pl-4 text-micro text-muted">{health.incidents.map((incident, index) => <li key={index}>{incident}</li>)}</ul>}
     {children}
     <div data-ui-group className="flex flex-wrap gap-4 border-t border-separator pt-3 text-sm">
-      <a data-ui-action href={usageUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">使用量を開く<ExternalLink size={13} /></a>
+      <ManagementLink href={usageUrl}>{usageLabel}</ManagementLink>
       <a data-ui-action href={statusUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted">障害情報<ExternalLink size={13} /></a>
     </div>
   </Card>;
