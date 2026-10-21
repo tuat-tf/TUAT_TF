@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ read: vi.fn(), admin: vi.fn() }));
 vi.mock("@/lib/queries/ob-results-publish", () => ({ getObPublishedResults: state.read }));
@@ -17,6 +18,13 @@ it("requires the scoped read token and never accepts the general sync key", asyn
   for (const token of ["", "synthetic-sync-secret", obResultsFeedToken("other-secret")]) expect((await GET(request(token))).status).toBe(401);
   expect(state.admin).not.toHaveBeenCalled();
   expect(state.read).not.toHaveBeenCalled();
+});
+it("rejects the retired university workbook token after moving to the club workbook", async () => {
+  const oldToken = createHmac("sha256", "synthetic-sync-secret")
+    .update(JSON.stringify(["ob-results-v1", "ob-2026", "188DwdYDpRuk4a27whOiu5lhhNK4MDaSeYRfXTHDhBAw"])).digest("hex");
+  expect((await GET(request(oldToken))).status).toBe(401);
+  expect(state.read).not.toHaveBeenCalled();
+  expect(state.admin).not.toHaveBeenCalled();
 });
 it("fails closed when the key is unavailable", async () => {
   vi.stubEnv("SHEET_SYNC_SECRET", "");
