@@ -81,14 +81,14 @@ export function ScheduleView({
     <>
       <div className="px-4 pt-1 pb-3 md:px-6 lg:pb-2">
         <div className="flex min-h-9 items-center lg:min-h-8">
-          <SegmentedControl items={items} value={type} onChange={setType} className="w-full md:max-w-[520px]" />
+          <SegmentedControl items={items} value={type} onChange={setType} className="w-full" />
         </div>
         <div className="mt-2">
           <SegmentedControl
             items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]}
             value={block}
             onChange={(value) => setBlock(value as typeof block)}
-            className="w-full md:max-w-[520px]"
+            className="w-full"
           />
         </div>
       </div>

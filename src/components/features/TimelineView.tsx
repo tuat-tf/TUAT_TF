@@ -175,7 +175,7 @@ export function TimelineView({
     <>
       <div className="w-full px-4 pt-1 pb-3 md:mx-auto md:max-w-[1120px] md:px-6 lg:pb-2">
         <div data-ui-toolbar="timeline" className="flex min-h-9 items-center gap-2 lg:min-h-8">
-          <div className="min-w-0 flex-1 md:max-w-[420px]"><SegmentedControl items={SIMPLE_BLOCK_ITEMS} value={block} onChange={setBlock} /></div>
+          <div className="min-w-0 flex-1"><SegmentedControl items={SIMPLE_BLOCK_ITEMS} value={block} onChange={setBlock} /></div>
           <button
             data-ui-action
             type="button"

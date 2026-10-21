@@ -220,7 +220,7 @@ SELECT set_config('storage.install_roles','false',false),
     $report.legacyMeetAuditSources = @('legacy-meet-audit.sql', 'legacy-meet-missing-appearances.sql', 'validate-legacy-meet-audit.mjs') | ForEach-Object {
       [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
-    $report.meetTestSources = @('meet-appearance-division.sql', 'meet-division-mirror.sql', 'competition-relay-results.sql', 'competition-relay-heats.sql', 'competition-shared-heats.sql', 'ob-results-operator-permissions.sql') | ForEach-Object {
+    $report.meetTestSources = @('meet-appearance-division.sql', 'meet-division-mirror.sql', 'competition-relay-results.sql', 'competition-relay-heats.sql', 'competition-shared-heats.sql', 'competition-family-confirmation.sql', 'ob-results-operator-permissions.sql') | ForEach-Object {
       [ordered]@{ name = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $candidateRoot "supabase/tests/$_") -Algorithm SHA256).Hash.ToLowerInvariant() }
     }
   }

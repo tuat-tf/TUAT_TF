@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   startOfDay,
   startOfWeek,
@@ -111,7 +111,7 @@ export function TrainingChart({
   // 期間切替直後は前の選択番号が範囲外になりうるので必ず範囲内へ収める
   const rawIndex = selected ?? buckets.length - 1;
   const selIndex = rawIndex >= 0 && rawIndex < buckets.length ? rawIndex : buckets.length - 1;
-  const recent = period === "recent" && selected === null;
+  const recent = period === "recent";
   const sel = recent ? {
     start: buckets[0].start,
     by: Object.fromEntries(INTENSITY_ORDER.map(key => [key, buckets.reduce((sum, b) => sum + b.by[key], 0)])) as Record<Intensity, number>,
@@ -119,7 +119,7 @@ export function TrainingChart({
     total: roundKm(buckets.reduce((sum, b) => sum + b.total, 0)),
     records: recentTrainingRecords(records, today),
   } : buckets[selIndex];
-  const previousStart = recent ? subDays(sel.start, 7) : period === "day" || period === "recent"
+  const previousStart = recent ? subDays(sel.start, 7) : period === "day"
     ? subDays(sel.start, 1)
     : period === "week" ? subWeeks(sel.start, 1) : subMonths(sel.start, 1);
   const previousFrom = format(previousStart, "yyyy-MM-dd");
@@ -146,7 +146,7 @@ export function TrainingChart({
     return format(b.start, long ? "yyyy年M月" : "M月", { locale: ja });
   }
 
-  const labelEvery = period === "recent" ? 1 : period === "day" ? 5 : period === "week" ? 2 : 1;
+  const labelEvery = period === "day" ? 5 : period === "week" ? 2 : 1;
 
   return (
     <Card className="p-4 space-y-3">
@@ -166,12 +166,11 @@ export function TrainingChart({
         </div>
       </div>
 
-      <IntensitySummary summary={sel} period={recent ? "recent" : period === "recent" ? "day" : period} label={recent ? `直近7日間（${format(sel.start, "M/d")}〜${format(new Date(today+"T00:00:00"), "M/d")}）` : bucketLabel(sel, true)} previousTotal={previousTotal} />
-      {period === "recent" && selected !== null && <Button variant="ghost" onClick={() => { setSelected(null); setShowDetail(false); }}>直近7日間の合計に戻る</Button>}
+      <IntensitySummary summary={sel} period={period} label={recent ? `${format(sel.start, "M/d")}〜${format(new Date(today+"T00:00:00"), "M/d")}` : bucketLabel(sel, true)} previousTotal={previousTotal}>
+      {recent ? <IntensityDonut summary={sel} /> : (
 
-      {/* 直近7日は全幅、長い期間は横スクロールで表示する。 */}
-      <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1">
-        <div className={cn("relative", period === "recent" ? "w-full" : "w-max")}>
+      <div ref={scrollRef} className="h-full overflow-x-auto overflow-y-hidden -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative w-max">
           {/* 目盛り線 */}
           <div
             className="pointer-events-none absolute left-0 right-0 flex flex-col justify-between"
@@ -198,7 +197,7 @@ export function TrainingChart({
                     setSelected(i);
                     setShowDetail(false);
                   }}
-                  className={cn("relative h-full", period === "recent" ? "min-w-0 flex-1" : "w-6 shrink-0")}
+                  className="relative h-full w-6 shrink-0"
                 >
                   {barH > 0 ? (
                     <>
@@ -214,7 +213,6 @@ export function TrainingChart({
                       <div
                         className={cn(
                           "absolute bottom-0 left-1/2 flex w-full -translate-x-1/2 flex-col-reverse overflow-hidden rounded-t-[4px] border shadow-sm transition-all",
-                          period === "recent" && "max-w-12",
                           isSel ? "border-accent ring-2 ring-inset ring-accent/60" : "border-separator/70 opacity-95",
                         )}
                         style={{ height: `${barH}px` }}
@@ -236,7 +234,7 @@ export function TrainingChart({
                       </div>
                     </>
                   ) : (
-                    <div className={cn("absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded-t-[3px] bg-separator/60", period === "recent" && "max-w-12")} />
+                    <div className="absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded-t-[3px] bg-separator/60" />
                   )}
                 </button>
               );
@@ -247,14 +245,11 @@ export function TrainingChart({
           <div data-training-axis aria-hidden="true" className="flex gap-2 mt-1.5">
             {buckets.map((b, i) => {
               const show = (buckets.length - 1 - i) % labelEvery === 0;
-              const label = period === "recent" && i > 0 && b.start.getMonth() === buckets[i - 1].start.getMonth()
-                ? format(b.start, "d")
-                : bucketLabel(b);
               return (
-                <div key={i} className={cn("h-4 whitespace-nowrap text-center leading-4", period === "recent" ? "min-w-0 flex-1" : "w-6 shrink-0")}>
+                <div key={i} className="h-4 w-6 shrink-0 whitespace-nowrap text-center leading-4">
                   {show && (
                     <span className={cn("text-[9px]", !recent && i === selIndex ? "text-accent font-bold" : "text-muted2")}>
-                      {label}
+                      {bucketLabel(b)}
                     </span>
                   )}
                 </div>
@@ -263,6 +258,8 @@ export function TrainingChart({
           </div>
         </div>
       </div>
+      )}
+      </IntensitySummary>
 
       {/* 表示項目の選択は切替ボタンから直接開く。 */}
       <div data-training-detail className="rounded-xl bg-bg p-3">
@@ -332,12 +329,13 @@ function formatDistance(value: number): string {
 }
 
 function IntensitySummary({
-  summary, period, label, previousTotal,
+  summary, period, label, previousTotal, children,
 }: {
   summary: Bucket;
   period: Period;
   label: string;
   previousTotal: number;
+  children: ReactNode;
 }) {
   const difference = summary.total - previousTotal;
   const previousLabel = period === "recent" ? "その前の7日間" : period === "day" ? "前日" : period === "week" ? "先週" : "先月";
@@ -350,8 +348,8 @@ function IntensitySummary({
 
   return (
     <div data-training-summary>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <p className="whitespace-nowrap text-[12px] font-semibold">{label}</p>
+      <div className="grid h-6 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3">
+        <p className="min-w-0 truncate text-[12px] font-semibold leading-6" title={label}>{label}</p>
         <p className="shrink-0 text-xl font-bold leading-6 tabular-nums">
           {formatDistance(summary.total)}
           <span className="ml-1 text-caption">km</span>
@@ -362,31 +360,14 @@ function IntensitySummary({
         <span className="shrink-0">走行{trainingDays}日</span>
       </p>
 
-      <div
-        className="mt-1 flex h-2 overflow-hidden rounded-full bg-separator/60"
-        role="img"
-        aria-label={summary.total > 0 ? "強度別の走行距離割合" : "走行距離は0kmです"}
-      >
-        {INTENSITY_ORDER.map((intensity) =>
-          summary.by[intensity] > 0 ? (
-            <div
-              key={intensity}
-              style={{
-                width: `${(summary.by[intensity] / summary.total) * 100}%`,
-                backgroundColor: INTENSITY_LABELS[intensity].color,
-              }}
-            />
-          ) : null,
-        )}
-        {summary.unclassified > 0 && (
-          <div aria-label={`その他 ${formatDistance(summary.unclassified)}km`} className="bg-muted/35" style={{ width: `${(summary.unclassified / summary.total) * 100}%` }} />
-        )}
+      <div data-training-visualization className="mt-2 h-[122px]">
+        {children}
       </div>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
         {INTENSITY_ORDER.map((intensity) => {
           const value = summary.by[intensity];
           return (
-            <div key={intensity} className="flex min-w-0 items-center gap-1 text-[11px]">
+            <div key={intensity} className="flex h-4 min-w-0 items-center gap-1 text-[11px] leading-4">
               <span
                 className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: INTENSITY_LABELS[intensity].color }}
@@ -396,12 +377,35 @@ function IntensitySummary({
             </div>
           );
         })}
-        <div className="flex min-w-0 items-center gap-1 text-[11px]">
+        <div className="flex h-4 min-w-0 items-center gap-1 text-[11px] leading-4">
           <span className="h-2 w-2 shrink-0 rounded-full bg-muted/35" />
           <span className="truncate text-muted2">その他</span>
           <span className="ml-auto shrink-0 tabular-nums text-muted2">{formatDistance(summary.unclassified)}km</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function IntensityDonut({ summary }: { summary: Bucket }) {
+  const segments = [
+    ...INTENSITY_ORDER.map((intensity) => ({ key: intensity, value: summary.by[intensity], color: INTENSITY_LABELS[intensity].color })),
+    { key: "unclassified", value: summary.unclassified, color: "color-mix(in srgb, var(--color-muted) 35%, transparent)" },
+  ];
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  let offset = 0;
+
+  return (
+    <div className="flex h-full items-center justify-center">
+      <svg data-training-donut viewBox="0 0 112 112" className="h-28 w-28" role="img" aria-label={total > 0 ? `直近7日間の強度別走行距離、合計${formatDistance(summary.total)}km` : "直近7日間の走行距離は0kmです"}>
+        <circle cx="56" cy="56" r="44" fill="none" strokeWidth="16" className="stroke-separator/60" />
+        {total > 0 && segments.map((segment) => {
+          const share = segment.value / total * 100;
+          const start = offset;
+          offset += share;
+          return share > 0 ? <circle key={segment.key} cx="56" cy="56" r="44" fill="none" stroke={segment.color} strokeWidth="16" pathLength="100" strokeDasharray={`${share} ${100 - share}`} strokeDashoffset={-start} transform="rotate(-90 56 56)" /> : null;
+        })}
+      </svg>
     </div>
   );
 }

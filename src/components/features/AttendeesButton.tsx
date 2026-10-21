@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Users } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Avatar } from "@/components/common/Avatar";
 import { SegmentedControl } from "@/components/ui/segmented";
@@ -80,18 +79,15 @@ export function AttendeesButton({
           e.stopPropagation();
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-bg border border-separator text-[13px] font-semibold text-muted2 whitespace-nowrap pressable shrink-0"
+        className="inline-flex h-11 min-h-11 w-full min-w-0 flex-wrap content-center items-center justify-center gap-x-1 rounded-full bg-bg border border-separator px-2 text-[13px] font-semibold leading-tight text-muted2 pressable"
       >
-        <Users size={15} />
-        <>
         {/* 0でも消さず常に表示。数字は等幅＋2桁ぶんの固定幅で桁が増えてもガクつかない。 */}
-        <span className="text-success">
+        <span className="whitespace-nowrap text-success">
           出席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.present}</span>
         </span>
-        <span className="text-danger">
+        <span className="whitespace-nowrap text-danger">
           欠席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.absent}</span>
         </span>
-        </>
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>

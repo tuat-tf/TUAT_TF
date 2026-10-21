@@ -35,6 +35,7 @@ SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
 \ir meet-fixture.sql
 \ir /review/supabase/tests/competition-shared-heats.sql
+\ir /review/supabase/tests/competition-family-confirmation.sql
 ROLLBACK;
 BEGIN;
 SET LOCAL lock_timeout='5s';

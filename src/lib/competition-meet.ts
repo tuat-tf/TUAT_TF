@@ -20,7 +20,7 @@ export type MeetCommand = { backend?: CompetitionMeet["backend"] } & (
   | ({ action: "appearance.edit"; mark: string | null } & ExistingMeetRow)
   | ({ action: "appearance.moveDivision"; event: string; mark: string | null; confirmDuties?: boolean } & ExistingMeetRow)
   | ({ action: "appearance.cancel" | "appearance.delete" | "appearance.restore" } & ExistingMeetRow)
-  | { action: "event.save"; event: string; revision: number; expectedConfirmed: boolean; changes: { id: string; revision: number; performance: MeetPerformance }[]; confirmed: boolean }
+  | { action: "event.save"; event: string; revision: number; expectedConfirmed: boolean; changes: { id: string; revision: number; performance: MeetPerformance }[]; confirmed: boolean; confirmEvents?: { name: string; revision: number; confirmed: boolean }[] }
   | { action: "relay.save"; event: string; revision: number; relayResults: RelayTeamResult[]; confirmed: boolean }
   | { action: "event.configure"; config: Omit<ManagedMeetEvent, "competition_id" | "revision" | "confirmed" | "relay_results"> }
   | ({ action: "duty.save"; participantId: string; roleIds: string[]; assignment: string } & (ExistingMeetRow | (NewMeetRow & { event: string; time: string })))

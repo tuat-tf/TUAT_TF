@@ -45,28 +45,35 @@ describe("training chart display controls", () => {
   it("preserves the seven-day totals, previous-period comparison and intensity breakdown in either display mode", () => {
     const html = render();
     const text = html.replace(/<[^>]*>/g, "");
-    expect(text).toContain("直近7日間（10/16〜10/22）10kmその前の7日間比 -2km走行3日");
+    expect(text).toContain("10/16〜10/22");
+    expect(text).toContain("10kmその前の7日間比 -2km走行3日");
     expect(text).toContain("低強度3km中強度2km高強度2km解糖系1kmその他2km");
-    expect(html.match(/data-ui-chart-bar=/g)).toHaveLength(7);
-    expect(html).toContain('aria-label="10月16日(金) 5km"');
+    expect(html).toContain('aria-label="直近7日間の強度別走行距離、合計10km"');
+    expect([...html.matchAll(/stroke-dasharray="([^"]+)"/g)].map((match) => match[1])).toEqual(["30 70", "20 80", "20 80", "10 90", "20 80"]);
+    expect(html).not.toContain("data-ui-chart-bar");
+    expect(html).not.toContain("直近7日間の合計に戻る");
     expect(html).not.toContain("99km");
     expect(render(true).replace(/<[^>]*>/g, "")).toBe(text);
   });
 
   it.each([
-    ["2026-10-22", ["10/16", "17", "18", "19", "20", "21", "22"]],
-    ["2026-11-03", ["10/28", "29", "30", "31", "11/1", "2", "3"]],
-    ["2027-01-03", ["12/28", "29", "30", "31", "1/1", "2", "3"]],
-  ])("shows the month only at the start and month boundary on %s", (today, labels) => {
+    ["2026-10-22", "10/16〜10/22"],
+    ["2026-11-03", "10/28〜11/3"],
+    ["2027-01-03", "12/28〜1/3"],
+  ])("shows the recent date range without individual date controls on %s", (today, label) => {
     vi.mocked(jstToday).mockReturnValue(today);
     const html = render();
-    const axis = html.split("data-training-axis")[1].split("data-training-detail")[0];
-    expect([...axis.matchAll(/<span[^>]*>([^<]+)<\/span>/g)].map((match) => match[1])).toEqual(labels);
-    expect(html).toContain('class="relative w-full"');
-    expect([...html.matchAll(/<button[^>]*data-ui-chart-bar[^>]*>/g)]).toHaveLength(7);
-    expect([...html.matchAll(/<button[^>]*data-ui-chart-bar[^>]*>/g)].every(([bar]) => bar.includes("min-w-0 flex-1"))).toBe(true);
-    const [year, month, day] = today.split("-").map(Number);
-    const weekday = ["日", "月", "火", "水", "木", "金", "土"][new Date(year, month - 1, day).getDay()];
-    expect(html).toContain(`aria-label="${month}月${day}日(${weekday}) `);
+    expect(html).toContain(label);
+    expect(html).toContain("data-training-donut");
+    expect(html).not.toContain("data-ui-chart-bar");
+    expect(html).not.toContain("data-training-axis");
+  });
+
+  it("keeps a neutral donut and all five intensity amounts when there is no running distance", () => {
+    const html = renderToStaticMarkup(createElement(TrainingChart, { records: [] }));
+    expect(html).toContain('aria-label="直近7日間の走行距離は0kmです"');
+    expect(html).not.toContain("stroke-dasharray");
+    expect(html).not.toContain("NaN");
+    expect(html.replace(/<[^>]*>/g, "")).toContain("低強度0km中強度0km高強度0km解糖系0kmその他0km");
   });
 });

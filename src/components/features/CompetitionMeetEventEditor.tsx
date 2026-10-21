@@ -24,7 +24,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
   event:ManagedMeetEvent; meet:CompetitionMeet; mutation:MeetMutation; onClose:()=>void; onAdd:()=>void; initialAppearanceId?:string; canDeleteAppearance?:(id:string)=>boolean; onDeleteAppearance?:(id:string)=>Promise<boolean>;
 }) {
   const familyEvents=meet.events.filter(value=>value.family===event.family);
-  const latest={...competitionFamilyData(meet,event),confirmed:event.confirmed};
+  const latest=competitionFamilyData(meet,event);
   const appearances=meet.appearances.filter(a=>familyEvents.some(e=>e.name===a.event_name));
   const listedIds=new Set(appearances.filter(a=>a.state!=="deleted").map(a=>a.id));
   const [base,setBase]=useState({data:latest,appearances,event,events:familyEvents});
@@ -40,7 +40,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
   const rule=meetRule(event),model=new MeetEvent(rule,{...data,confirmed:false},limits);
   const entrants=appearances.map(a=>{
     const person=people.get(a.participant_id),source=familyEvents.find(e=>e.name===a.event_name)!;
-    return {id:a.id,name:person?.name??"参加者確認中",grade:person?.grade??"",mark:a.qualification_mark??"",alumni:person?.grade==="OB・OG",eligible:availableAppearance(person,a),absent:person?.absent,division:source.division==="混合"?undefined:source.division,placementLocked:source.confirmed};
+    return {id:a.id,name:person?.name??"参加者確認中",grade:person?.grade??"",mark:a.qualification_mark??"",alumni:person?.grade==="OB・OG",eligible:availableAppearance(person,a),absent:person?.absent,division:source.division==="混合"?undefined:source.division,placementLocked:latest.confirmed};
   });
   const ordered=event.discipline==="track"?[...data.participants].sort((a,b)=>(a.group??999)-(b.group??999)||(a.order??999)-(b.order??999)):fieldOrderRows(data).map(row=>row.person);
   const own=ordered.filter(p=>listedIds.has(p.entryId));
@@ -56,7 +56,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
     return event.discipline==="track"?(performance.group===null?"組未定":`${groupLabel(performance.group)} ${performance.order??"未定"}${event.capacity?"レーン":"番"}`):(numbers.get(performance.entryId)==null?"試技順未定":`試技順 ${numbers.get(performance.entryId)}番`);
   }
   const disabled=mutation.locked||!meet.permissions.record;
-  const groupsDisabled=mutation.locked||!meet.permissions.groups;
+  const groupsDisabled=mutation.locked||!meet.permissions.groups||latest.confirmed;
   const nextRaw=Math.max(0,...data.participants.flatMap(p=>p.group!==null?[meetBoardPlacement(p.group).group]:[]))+1;
   const nextGroup=nextRaw<=99?meetBoardGroup(nextRaw,"混合"):null;
   const review=reviewObOperation(base.data,data,latest,choices);
@@ -85,7 +85,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
   function appearanceActions(id:string) {
     const appearance=appearances.find(a=>a.id===id),person=people.get(appearance?.participant_id??"");
     if(!appearance||!onDeleteAppearance||!canDeleteAppearance?.(id))return null;
-    const confirmed=familyEvents.find(e=>e.name===appearance.event_name)?.confirmed;
+    const confirmed=latest.confirmed;
     return <ActionMenu className="h-11 w-11" triggerLabel={`${person?.name??"出場者"} ${appearance.event_name}の操作メニュー`} disabled={dirty||mutation.locked||confirmed} deleteStatus={mutation.message} deleteConfirmLabel={mutation.notSaved?"同じ操作を再送":mutation.uncertain?"保存結果を確認":undefined} onDelete={()=>dirty?Promise.resolve(false):onDeleteAppearance(id)} deleteTitle="この出場を削除しますか？" deleteDescription="この出場だけを削除扱いにします。配置は解除し、記録と履歴は保持します。ほかの出場は変更しません。"/>;
   }
   function applyReview() {
@@ -96,28 +96,26 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
     });
     setBase({data:latest,appearances,event,events:familyEvents});setObservedKey(latestKey);setData({...review.data,participants});setReviewing(false);setChoices({});setError("");
   }
-  async function save(confirmation?:ManagedMeetEvent) {
-    if(!dirty&&!confirmation){onClose();return;}
+  async function save(confirmation?:boolean) {
+    if(!dirty&&confirmation===undefined){onClose();return;}
+    if(confirmation===false&&dirty){setError("入力した変更を保存してから確定を解除してください");return;}
     const changes=data.participants.filter(p=>JSON.stringify(p)!==JSON.stringify(base.data.participants.find(old=>old.entryId===p.entryId))).map(p=>({id:p.entryId,revision:base.appearances.find(a=>a.id===p.entryId)!.revision,performance:storedMeetPerformance(p)}));
-    const target=confirmation??base.event;
-    const confirmed=confirmation?!confirmation.confirmed:data.confirmed;
-    const confirmIds=new Set(appearances.filter(a=>a.event_name===target.name).map(a=>a.id));
     const changedIds=new Set(changes.map(c=>c.id));
-    const invalid=(changes.length?new MeetEvent(rule,{confirmed:false,participants:data.participants.map(p=>changedIds.has(p.entryId)?p:{...p,trials:[]})},limits).validate():null)??(confirmed&&!target.confirmed?new MeetEvent(meetRule(target),{confirmed:true,participants:data.participants.filter(p=>confirmIds.has(p.entryId)&&availableAppearance(people.get(appearances.find(a=>a.id===p.entryId)!.participant_id),appearances.find(a=>a.id===p.entryId)!))},limits).validate():null);
+    const active=data.participants.filter(p=>{const a=appearances.find(a=>a.id===p.entryId)!;return availableAppearance(people.get(a.participant_id),a);});
+    const invalid=(changes.length?new MeetEvent(rule,{confirmed:false,participants:active.map(p=>changedIds.has(p.entryId)?p:{...p,trials:[]})},limits).validate():null)??(confirmation===true?new MeetEvent(rule,{confirmed:true,participants:active},limits).validate():null);
     if(invalid){setError(invalid);return;}
-    const anchor=target.confirmed&&confirmed&&changes.length?base.events.find(e=>!e.confirmed):target;
-    if(!anchor){setError("編集する種目の確定を解除してください");return;}
-    if(await mutation.run({action:"event.save",event:anchor.name,revision:anchor.revision,expectedConfirmed:anchor.confirmed,changes,confirmed:anchor.name===target.name?confirmed:anchor.confirmed}))onClose();
+    const anchor=base.event;
+    if(await mutation.run({action:"event.save",event:anchor.name,revision:anchor.revision,expectedConfirmed:anchor.confirmed,changes,confirmed:confirmation??anchor.confirmed,...(confirmation===undefined?{}:{confirmEvents:base.events.map(({name,revision,confirmed})=>({name,revision,confirmed}))})}))onClose();
   }
   return <FormModal open autoFocus={false} title={event.family} onOpenChange={open=>!open&&onClose()}>
     <FormDraftGuard dirty={dirty} busy={mutation.locked} onSave={save}/>
     <div className="space-y-4">
       <SegmentedControl items={[{key:"records",label:"記録"},{key:"groups",label:event.discipline==="track"?"組分け":"試技順"}]} value={view} onChange={setView}/>
-      <Button variant="outline" disabled={dirty||mutation.locked||familyEvents.every(e=>e.confirmed)||!(meet.permissions.register??meet.permissions.record)&&!meet.permissions.manage} onClick={onAdd}>この種目に出場を追加</Button>
+      <Button variant="outline" disabled={dirty||mutation.locked||latest.confirmed||!(meet.permissions.register??meet.permissions.record)&&!meet.permissions.manage} onClick={onAdd}>この種目に出場を追加</Button>
       {focus&&<Button variant="ghost" onClick={()=>setFocus(undefined)}>この種目の全員を表示</Button>}
       {changedRemotely&&dirty&&<div className="space-y-2"><p className="text-caption">ほかの操作で更新されています。入力は残っています。</p><Button variant="outline" disabled={mutation.locked} onClick={()=>setReviewing(true)}>最新の情報と入力を確認</Button></div>}
       {view==="groups"?<>
-        {familyEvents.some(e=>e.confirmed)&&<p className="text-caption">記録確定済みの出場は固定しています。</p>}
+        {latest.confirmed&&<p className="text-caption">確定を解除すると記録・組分けを編集できます。</p>}
         {event.discipline==="track"?<>
           <MeetHeatBoard data={boardData} entrants={entrants} orderLabel={event.capacity?"レーン":"番号"} capacity={event.capacity??undefined} disabled={groupsDisabled} onChange={changePlacements} statusActions={false} countUnit="件" renderActions={appearanceActions} groupLabel={groupLabel} nextGroup={nextGroup} groupLimit={297} modelLimits={{...limits,groupLabel}}/>
         </>:<MeetFieldOrderBoard data={boardData} entrants={entrants} disabled={groupsDisabled} onChange={changePlacements} statusActions={false} countUnit="件" renderActions={appearanceActions} modelLimits={limits}/>
@@ -126,12 +124,12 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
         {event.discipline==="track"&&groups.length>0&&<Select ariaLabel="記録する組" value={group} onValueChange={setGroup} options={[{value:"all",label:"全員"},...groups.map(value=>({value:String(value),label:groupLabel(value)}))]}/ >}
         {event.discipline!=="track"&&<p className="text-caption">各出場の最高記録を入力してください。</p>}
         {visible.map(performance=>{
-          const a=appearances.find(a=>a.id===performance.entryId)!,person=people.get(a.participant_id),sourceConfirmed=familyEvents.find(e=>e.name===a.event_name)?.confirmed,locked=disabled||sourceConfirmed||!availableAppearance(person,a)||performance.status==="DNS";
+          const a=appearances.find(a=>a.id===performance.entryId)!,person=people.get(a.participant_id),sourceConfirmed=latest.confirmed,locked=disabled||sourceConfirmed||!availableAppearance(person,a)||performance.status==="DNS";
           const count=1;
           const placement=placementText(performance);
           return <Card key={a.id} className="space-y-3 p-3.5">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-body font-semibold">{person?.name}<span className="ml-2 text-caption font-normal">{person?.grade}・{familyEvents.find(e=>e.name===a.event_name)?.division}</span></h3><p className="text-caption">{placement}・{model.best(performance)}{ranks.has(a.id)?`・${ranks.get(a.id)}位`:""}</p></div>
-              <Select ariaLabel={`${person?.name} ${event.name} ${placement}の出場状況`} className="w-40" disabled={disabled||sourceConfirmed||!availableAppearance(person,a)} value={performance.status} onValueChange={status=>update(a.id,status==="DNS"?{status:"DNS",group:null,order:null,heatScope:undefined}:{status:status as MeetPerformance["status"]})} options={[{value:"entered",label:"出場"},{value:"DNS",label:"DNS（欠場）"},{value:"DNF",label:"DNF（途中棄権）"},{value:"DQ",label:"DQ（失格）"}]}/>
+              <Select ariaLabel={`${person?.name} ${a.event_name} ${placement}の出場状況`} className="w-40" disabled={disabled||sourceConfirmed||!availableAppearance(person,a)} value={performance.status} onValueChange={status=>update(a.id,status==="DNS"?{status:"DNS",group:null,order:null,heatScope:undefined}:{status:status as MeetPerformance["status"]})} options={[{value:"entered",label:"出場"},{value:"DNS",label:"DNS（欠場）"},{value:"DNF",label:"DNF（途中棄権）"},{value:"DQ",label:"DQ（失格）"}]}/>
               {appearanceActions(a.id)}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">{Array.from({length:count},(_,index)=>{
@@ -149,7 +147,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
         })}
         {!visible.length&&<p className="text-caption">出場登録はありません</p>}
       </>}
-      {meet.permissions.groups&&(familyEvents.length===1?<label className="flex min-h-11 items-center gap-2 text-body"><input type="checkbox" disabled={mutation.locked} checked={data.confirmed} onChange={e=>setData({...data,confirmed:e.target.checked})}/>結果を確定</label>:<div className="flex flex-wrap gap-2">{familyEvents.map(source=><Button key={source.name} variant="outline" disabled={mutation.locked||changedRemotely&&dirty} onClick={()=>void save(base.events.find(e=>e.name===source.name))}>{`${source.division}の${source.confirmed?"確定を解除":"結果を確定"}`}</Button>)}</div>)}
+      {meet.permissions.groups&&<Button variant="outline" disabled={mutation.locked||changedRemotely&&dirty||latest.confirmed&&dirty} onClick={()=>save(!latest.confirmed)}>{latest.confirmed?"確定を解除":"結果を確定"}</Button>}
       {error&&<p role="alert" className="text-body text-danger">{error}</p>}
       {mutation.message&&<p role="status" className="text-caption">{mutation.message}</p>}
       {mutation.uncertain&&<Button disabled={mutation.busy} onClick={()=>void mutation.check()}>保存結果を確認</Button>}
