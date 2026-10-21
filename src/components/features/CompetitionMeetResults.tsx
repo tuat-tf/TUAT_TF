@@ -3,6 +3,7 @@ import { CompetitionResults } from "./CompetitionResults";
 import { ObLiveRefresh } from "./ObLiveRefresh";
 import { meetResultRows } from "@/lib/competition-meet-results";
 import type { CompetitionMeet } from "@/lib/competition-meet";
+import { OB_MEET } from "@/lib/ob-meet";
 
 export function CompetitionMeetResults({ meet, date, endsOn, canOperate = false }: { meet: CompetitionMeet; date: string; endsOn?: string | null; canOperate?: boolean }) {
   return <div className="space-y-4 px-4 pb-8 pt-2">
@@ -10,6 +11,6 @@ export function CompetitionMeetResults({ meet, date, endsOn, canOperate = false 
       {canOperate && <Link data-ui-action="text" className="flex min-h-11 items-center text-body text-accent" href={`/competitions/${meet.competitionId}/manage`}>大会の運営 →</Link>}
     </div>
     <ObLiveRefresh readOnly startsOn={date} endsOn={endsOn} />
-    <CompetitionResults rows={meetResultRows(meet, date)} />
+    <CompetitionResults rows={meetResultRows(meet, date)} showEntryPreview={meet.meetKey !== OB_MEET.meetKey} />
   </div>;
 }

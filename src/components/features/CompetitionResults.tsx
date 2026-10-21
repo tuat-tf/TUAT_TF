@@ -32,7 +32,7 @@ function summarizeFinished(row: ParsedProgramRow): { names: string; text: string
 }
 
 /** 1種目ぶんの行。タップで出場者ごとの組・レーン・結果を開く。 */
-export function CompetitionResultRow({ row }: { row: ParsedProgramRow }) {
+export function CompetitionResultRow({ row, showEntryPreview = true }: { row: ParsedProgramRow; showEntryPreview?: boolean }) {
   const [open, setOpen] = useState(false);
   const finished = row.tuatEntries.filter((entry) => entry.result);
 
@@ -40,9 +40,9 @@ export function CompetitionResultRow({ row }: { row: ParsedProgramRow }) {
     <div className="p-3.5">
       <button data-ui-row type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-start gap-2 text-left pressable">
         <span className="min-w-0 flex-1">
-          <ProgramEventSummary row={{...row,tuatEntries:row.tuatEntries.slice(0,3)}} />
+          <ProgramEventSummary row={{...row,tuatEntries:row.tuatEntries.slice(0,3)}} showAthletes={showEntryPreview} />
           <span className="ml-15 mt-1 block text-micro text-muted2">出場 {row.tuatEntries.length}件{row.status ? `・${row.status}` : ""}</span>
-          {finished.length > 0 && !open && (
+          {showEntryPreview && finished.length > 0 && !open && (
             // 順位・記録は開かなくても読めるようにする（開くと組・レーン・風も出る）。
             <span className="ml-15 mt-1 block space-y-0.5">
               {summarizeFinished(row).slice(0,5).map(({ names, text }, index) => (
@@ -102,7 +102,7 @@ function resultDivision(eventLabel: string): ResultDivision {
 }
 
 /** The same dated event/result list for official feeds, managed meets and member records. */
-export function CompetitionResults({ rows }: { rows: ParsedProgramRow[] }) {
+export function CompetitionResults({ rows, showEntryPreview = true }: { rows: ParsedProgramRow[]; showEntryPreview?: boolean }) {
   const [search, setSearch] = useState("");
   const [division, setDivision] = useState<ResultFilter>("all");
   const divisions = RESULT_DIVISIONS.filter(value => rows.some(row => resultDivision(row.eventLabel) === value));
@@ -136,7 +136,7 @@ export function CompetitionResults({ rows }: { rows: ParsedProgramRow[] }) {
             if (!blockRows.length) return null;
             return <div key={block} className="space-y-1.5">
               <p className="text-caption text-muted">{block === "track" ? "トラック" : "フィールド"}</p>
-              <Card className="divide-y divide-separator">{blockRows.map(row => <CompetitionResultRow key={row.roundKey} row={row} />)}</Card>
+              <Card className="divide-y divide-separator">{blockRows.map(row => <CompetitionResultRow key={row.roundKey} row={row} showEntryPreview={showEntryPreview} />)}</Card>
             </div>;
           })}
         </div>;

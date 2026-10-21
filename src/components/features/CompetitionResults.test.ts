@@ -149,3 +149,12 @@ it("opens results with distinct appearances, official ranks, positions, wind and
 it("keeps the existing no-results state", () => {
   expect(renderToStaticMarkup(createElement(CompetitionResults, { rows: [] }))).toContain("まだこの大会の結果はありません");
 });
+it.each(["男子100m","女子走幅跳","混合4×300mリレー"])("keeps the closed %s entry clear while retaining everyone's result when opened",eventLabel=>{
+ const input=row(eventLabel,1,{tuatEntries:[{id:"one",name:"表示しない名前",grade:"B1",heat:1,lane:2,bib:null,positionLabel:"混合1組 2レーン",separateResult:true,details:["1走 走者名"],result:{place:"1",record:"12.34"}}]});
+ const before=structuredClone(input);state.cursor=0;const element=CompetitionResultRow({row:input,showEntryPreview:false});const html=renderToStaticMarkup(element);
+ expect(html).toContain(eventLabel);expect(html).toContain("出場 1件");expect(html).not.toContain("表示しない名前");expect(html).not.toContain("12.34");expect(html).not.toContain("走者名");
+ findElement<{onClick:()=>void}>(element,"button")!.props.onClick();state.cursor=0;
+ const opened=renderToStaticMarkup(CompetitionResultRow({row:input,showEntryPreview:false}));
+ for(const text of ["表示しない名前","12.34","混合1組 2レーン","走者名"])expect(opened).toContain(text);
+ expect(input).toEqual(before);
+});
