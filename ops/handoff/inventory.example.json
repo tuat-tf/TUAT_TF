@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "backupStorage": "google-drive",
+  "releaseSha": "92e8b09c0c5c683d4f9fa4ef3cbe1968f72c0d29",
+  "sourceId": "REPLACE_WITH_CAPTURED_SOURCE_ID",
+  "maxSnapshotAgeHours": 24,
+  "files": {
+    "archive": null,
+    "producerReceipt": null,
+    "runtimeConfig": null,
+    "backupConfig": null,
+    "offsiteConfig": null,
+    "appEnvironment": null,
+    "dbEnvironment": null,
+    "authEnvironment": null,
+    "restEnvironment": null,
+    "mixedJwks": null,
+    "vaultKey": null,
+    "recoveryKey": null,
+    "jobsConfig": null,
+    "releaseManifest": null,
+    "releaseBundle": null,
+    "hostConfig": null,
+    "tunnelCredentials": null,
+    "offsiteCredentials": null,
+    "bootstrapBundle": null
+  },
+  "reviews": {
+    "independentKeyCustody": null,
+    "releaseMatchesSnapshot": null,
+    "authAndSigningKeys": null,
+    "jobsHistoryAndExternalOutcomes": null,
+    "googleOAuthAdministration": null,
+    "sheetsGasAdministration": null,
+    "cloudflareAdministration": null,
+    "backupStorageAdministration": null,
+    "repositoryAdministration": null,
+    "privateFilePermissions": null
+  }
+}
