@@ -75,6 +75,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
     setBase({data:latest,appearances,event});setObservedKey(latestKey);setData({...review.data,participants});setReviewing(false);setChoices({});setError("");
   }
   async function save() {
+    if(!dirty){onClose();return;}
     const invalid=model.validate()??(data.confirmed?new MeetEvent(rule,{confirmed:true,participants:data.participants.filter(p=>currentIds.has(p.entryId)&&availableAppearance(people.get(appearances.find(a=>a.id===p.entryId)!.participant_id),appearances.find(a=>a.id===p.entryId)!))},limits).validate():null);
     if(invalid){setError(invalid);return;}
     const changes=data.participants.filter(p=>JSON.stringify(p)!==JSON.stringify(base.data.participants.find(old=>old.entryId===p.entryId))).map(p=>({id:p.entryId,revision:base.appearances.find(a=>a.id===p.entryId)!.revision,performance:storedMeetPerformance(p)}));
@@ -112,7 +113,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
               const t=performance.trials[index]??emptyTrial();
               return <fieldset key={index} disabled={locked} className="space-y-2">
                 <label className="block text-caption">{event.discipline==="track"?"タイム（秒・分:秒・未計測は -）":`${index+1}回目（m）`}
-                  <Input inputMode={event.discipline==="track"?"text":"decimal"} value={t.mark} onChange={e=>trial(a.id,index,{mark:e.target.value,status:e.target.value?(event.discipline==="height"&&t.status!=="pending"?t.status:"valid"):"pending"})} onBlur={e=>{const mark=formatObRecordInput(e.target.value,event.family);trial(a.id,index,{mark,status:mark?t.status==="pending"?"valid":t.status:"pending"});}}/>
+                  <Input inputMode={event.discipline==="track"?"text":"decimal"} value={t.mark} onChange={e=>trial(a.id,index,{mark:e.target.value,status:e.target.value?(event.discipline==="height"&&t.status!=="pending"?t.status:"valid"):"pending"})} onBlur={e=>{if(e.target.value===(base.data.participants.find(p=>p.entryId===a.id)?.trials[index]?.mark??""))return;const mark=formatObRecordInput(e.target.value,event.family);trial(a.id,index,{mark,status:mark?t.status==="pending"?"valid":t.status:"pending"});}}/>
                 </label>
                 {event.discipline!=="track"&&<Select ariaLabel={`${index+1}回目の結果`} value={t.status} onValueChange={status=>trial(a.id,index,{status:status as MeetTrial["status"],...(event.discipline!=="height"&&status!=="valid"?{mark:"",wind:""}:{})})} options={[{value:"pending",label:"未試技"},{value:"valid",label:"成功"},{value:"foul",label:"失敗"},{value:"pass",label:"パス"}]}/ >}
                 {event.wind&&<label className="block text-caption">風速<Input inputMode="decimal" value={t.wind} onChange={e=>trial(a.id,index,{wind:e.target.value})}/></label>}

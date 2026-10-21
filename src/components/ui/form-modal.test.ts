@@ -40,6 +40,17 @@ function close(elements: ReactElement<Record<string, unknown>>[]) {
 beforeEach(() => { hooks.slots = []; hooks.index = 0; hooks.guard = null; });
 
 describe("shared form closing", () => {
+  it("closes without sending when the draft is already clean by the time save is chosen", () => {
+    const onOpenChange = vi.fn(), onSave = vi.fn();
+    const elements = render(onOpenChange);
+    useFormDraft({ dirty: true, busy: false, onSave });
+    close(elements);
+    const confirm = render(onOpenChange)[1];
+    useFormDraft({ dirty: false, busy: false, onSave });
+    (confirm.props.onSave as () => void)();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
   it("closes a clean form without asking to save", () => {
     const onOpenChange = vi.fn();
     close(render(onOpenChange));

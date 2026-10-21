@@ -104,7 +104,7 @@ export function FormModal({
     <UnsavedChangesDialog open={open && confirmClose} busy={false} intent={confirmIntent}
       onContinue={() => setConfirmClose(false)}
       onDiscard={() => { if (draft.current?.busy) return; setConfirmClose(false); onOpenChange(false); }}
-      onSave={() => { if (draft.current?.busy) return; setConfirmClose(false); void draft.current?.onSave(); }} />
+      onSave={() => { if (draft.current?.busy) return; setConfirmClose(false); if (!draft.current?.dirty) { onOpenChange(false); return; } void draft.current.onSave(); }} />
     </>
   );
 }

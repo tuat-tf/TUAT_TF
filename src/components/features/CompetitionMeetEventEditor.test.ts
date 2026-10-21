@@ -5,12 +5,12 @@ import {emptyPerformance} from "@/lib/meet-operations";
 import type {CompetitionMeet,ManagedMeetEvent} from "@/lib/competition-meet";
 import type {MeetMutation} from "./CompetitionMeetWorkspace";
 const state=vi.hoisted(()=>({values:[] as unknown[],cursor:0}));
-const capture=vi.hoisted(()=>({buttons:new Map<string,{disabled:boolean;onClick:()=>void}>(),inputs:[] as {value:string;onChange:(e:{target:{value:string}})=>void}[],selects:new Map<string,{onValueChange:(value:string)=>void;options:{value:string;label:string}[]}>(),run:vi.fn(),close:vi.fn(),add:vi.fn(),board:vi.fn()}));
+const capture=vi.hoisted(()=>({buttons:new Map<string,{disabled:boolean;onClick:()=>void}>(),inputs:[] as {value:string;onChange:(e:{target:{value:string}})=>void;onBlur:(e:{target:{value:string}})=>void}[],guard:null as null|{dirty:boolean;onSave:()=>Promise<void>},selects:new Map<string,{onValueChange:(value:string)=>void;options:{value:string;label:string}[]}>(),run:vi.fn(),close:vi.fn(),add:vi.fn(),board:vi.fn()}));
 vi.mock("react",async original=>({...await original<typeof import("react")>(),useState(initial:unknown){const i=state.cursor++;if(!(i in state.values))state.values[i]=initial;return[state.values[i],(next:unknown)=>{state.values[i]=typeof next==="function"?next(state.values[i]):next;}];}}));
-vi.mock("@/components/ui/form-modal",()=>({FormModal:({children}:{children:ReactNode})=>children,FormModalFooter:({children}:{children:ReactNode})=>children,FormDraftGuard:()=>null}));
+vi.mock("@/components/ui/form-modal",()=>({FormModal:({children}:{children:ReactNode})=>children,FormModalFooter:({children}:{children:ReactNode})=>children,FormDraftGuard:(props:{dirty:boolean;onSave:()=>Promise<void>})=>{capture.guard=props;return null;}}));
 vi.mock("@/components/ui/sheet",()=>({Sheet:({open,children}:{open:boolean;children:ReactNode})=>open?children:null,SheetContent:({children}:{children:ReactNode})=>children}));
 vi.mock("@/components/ui/button",()=>({Button:(props:{children:ReactNode;disabled:boolean;onClick:()=>void})=>{if(typeof props.children==="string")capture.buttons.set(props.children,props);return createElement("button",{disabled:props.disabled},props.children);}}));
-vi.mock("@/components/ui/input",()=>({Input:(props:{value:string;onChange:(e:{target:{value:string}})=>void})=>{capture.inputs.push(props);return createElement("input",{value:props.value,readOnly:true});}}));
+vi.mock("@/components/ui/input",()=>({Input:(props:{value:string;onChange:(e:{target:{value:string}})=>void;onBlur:(e:{target:{value:string}})=>void})=>{capture.inputs.push(props);return createElement("input",{value:props.value,readOnly:true});}}));
 vi.mock("@/components/ui/select",()=>({Select:(props:{ariaLabel:string;onValueChange:(value:string)=>void;options:{value:string;label:string}[]})=>{capture.selects.set(props.ariaLabel,props);return null;}}));
 vi.mock("@/components/ui/segmented",()=>({SegmentedControl:()=>null}));
 vi.mock("./MeetHeatBoard",()=>({MeetHeatBoard:(props:unknown)=>{capture.board(props);return null;}}));
@@ -21,6 +21,24 @@ const meet=():CompetitionMeet=>({competitionId:"test",meetKey:"test",name:"合�
 const mutation=()=>({locked:false,busy:false,message:"",run:capture.run} as unknown as MeetMutation);
 function render(data=meet()){state.cursor=0;capture.buttons.clear();capture.inputs=[];return renderToStaticMarkup(createElement(CompetitionMeetEventEditor,{event,meet:data,mutation:mutation(),onClose:capture.close,onAdd:capture.add}));}
 beforeEach(()=>{state.values=[];capture.selects.clear();vi.clearAllMocks();capture.run.mockResolvedValue(true);});
+it("does not reformat an untouched saved mark or request a save on leaving its field",()=>{
+ const data=meet();data.appearances[0].performance.trials=[{mark:"120",status:"valid",wind:""}];
+ render(data);capture.inputs[0].onBlur({target:{value:"120"}});render(data);
+ expect(capture.inputs[0].value).toBe("120");expect(capture.guard?.dirty).toBe(false);
+});
+it("closes a clean save request without validating unrelated records or sending a mutation",async()=>{
+ render();await capture.guard!.onSave();expect(capture.run).not.toHaveBeenCalled();expect(capture.close).toHaveBeenCalledOnce();
+});
+it("closes after a successful changed save",async()=>{
+ render();capture.inputs[0].onChange({target:{value:"1.25"}});render();
+ await capture.guard!.onSave();expect(capture.run).toHaveBeenCalledOnce();expect(capture.close).toHaveBeenCalledOnce();
+});
+it("clears the unsaved state when an edited mark is restored and retains actual changed input on failure",async()=>{
+ render();capture.inputs[0].onChange({target:{value:"1.20"}});render();expect(capture.guard?.dirty).toBe(true);
+ capture.inputs[0].onChange({target:{value:""}});render();expect(capture.guard?.dirty).toBe(false);
+ capture.inputs[0].onChange({target:{value:"1.25"}});render();capture.run.mockResolvedValue(false);
+ await capture.guard!.onSave();render();expect(capture.guard?.dirty).toBe(true);expect(capture.inputs[0].value).toBe("1.25");expect(capture.close).not.toHaveBeenCalled();
+});
 it("adds a second height trial from the initial display slot and retains failed attempts while typing height",async()=>{
  render();capture.buttons.get("試技を追加")!.onClick();render();expect(capture.inputs).toHaveLength(2);
  capture.selects.get("1回目の結果")!.onValueChange("foul");render();capture.inputs[0].onChange({target:{value:"1.20"}});render();

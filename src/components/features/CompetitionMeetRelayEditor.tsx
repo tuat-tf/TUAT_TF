@@ -24,6 +24,7 @@ export function CompetitionMeetRelayEditor({event,meet,mutation,onClose}:{event:
   function update(lane:number,field:"name"|"time",value:string){setError("");setTeams(before=>before.map(team=>team.lane===lane?{...team,[field]:value}:team));}
   function updateMember(lane:number,runner:number,value:string){setError("");setTeams(before=>before.map(team=>team.lane===lane?{...team,members:team.members.map((name,index)=>index===runner?value:name) as RelayTeamResult["members"]}:team));}
   async function save(){
+    if(!dirty){onClose();return;}
     const desired:RelayTeamResult[]=teams.map(team=>({...team,name:team.name.trim(),time:formatRelayTime(team.time),members:team.members.map(name=>name.trim()) as RelayTeamResult["members"]}));
     const problem=validateRelayResults(desired,confirmed);if(problem){setError(problem);return;}
     if(await mutation.run({action:"relay.save",event:event.name,revision:base.revision,relayResults:desired,confirmed}))onClose();
@@ -41,7 +42,7 @@ export function CompetitionMeetRelayEditor({event,meet,mutation,onClose}:{event:
       <fieldset disabled={mutation.locked||!meet.permissions.record||event.confirmed} className="space-y-3">
         {teams.map(team=><Card key={team.lane} className="space-y-3 p-3.5"><h3 className="text-body font-semibold">{team.lane}レーン</h3>
           <label className="block space-y-1 text-caption">チーム名<Input aria-label={`${team.lane}レーンのチーム名`} maxLength={100} value={team.name} onChange={e=>update(team.lane,"name",e.target.value)}/></label>
-          <label className="block space-y-1 text-caption">タイム（分:秒）<Input aria-label={`${team.lane}レーンのタイム`} placeholder="例: 2:45.67" inputMode="text" value={team.time} onChange={e=>update(team.lane,"time",e.target.value)} onBlur={e=>update(team.lane,"time",formatRelayTime(e.target.value))}/></label>
+          <label className="block space-y-1 text-caption">タイム（分:秒）<Input aria-label={`${team.lane}レーンのタイム`} placeholder="例: 2:45.67" inputMode="text" value={team.time} onChange={e=>update(team.lane,"time",e.target.value)} onBlur={e=>{if(e.target.value!==base.teams.find(saved=>saved.lane===team.lane)?.time)update(team.lane,"time",formatRelayTime(e.target.value));}}/></label>
           <div className="grid grid-cols-2 gap-3">{team.members.map((name,runner)=><label key={runner} className="block space-y-1 text-caption">{runner+1}走<Input aria-label={`${team.lane}レーンの${runner+1}走`} maxLength={100} value={name} onChange={e=>updateMember(team.lane,runner,e.target.value)}/></label>)}</div>
         </Card>)}
       </fieldset>

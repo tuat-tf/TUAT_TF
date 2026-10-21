@@ -44,7 +44,7 @@ function useMeetMutation(competitionId: string, backend: "pc" | "cloud") {
       const result = await mutateCompetitionMeet(competitionId, attempt.id, attempt.command);
       if (result.uncertain) { pending.current = attempt; setUncertain(true); }
       if (!result.ok) { setMessage(result.message ?? "保存できませんでした。入力は残っています"); if (result.stale) router.refresh(); return false; }
-      savedId.current=result.id;setMessage("保存しました"); router.refresh(); return true;
+      savedId.current=result.id;setConfirmedRequest(attempt.id);setMessage("保存しました"); router.refresh(); return true;
     } catch { pending.current = attempt; setUncertain(true); setMessage("保存結果を確認できませんでした。入力は残っています"); return false; }
     finally { sending.current = false; setBusy(false); }
   }
