@@ -279,3 +279,25 @@ it("rejects an existing unreviewed relay tab and leaves its independent contents
  const before=structuredClone(state.workbook),writes=state.writes.length;
  expect(()=>api.publishObResults()).toThrow("generated range");expect(state.workbook).toEqual(before);expect(state.writes).toHaveLength(writes);
 });
+
+it("publishes multiple six-lane relay heats without changing unrelated cells",()=>{
+ const {state,api}=setup();api.publishObResults();
+ const sheet=relayResultSheet({...fixtureMeet().events[0],name:"4×300mリレー",relay_results:[...emptyRelayResults(),...emptyRelayResults(2)]});
+ state.source.sheets.push(sheet);state.source.revision=createHash("sha256").update(JSON.stringify(state.source.sheets)).digest("hex");
+ const before=structuredClone(state.workbook);expect(api.dryRunObResultsPublish().changed).toBe(true);expect(state.workbook).toEqual(before);
+ expect(api.publishObResults().changed).toBe(true);
+ const relay=state.workbook.sheets.find(s=>s.properties.title===sheet.name)!;
+ expect(relay.cells.slice(0,13).map(row=>row.slice(0,9).map(c=>c.userEnteredValue?.stringValue??c.userEnteredValue?.numberValue??""))).toEqual(sheet.rows);
+ expect(relay.cells[7].slice(0,2).map(c=>c.userEnteredValue?.numberValue)).toEqual([2,1]);
+ expect(state.workbook.sheets.find(s=>s.properties.title==="独自タブ")).toEqual(before.sheets.find(s=>s.properties.title==="独自タブ"));
+ expect(api.publishObResults().changed).toBe(false);
+});
+
+it.each(["missing-lane","wrong-heat","duplicate-lane"])("refuses malformed multi-heat relay %s before any sheet write",kind=>{
+ const {state,api}=setup();api.publishObResults();
+ const sheet=relayResultSheet({...fixtureMeet().events[0],name:"4×300mリレー",relay_results:[...emptyRelayResults(),...emptyRelayResults(2)]});
+ if(kind==="missing-lane")sheet.rows.pop();else if(kind==="wrong-heat")sheet.rows[7][0]=3;else sheet.rows[8][1]=1;
+ state.source.sheets.push(sheet);state.source.revision=createHash("sha256").update(JSON.stringify(state.source.sheets)).digest("hex");
+ const before=structuredClone(state.workbook),writes=state.writes.length;
+ expect(()=>api.publishObResults()).toThrow("Invalid relay lanes");expect(state.workbook).toEqual(before);expect(state.writes).toHaveLength(writes);
+});

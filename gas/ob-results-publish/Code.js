@@ -10,7 +10,11 @@ var OB_RESULTS_TABS = ['プログラム', '1500m', 'ジャベリックスロー'
 var OB_RESULTS_RELAY_TAB = '4×300mリレー';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Public entrypoint in the Apps Script editor.
-function dryRunObResultsPublish() { return runObResultsPublish_(true); }
+function dryRunObResultsPublish() {
+  var result = runObResultsPublish_(true);
+  console.log(JSON.stringify(result));
+  return result;
+}
 function publishObResults() { return runObResultsPublish_(false); }
 
 // Signed wake-up only: never accept participant data, destinations or sheet edits.
@@ -102,8 +106,14 @@ function validateObResultsSnapshot_(snapshot) {
     });
     if (index === 0 && JSON.stringify(sheet.rows[0]) !== JSON.stringify(['時刻', '内容', '備考'])) throw new Error('Invalid OB program');
     if (sheet.name === OB_RESULTS_RELAY_TAB) {
-      if (JSON.stringify(sheet.rows[0]) !== JSON.stringify(['レーン', 'チーム名', 'タイム', '順位', '1走', '2走', '3走', '4走']) || sheet.rows.length !== 7
-          || sheet.rows.slice(1).some(function(row, lane) { return row.length !== 8 || row[0] !== lane + 1 || typeof row[1] !== 'string' || typeof row[2] !== 'string' || row.slice(4).some(function(member) { return typeof member !== 'string'; }); })) throw new Error('Invalid relay lanes');
+      var multipleHeats = sheet.rows[0][0] === '組';
+      var offset = multipleHeats ? 1 : 0;
+      var relayHeaders = (multipleHeats ? ['組'] : []).concat(['レーン', 'チーム名', 'タイム', '順位', '1走', '2走', '3走', '4走']);
+      var teamCount = sheet.rows.length - 1;
+      if (JSON.stringify(sheet.rows[0]) !== JSON.stringify(relayHeaders) || (multipleHeats ? teamCount < 12 || teamCount % 6 !== 0 : teamCount !== 6)
+          || sheet.rows.slice(1).some(function(row, index) { return row.length !== 8 + offset || (multipleHeats && row[0] !== Math.floor(index / 6) + 1)
+            || row[offset] !== index % 6 + 1 || typeof row[offset + 1] !== 'string' || typeof row[offset + 2] !== 'string'
+            || row.slice(offset + 4).some(function(member) { return typeof member !== 'string'; }); })) throw new Error('Invalid relay lanes');
     } else if (index > 0 && ['区分', '氏名', '学年', '出場状況', '記録'].some(function(header) { return sheet.rows[0].indexOf(header) < 0; })) throw new Error('Missing OB headers');
   });
   if (!Array.isArray(snapshot.statusTargets) || snapshot.statusTargets.length !== 11) throw new Error('Missing OB private row mapping');
