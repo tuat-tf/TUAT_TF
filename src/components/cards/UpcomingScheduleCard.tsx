@@ -8,7 +8,7 @@ import { Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceToggle, type AttendanceChange } from "@/components/features/AttendanceToggle";
-import { attendanceCounts } from "@/components/features/AttendeesButton";
+import { AttendeesButton } from "@/components/features/AttendeesButton";
 import { cn } from "@/lib/utils";
 import { SCHEDULE_TYPES } from "@/lib/constants";
 import { venueShort } from "@/lib/venues";
@@ -51,10 +51,6 @@ export function UpcomingScheduleCard({
   const [status, setStatus] = useState<AttendanceStatusOrNone>(initialStatus);
   const [attendeesState, setAttendeesState] = useState(attendees);
   const meta = SCHEDULE_TYPES[schedule.schedule_type];
-  const counted = attendanceCounts(
-    attendeesState.filter((attendee) => attendee.attend_date === attendDate),
-    attendanceDefaultBlock,
-  );
 
   function handleChanged(change: AttendanceChange) {
     setStatus(change.status);
@@ -105,12 +101,6 @@ export function UpcomingScheduleCard({
                 <Clock size={12} /> {schedule.meeting_time.slice(0, 5)}
               </span>
             )}
-            <span className="shrink-0 text-success">
-              出席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.present}</span>
-            </span>
-            <span className="shrink-0 text-danger">
-              欠席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.absent}</span>
-            </span>
           </div>
         </div>
       </Link>
@@ -122,6 +112,7 @@ export function UpcomingScheduleCard({
         initialLate={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.is_late ?? false}
         initialLateNote={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.late_note ?? null}
         initialAbsenceNote={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.absence_note ?? null}
+        summary={<AttendeesButton attendees={attendeesState} defaultBlock={attendanceDefaultBlock} />}
         onChanged={handleChanged}
       />
     </Card>

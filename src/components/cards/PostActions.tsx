@@ -357,7 +357,7 @@ export function PostActions({
             liked ? "text-danger" : "text-muted",
           )}
         >
-          <Heart size={18} fill={liked ? "#ff3b30" : "none"} strokeWidth={2} />
+          <Heart size={18} fill={liked ? "currentColor" : "none"} strokeWidth={2} />
           {/* 常に数字を描画し0は透明にする＝箱が一定でガクつかない */}
           <span className={cn("inline-block text-left tabular-nums", pending ? "text-[11px]" : "w-5", !pending && likes === 0 && "opacity-0")}>
             {pending ? "確認する" : likes}

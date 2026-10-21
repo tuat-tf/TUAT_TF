@@ -13,3 +13,15 @@
 ## 開始時の本番
 
 ff64a7d、runtime SHA9037d12d6c10126ab21e2c78a5136ee6615b372f442fd2e56580f04cf7ca2370、同世代backup確認済み。新しいDB snapshot/dryRunはDB変更がないため不要で、直前の成功結果を再利用。別releaseのbuild後にもbackup容量を満たすため、未使用の2b5bc51/d297d2aを暗号化領域内で全ファイル読戻し付き圧縮退避。現行ff64a7dと直前39c525dは保持。
+
+## 公開完了
+
+- 公開コミット `5093efaa7989e37bce44b07cc6274beec1b77f46`。検証済み6ソース/試験ファイルをGit indexに固定し、並行して始まった出場削除メニュー・フィールド最高記録入力の改修は作業ツリーに保全して除外。masterへfast-forwardし1回push。
+- Linux Node24.19.0で本番ビルド、隔離スモーク（version/login/静的資産/匿名アクセス拒否/旧API廃止）、全成果物inventory成功。依存lock一致を確認して現行Linux依存を再利用。環境・型・対象ESLint・208ファイル1,844試験の成功結果は引継ぎ記録の通り。
+- Cloudflareは既存公開先・VPC binding・Worker実装を保持し、旧版を含む453資産を検証して公開。version ID `8fe93700-0724-4e29-b143-564f2bbc3b03`。可変manifestのみPC配信へ維持。公開JSの内容SHA一致とimmutable cacheを確認。
+- PCは暗号化release 5093efaへ切替。新世代 `0129c963-4c62-4678-bd84-eaa22113b189`。DB/認証/トンネル保持。初回バックアップ18,278,436bytes、復元とR2読戻し確認成功。Jobsの履歴と結果不明送信を保全し、現在の処理が終了してからtimerを再開。再開後の定期バックアップ18,288,676bytes、SHA `2e0371a38e7d2155de27df89dc0377797c2a5fe89d4a84c5a98feb664b6d541e` も成功。
+- runtime --check valid。正式watch正常、app/jobs/backup.timer/tunnel active。同世代バックアップ確認後、一時keepaliveのみ終了。既存の過去シート送信保留は解除・再送していない。
+- Vercel Production `dpl_pGeJ6sHkUPbW7G8oqX4z9yWmPBdv` READY、githubCommitSha一致。既存Cloudflare公開URLとtuat-tf.vercel.appの `/api/version` がともに5093efaを返す。Vercel設定・課金設定変更なし。
+- 本番ブラウザ: 初回バックアップ中の取得失敗表示はバックアップ完了後の再読込で解消。ホーム・OB戦結果・運営画面が正常表示。既存リレーと男子3000mを開き、保存値へフォーカスして戻る操作が未保存確認なしで閉じることを確認。実記録の変更保存は行っていない。保存成功後終了・失敗保持は自動試験で確認。スマホ実機は未確認。
+- アカウント移管は別チャットの明示保留を維持。新アカウントURL切替はCloudflare認証403の解消待ち。進行中の新規画面改修は本コミットに含まない。
+- 完了追記はローカル保持。文書追記のみの追加push/deployはしない。

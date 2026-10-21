@@ -54,11 +54,11 @@
     "Yu Gothic", "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
 }
 
-/* Text uses a darker foreground; fills, graph colors and focus borders keep their hues. */
-.text-accent:where(:not(svg)) { color: var(--color-accent-ink); }
-.text-success:where(:not(svg)) { color: var(--color-success-ink); }
+/* Keep the original bright accents; amber warning text needs a darker foreground. */
+.text-accent:where(:not(svg)) { color: var(--color-accent); }
+.text-success:where(:not(svg)) { color: var(--color-success); }
 .text-warning:where(:not(svg)) { color: var(--color-warning-ink); }
-.text-danger:where(:not(svg)) { color: var(--color-danger-ink); }
+.text-danger:where(:not(svg)) { color: var(--color-danger); }
 
 html {
   height: 100%;

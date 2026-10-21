@@ -6,7 +6,6 @@ import { ScheduleAttendance } from "@/components/cards/schedule/ScheduleAttendan
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/components/layout/glass/system-glass-state", () => ({ useSystemGlass: () => true }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => { throw new Error("Rendering must not mutate attendance"); } }));
-vi.mock("@/components/features/AttendeesButton", () => ({ AttendeesButton: () => null }));
 
 const profile = { id: "me", display_name: "検証用部員", avatar_url: null, blocks: ["short" as const], grade: "B1" as const };
 function render(status: "present" | "absent", late = false, note: string | null = null) {
@@ -23,6 +22,8 @@ describe("future attendance contact entry points", () => {
     expect(html).toContain("連絡する");
     expect(html).toContain("11/15");
     expect(html).toContain("11/16");
+    expect(html).toContain("出欠一覧（出席1人、欠席0人）");
+    expect(html).toContain("出欠一覧（出席0人、欠席0人）");
   });
   it("shows a saved general note when the person is not late", () => {
     const html = render("present", false, "練習の途中で早退します");
@@ -34,6 +35,8 @@ describe("future attendance contact entry points", () => {
     const html = render("present", true, "10分ほど遅れます");
     expect(html).toContain("遅刻を取り消す");
     expect(html).toContain("10分ほど遅れます");
+    expect(html).toContain("遅刻連絡済み");
+    expect(html).not.toContain("遅刻中");
   });
   it("keeps absence contact accessible without offering lateness for an absent day", () => {
     const html = render("absent", false, "授業があるため欠席します");

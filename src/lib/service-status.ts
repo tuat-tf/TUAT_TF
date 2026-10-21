@@ -1,5 +1,6 @@
 // Server only: never return credentials, raw provider errors, or billing records.
 import { unstable_cache } from "next/cache";
+import { localImageStorageEnabled } from "./local-image-storage";
 import { getR2Inventory } from "@/lib/image-storage";
 
 export type ServiceHealth = {
@@ -11,7 +12,7 @@ export type ServiceStatus = {
   health: Record<"vercel" | "supabase" | "cloudflare", ServiceHealth>;
   r2: { state: "ready" | "unconfigured" | "error"; bytes: number | null; objects: number | null };
   vercel: { state: "ready" | "unconfigured" | "error"; from: string; to: string; usage: { name: string; unit: string; quantity: number }[] };
-  images: { reads: boolean; writes: boolean; paused: boolean; limitBytes: number | null };
+  images: { backend?: "pc" | "cloud"; reads: boolean; writes: boolean; paused: boolean; limitBytes: number | null };
 };
 
 export function parseHealth(value: unknown): ServiceHealth {
@@ -47,7 +48,7 @@ async function health(url: string): Promise<ServiceHealth> {
 }
 
 async function inventory(): Promise<ServiceStatus["r2"]> {
-  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) return { state: "unconfigured", bytes: null, objects: null };
+  if (!localImageStorageEnabled() && (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME)) return { state: "unconfigured", bytes: null, objects: null };
   try { return { state: "ready", ...await getR2Inventory() }; }
   catch { return { state: "error", bytes: null, objects: null }; }
 }
@@ -96,10 +97,12 @@ export async function getServiceStatus(): Promise<ServiceStatus> {
       health("https://www.cloudflarestatus.com/api/v2/summary.json"), inventory(), vercelUsage(),
     ]);
     return { checkedAt: new Date().toISOString(), health: { vercel, supabase, cloudflare }, r2, vercel: usage };
-  }, ["service-status-v1", process.env.VERCEL_DEPLOYMENT_ID ?? "local", process.env.R2_ACCOUNT_ID ?? "", process.env.R2_BUCKET_NAME ?? "", process.env.SERVICE_STATUS_VERCEL_TEAM_ID ?? ""], { revalidate: 900 })();
-  const limit = Number(process.env.R2_MAX_STORAGE_BYTES ?? 8_000_000_000);
+  }, ["service-status-v2", process.env.IMAGE_STORAGE_DRIVER ?? "cloud", process.env.VERCEL_DEPLOYMENT_ID ?? "local", process.env.R2_ACCOUNT_ID ?? "", process.env.R2_BUCKET_NAME ?? "", process.env.SERVICE_STATUS_VERCEL_TEAM_ID ?? ""], { revalidate: 900 })();
+  const local = localImageStorageEnabled();
+  const limit = Number((local ? process.env.LOCAL_IMAGE_MAX_STORAGE_BYTES : process.env.R2_MAX_STORAGE_BYTES) ?? 8_000_000_000);
   return { ...snapshot, images: {
-    reads: process.env.R2_READ_ENABLED === "true", writes: process.env.R2_WRITE_ENABLED === "true", paused: process.env.R2_UPLOADS_PAUSED === "true",
+    backend: local ? "pc" : "cloud",
+    reads: local || process.env.R2_READ_ENABLED === "true", writes: local || process.env.R2_WRITE_ENABLED === "true", paused: (local ? process.env.LOCAL_IMAGE_UPLOADS_PAUSED : process.env.R2_UPLOADS_PAUSED) === "true",
     limitBytes: Number.isSafeInteger(limit) && limit > 0 ? limit : null,
   } };
 }

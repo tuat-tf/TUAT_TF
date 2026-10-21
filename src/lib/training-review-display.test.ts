@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { trainingReviewFields, trainingReviewPreferenceKey } from "./training-review-display";
+import { recentTrainingRecords, trainingReviewFields, trainingReviewPreferenceKey } from "./training-review-display";
 import type { PracticeRecord, RecordFieldDef } from "@/types";
 
 const record: PracticeRecord = {
@@ -16,6 +16,10 @@ const current: RecordFieldDef[] = [
 ];
 
 describe("training review display", () => {
+  it("includes exactly seven calendar dates across a month boundary and excludes future records", () => {
+    const rows=["2026-09-26","2026-09-27","2026-09-30","2026-10-03","2026-10-04"].map(recorded_date=>({...record,recorded_date}));
+    expect(recentTrainingRecords(rows,"2026-10-03").map(r=>r.recorded_date)).toEqual(["2026-09-27","2026-09-30","2026-10-03"]);
+  });
   it("uses the saved selection and labels without relabeling historical records", () => {
     const historical = { ...record, record_fields_version: 3, record_fields_snapshot: [
       { key: "result_text", label: "Timing at the time", type: "text" as const, showInTimeline: true },

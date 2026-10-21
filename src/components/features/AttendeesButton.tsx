@@ -49,11 +49,9 @@ export function attendanceCounts(
 export function AttendeesButton({
   attendees,
   defaultBlock,
-  compact = false,
 }: {
   attendees: Attendee[];
   defaultBlock: AttendanceDefaultBlock;
-  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [block, setBlock] = useState<AttendanceDefaultBlock>(defaultBlock);
@@ -76,16 +74,16 @@ export function AttendeesButton({
         data-glass-attendance={"summary"}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={compact ? `出欠一覧（出席${counted.present}人、欠席${counted.absent}人）` : undefined}
+        aria-label={`出欠一覧（出席${counted.present}人、欠席${counted.absent}人）`}
         onClick={(e) => {
           setBlock(defaultBlock);
           e.stopPropagation();
           setOpen(true);
         }}
-        className={cn("inline-flex items-center justify-center gap-1 h-11 rounded-full bg-bg border border-separator text-[13px] font-semibold text-muted2 whitespace-nowrap pressable shrink-0", compact ? "w-16 px-1" : "px-3")}
+        className={cn("inline-flex items-center justify-center gap-2 h-12 rounded-full bg-bg border border-separator text-[14px] font-semibold text-muted2 whitespace-nowrap pressable shrink-0 px-4")}
       >
         <Users size={15} />
-        {compact ? <span>出欠</span> : <>
+        <>
         {/* 0でも消さず常に表示。数字は等幅＋2桁ぶんの固定幅で桁が増えてもガクつかない。 */}
         <span className="text-success">
           出席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.present}</span>
@@ -93,7 +91,7 @@ export function AttendeesButton({
         <span className="text-danger">
           欠席 <span className="inline-block min-w-[2ch] text-right tabular-nums">{counted.absent}</span>
         </span>
-        </>}
+        </>
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>

@@ -1,9 +1,23 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 vi.mock("@/lib/image-storage", () => ({ getR2Inventory: vi.fn() }));
-import { parseHealth, parseVercelUsage } from "./service-status";
+import { getServiceStatus, parseHealth, parseVercelUsage } from "./service-status";
+import { getR2Inventory } from "./image-storage";
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("service status summaries", () => {
+  it("reports local image capacity and pause state without requiring R2 credentials", async () => {
+    vi.stubEnv("IMAGE_STORAGE_DRIVER", "local");
+    vi.stubEnv("R2_ACCOUNT_ID", "");
+    vi.stubEnv("LOCAL_IMAGE_MAX_STORAGE_BYTES", "9000000");
+    vi.stubEnv("LOCAL_IMAGE_UPLOADS_PAUSED", "true");
+    vi.stubEnv("SERVICE_STATUS_VERCEL_TOKEN", "");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({status:{indicator:"none"}}) }));
+    vi.mocked(getR2Inventory).mockResolvedValue({bytes:123,objects:2});
+    const result=await getServiceStatus();
+    expect(result.r2).toEqual({state:"ready",bytes:123,objects:2});
+    expect(result.images).toMatchObject({backend:"pc",reads:true,writes:true,paused:true,limitBytes:9000000});
+  });
   it("does not treat malformed status as healthy", () => {
     for (const value of [null, {}, { status: {} }, { status: { indicator: "new-value" } }]) expect(() => parseHealth(value)).toThrow();
     expect(parseHealth({ status: { indicator: "major" }, incidents: [{ name: "Database outage" }] })).toEqual({ indicator: "major", incidents: ["Database outage"] });

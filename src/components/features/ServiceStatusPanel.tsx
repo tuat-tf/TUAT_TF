@@ -5,7 +5,7 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { ServiceHealth, ServiceStatus } from "@/lib/service-status";
 
-const healthLabels = { none: "全体の稼働は正常", minor: "一部に影響あり", major: "障害あり", critical: "重大な障害あり", unknown: "障害情報を取得できません" };
+const healthLabels = { none: "全体の稼働は正常", minor: "一部に影響あり", major: "サービス全体で障害情報あり", critical: "サービス全体で重大な障害情報あり", unknown: "障害情報を取得できません" };
 const missing = { unconfigured: "連携設定が必要です", error: "取得できませんでした" };
 const gb = (n: number) => `${(n / 1_000_000_000).toLocaleString("ja-JP", { maximumFractionDigits: 3 })} GB`;
 
@@ -36,16 +36,16 @@ export function ServiceStatusPanel({ embedded = false }: { embedded?: boolean })
         <p className="text-sm text-muted">月間転送量・DB容量・無料枠の残量: 未取得</p>
         <p className="text-micro text-muted">正確な使用量と利用制限は「使用量を開く」で確認してください。全体の稼働が正常でも、このプロジェクトに利用制限がかかっている場合があります。</p>
       </ServiceCard>
-      <ServiceCard name="Cloudflare R2" health={data.health.cloudflare} statusUrl="https://www.cloudflarestatus.com" usageUrl="https://dash.cloudflare.com/a4e843f4713c95818cb08594164541b7/r2/overview">
+      <ServiceCard name="Cloudflare（全サービス）" health={data.health.cloudflare} statusUrl="https://www.cloudflarestatus.com" usageUrl="https://dash.cloudflare.com/a4e843f4713c95818cb08594164541b7/r2/overview">
         {data.r2.state === "ready" ? <>
-          <div className="flex justify-between gap-3 text-sm"><span>画像バケットの保存容量</span><strong>{gb(data.r2.bytes!)} / {data.images.limitBytes === null ? "上限設定エラー" : gb(data.images.limitBytes)}</strong></div>
+          <div className="flex justify-between gap-3 text-sm"><span>画像の保存容量</span><strong>{gb(data.r2.bytes!)} / {data.images.limitBytes === null ? "上限設定エラー" : gb(data.images.limitBytes)}</strong></div>
           {data.images.limitBytes !== null && <progress aria-label="画像保存容量の使用率" max={data.images.limitBytes} value={data.r2.bytes!} className="h-2 w-full accent-current" />}
-          <p className="text-micro text-muted">{data.r2.objects!.toLocaleString("ja-JP")}ファイル。上限はアプリの保存停止目安です。R2の月平均使用量・請求上限とは異なります。</p>
+          <p className="text-micro text-muted">{data.r2.objects!.toLocaleString("ja-JP")}ファイル。上限はアプリの保存停止目安です。保存先: {data.images.backend === "pc" ? "本番PC" : "R2"}。クラウドの請求上限とは異なります。</p>
           {data.images.limitBytes !== null && data.r2.bytes! >= data.images.limitBytes * 0.8 && <p className="text-sm text-warning">保存容量が停止目安の80%以上です。</p>}
         </> : <p className="text-sm text-muted">保存容量: {missing[data.r2.state]}</p>}
         <dl className="grid grid-cols-2 gap-2 text-sm">
-          <dt>画像の読み込み</dt><dd>{data.images.reads ? "R2優先" : "Supabase"}</dd>
-          <dt>新しい画像の保存</dt><dd>{data.images.writes ? data.images.paused ? "一時停止中" : "R2" : "Supabase"}</dd>
+          <dt>画像の読み込み</dt><dd>{data.images.backend === "pc" ? "本番PC" : data.images.reads ? "R2優先" : "Supabase"}</dd>
+          <dt>新しい画像の保存</dt><dd>{data.images.paused ? "一時停止中" : data.images.backend === "pc" ? "本番PC" : data.images.writes ? "R2" : "Supabase"}</dd>
         </dl>
         {data.images.writes && !data.images.reads && <p className="text-sm text-danger">画像の読み込み設定が不足しています。保存できません。</p>}
         <p className="text-micro text-muted">月間の操作回数・アカウント全体の無料枠残量は「使用量を開く」で確認できます。</p>
@@ -66,6 +66,7 @@ function ServiceCard({ name, health, statusUrl, usageUrl, children }: { name: st
   return <Card className="space-y-3 p-4">
     <h2 className="text-base font-bold">{name}</h2>
     <p className={`text-sm font-semibold ${health.indicator === "none" ? "text-success" : health.indicator === "unknown" ? "text-muted" : "text-warning"}`}>{healthLabels[health.indicator]}</p>
+    <p className="text-micro text-muted">提供元の全地域・全サービスの発表です。このアプリへの影響を確認した結果ではありません。</p>
     {health.incidents.length > 0 && <ul className="list-disc space-y-1 pl-4 text-micro text-muted">{health.incidents.map((incident, index) => <li key={index}>{incident}</li>)}</ul>}
     {children}
     <div data-ui-group className="flex flex-wrap gap-4 border-t border-separator pt-3 text-sm">

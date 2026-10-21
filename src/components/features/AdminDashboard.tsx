@@ -17,7 +17,7 @@ export function AdminDashboard({ snapshot, permissions }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <h2 id="dashboard-overview" className="text-base font-bold">全体の状況</h2>
-          <p className="text-caption">利用状況の確認と各機能の管理ができます。</p>
+          <p className="text-caption">利用状況と連携の状態を確認できます。</p>
         </div>
         <DashboardRefresh />
       </div>
@@ -35,7 +35,7 @@ export function AdminDashboard({ snapshot, permissions }: Props) {
     </section>
 
     <section aria-labelledby="dashboard-management" className="space-y-2">
-      <h2 id="dashboard-management" className="section-label">各機能の管理</h2>
+      <h2 id="dashboard-management" className="section-label">各画面へのショートカット</h2>
       <NavigationList>
         {permissions.manageMembers && <NavigationLink href="/admin/members" label="部員・ロール" description="所属・権限の確認と変更" icon={<ShieldCheck size={20} />} />}
         <NavigationLink href="/competitions" label="大会" description="大会・出場・プログラム・補助担当" icon={<Flag size={20} />} />

@@ -1,7 +1,14 @@
 import { CONDITIONS, INTENSITY_LABELS } from "@/lib/constants";
+import { format, subDays } from "date-fns";
 import { BUILTIN_RECORD_FIELD_KEYS } from "@/lib/record-fields";
 import { formatKm } from "@/lib/utils";
 import type { TrainingRecord, RecordFieldDef } from "@/types";
+
+/** Includes today and the preceding six JST calendar dates, never future records. */
+export function recentTrainingRecords(records: TrainingRecord[], today: string): TrainingRecord[] {
+  const from = format(subDays(new Date(`${today}T00:00:00`), 6), "yyyy-MM-dd");
+  return records.filter(record => record.recorded_date >= from && record.recorded_date <= today);
+}
 
 /** A display preference shared by every training review for the viewer's account. */
 export function trainingReviewPreferenceKey(viewerId: string): string {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, Minus, LoaderCircle } from "lucide-react";
+import { Check, X, Minus, LoaderCircle, Clock3, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { attendanceNote, nextAttendance, saveAttendance, type AttendanceChange, type AttendancePending } from "@/lib/attendance-save";
 import { cn } from "@/lib/utils";
@@ -20,10 +20,10 @@ const STYLE = {
 };
 
 /** Attendance and contact share one in-flight request, so neither can erase the other's pending save. */
-export function AttendanceToggle({ scheduleId, attendDate, userId, initial, initialLate = false, initialLateNote = null, initialAbsenceNote = null, refreshOnChange = false, onChanged }: {
+export function AttendanceToggle({ scheduleId, attendDate, userId, initial, initialLate = false, initialLateNote = null, initialAbsenceNote = null, refreshOnChange = false, summary, onChanged }: {
   scheduleId: string; attendDate: string; userId: string; initial: AttendanceStatusOrNone;
   initialLate?: boolean; initialLateNote?: string | null; initialAbsenceNote?: string | null;
-  refreshOnChange?: boolean; onChanged?: (change: AttendanceChange) => void;
+  summary?: ReactNode; refreshOnChange?: boolean; onChanged?: (change: AttendanceChange) => void;
 }) {
   const router = useRouter();
   const [value, setValue] = useState<AttendanceChange>({ status: initial, isLate: initialLate, lateNote: initialLateNote, absenceNote: initialAbsenceNote });
@@ -67,17 +67,20 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
   const style = STYLE[value.status], Icon = style.icon;
   const savedNote = attendanceNote(value);
   return <div className="min-w-0 space-y-2" onClick={event => event.stopPropagation()}>
-    <div className="flex flex-wrap items-center gap-1" data-attendance-controls>
+    <div className="flex flex-wrap items-center gap-2" data-attendance-controls>
       <button type="button" data-system-glass data-glass-control data-glass-attendance={value.status}
         aria-label={style.label}
         aria-busy={busy} disabled={busy || unknown} onClick={toggleAttendance}
-        className={cn("inline-flex h-11 w-16 shrink-0 items-center justify-center gap-1 rounded-full border px-1 text-[13px] font-semibold whitespace-nowrap pressable disabled:opacity-60", style.cls)}>
-        {busy ? <LoaderCircle size={15} className="animate-spin" /> : value.status !== "none" ? <Icon size={15} /> : null}{value.status === "none" ? "未回答" : style.label}
+        className={cn("inline-flex h-12 w-[116px] shrink-0 items-center justify-center gap-1 rounded-full border px-4 text-[15px] font-semibold whitespace-nowrap pressable disabled:opacity-60", style.cls)}>
+        {busy ? <LoaderCircle size={15} className="animate-spin" /> : value.status !== "none" ? <Icon size={15} /> : null}{style.label}
       </button>
-      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "ghost"} size="sm" className="h-11 min-w-14 px-1" style={{ paddingInline: 4 }} disabled={busy || unknown} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
-        onClick={() => void save({ ...value, isLate: !value.isLate })}>{value.isLate ? "遅刻中" : "遅刻"}</Button>}
-      {value.status !== "none" && <Button variant={savedNote ? "secondary" : "ghost"} size="sm" className="h-11 min-w-11 px-1" style={{ paddingInline: 4 }} disabled={busy || unknown} aria-haspopup="dialog" aria-label={savedNote ? "連絡を編集" : "連絡する"} onClick={() => setOpen(true)}>連絡</Button>}
+      {summary}
     </div>
+    {value.status !== "none" && <div className="flex flex-wrap items-center gap-2">
+      {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} className="min-h-11 rounded-full px-4" disabled={busy || unknown} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
+        onClick={() => void save({ ...value, isLate: !value.isLate })}><Clock3 size={16} />{value.isLate ? "遅刻連絡済み" : "遅刻を連絡"}</Button>}
+      <Button variant="outline" className="min-h-11 rounded-full px-4" disabled={busy || unknown} aria-haspopup="dialog" aria-label={savedNote ? "連絡を編集" : "連絡する"} onClick={() => setOpen(true)}><MessageSquare size={16} />{savedNote ? "連絡を編集" : "連絡する"}</Button>
+    </div>}
     {savedNote && <p className="whitespace-pre-wrap break-words text-caption">{savedNote}</p>}
     {unknown && <Button variant="outline" size="sm" disabled={busy} onClick={() => void save(value, open)}>保存結果を確認</Button>}
     {error && !open && <p role="alert" className="text-caption text-danger">{error}</p>}

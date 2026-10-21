@@ -70,7 +70,7 @@ export function SystemSyncStatus() {
         {health && <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <Metric label="スプレッドシート連携" value={`${health.sheetProfileCount}人`} />
           <Metric label="未書き込み" value={`${health.pendingPushCount}件`} danger={health.pendingPushCount > 0} />
-          <Metric label="未解消エラー" value={latest ? `${latest.failedCount}人` : "—"} danger={!!latest && latest.failedCount > 0} />
+          <Metric label="未解消エラー" value={latest ? `${latest.failedCount}件` : "—"} danger={!!latest && latest.failedCount > 0} />
         </div>}
         {latest && <div className="mt-3 space-y-1 text-micro text-muted">
           <p>{running || !latest.finishedAt ? "開始日時" : "完了日時"}: {new Date(running || !latest.finishedAt ? latest.startedAt : latest.finishedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}（日本時間）</p>
