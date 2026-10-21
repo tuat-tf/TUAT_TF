@@ -38,7 +38,7 @@ export default async function MonthlyResultsPage({
 
   return (
     <>
-      <SubHeader title="大会結果" backHref="/mypage" />
+      <SubHeader title="部員の大会・記録会の結果" backHref="/admin" />
       <MonthlyResultsView
         key={period.kind === "latest" ? "latest" : `${period.kind}:${period.value}`}
         period={period}

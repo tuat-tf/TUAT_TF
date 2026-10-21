@@ -1,5 +1,6 @@
 "use client";
 
+import { COMPETITION_MANAGEMENT_LABEL } from "@/lib/competition";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,7 @@ export function CompetitionMeetWorkspace({ meet, me, startsOn, endsOn, initialSe
     setConfirm({ title: action === "appearance.restore" ? "この出場を復帰しますか？" : action === "appearance.cancel" ? "この出場を取り消しますか？" : "この出場を削除しますか？", command: { action, id: appearance.id, revision: appearance.revision,...(duties.length?{confirmDuties:true}:{}) }, description: action === "appearance.restore" ? `同じ出場の記録を保持し、未配置の出場予定に戻します。${duties.length?"補助担当と重なります。担当を保持し、補助担当の画面で交代を確認できます。":""}` : "この出場の配置を解除します。記録と履歴は保持し、あとから復帰できます。ほかの出場と補助担当は変更しません。" });
   }
   return <div className="space-y-4 px-4 pb-8 pt-2">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-headline">大会の運営</h2><Button variant="outline" disabled={mutation.locked||!meet.events.length||!mine&&!canRegister&&!meet.permissions.manage} onClick={() => mine ? setDetailId(mine.id) : setEditor({ kind: "participant",self:true })}>自分の登録</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-headline">{COMPETITION_MANAGEMENT_LABEL}</h2><Button variant="outline" disabled={mutation.locked||!meet.events.length||!mine&&!canRegister&&!meet.permissions.manage} onClick={() => mine ? setDetailId(mine.id) : setEditor({ kind: "participant",self:true })}>自分の登録</Button></div>
     {meet.permissions.configure && (meet.meetKey === OB_MEET.meetKey
       ? <p className="text-caption">OB戦の担当者は、ロールの「OB戦の登録・運営管理」で設定できます。</p>
       : <Button variant="ghost" disabled={mutation.locked} onClick={()=>setEditor({kind:"staff"})}>大会の担当ロール</Button>)}

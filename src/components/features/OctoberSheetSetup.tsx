@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SheetHeaderSetupDialog, type SheetHeaderData } from "./SheetHeaderSetupDialog";
 import { SHEET_INPUT_MODE_LABELS } from "@/lib/sheet-input-mode";
 import { SheetInputModeSetting } from "./SheetInputModeSetting";
+import { RecordFieldsSetting } from "./RecordFieldsSetting";
 import { OCTOBER_SHEET_ID, SHEET_SETUP_PATH } from "@/lib/sheet-period";
 import { recordFieldsToJson } from "@/lib/profile-normalize";
 import type { Profile, RecordFieldDef } from "@/types";
@@ -23,6 +24,7 @@ export function OctoberSheetSetup({ profile, prompt = false }: { profile: Profil
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [editingFields, setEditingFields] = useState(false);
   useEffect(() => {
     if (mode === "off") return;
     let active = true;
@@ -53,10 +55,13 @@ export function OctoberSheetSetup({ profile, prompt = false }: { profile: Profil
       if (!response.ok) throw new Error(body.error);
       setOpen(false); setHeader(null); router.refresh();
       if (!prompt) router.replace("/mypage/settings");
-    } catch (e) { setError(e instanceof Error ? e.message : "保存できませんでした"); }
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : "保存できませんでした"); return false; }
     finally { setBusy(false); }
   }
   if (!open || (prompt && [SHEET_SETUP_PATH, "/settings/sheet-setup"].includes(pathname))) return null;
+  if (editingFields && mode === "off") return <RecordFieldsSetting profileId={profile.id} initial={profile.record_fields}
+    isMiddleLong={profile.blocks.includes("middle_long")} onCancel={() => setEditingFields(false)} onConfirm={fields => save(fields, "")} />;
   if (header && mode !== "off") return <SheetHeaderSetupDialog open data={header} initialFields={profile.sheet_transition ? profile.record_fields : []}
     isMiddleLong={profile.blocks.includes("middle_long")} busy={busy} error={error}
     inputMethod={<SheetInputModeSetting mode={mode} onChange={setMode} disabled={busy} />}
@@ -75,13 +80,13 @@ export function OctoberSheetSetup({ profile, prompt = false }: { profile: Profil
       </label>
       </>}
       <div className="space-y-2 text-caption text-muted">
-        <p>設定を変更したいときは、マイページ → 設定 → 練習記録からいつでも開けます。変更して保存すると、その入力方法で連携します。設定変更だけでアプリの過去の記録が削除されることはありません。</p>
+        <p>設定を変更したいときは、マイページ → 自分の設定 → 練習記録からいつでも開けます。変更して保存すると、その入力方法で連携します。設定変更だけでアプリの過去の記録が削除されることはありません。</p>
         <p>「{SHEET_INPUT_MODE_LABELS.sheet}」に戻すと、連携対象期間のスプレッドシートの内容が再びアプリへ取り込まれます。スプレッドシートの列・見出しが変わった場合は、起動時に入力・表示項目を再確認します。</p>
         <p>連携中は9月以前の記録を旧スプレッドシートと2026年10月7日いっぱいまで連携します。「{SHEET_INPUT_MODE_LABELS.off}」では、この連携も停止します。</p>
       </div>
       {error && <p role="alert" className="text-caption text-danger">{error}</p>}
       {mode !== "off" && !loaded && error && <Button onClick={() => setAttempt(value => value + 1)}>再試行</Button>}
-      <Button className="w-full" disabled={busy || (mode !== "off" && (!loaded || !members.includes(sheetName)))} onClick={() => mode === "off" ? void save(profile.record_fields, "") : void next()}>{busy ? "処理中…" : mode === "off" ? "連携せずに保存" : "入力・表示項目を確認"}</Button>
+      <Button className="w-full" disabled={busy || (mode !== "off" && (!loaded || !members.includes(sheetName)))} onClick={() => mode === "off" ? setEditingFields(true) : void next()}>{busy ? "処理中…" : "入力・表示項目を確認"}</Button>
     </div>
   </FormModal>;
 }

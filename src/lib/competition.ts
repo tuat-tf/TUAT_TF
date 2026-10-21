@@ -1,3 +1,6 @@
+export const COMPETITION_PROGRAM_LABEL = "プログラム・結果";
+export const COMPETITION_MANAGEMENT_LABEL = "大会の運営・記録入力";
+
 /** Calendar dates, not elapsed 24-hour periods; the whole competition is zero. */
 export function competitionDays(startsOn: string, today: string, endsOn?: string | null): number {
   const lastDay = endsOn ?? startsOn;

@@ -37,10 +37,14 @@ function initialHiddenKeys(fields: RecordFieldDef[], isMiddleLong: boolean): Bui
     .map((field) => field.key);
 }
 
-export function RecordFieldsSetting({ profileId, initial, isMiddleLong }: { profileId: string; initial: RecordFieldDef[]; isMiddleLong: boolean }) {
+export function RecordFieldsSetting({ profileId, initial, isMiddleLong, onConfirm, onCancel }: {
+  profileId: string; initial: RecordFieldDef[]; isMiddleLong: boolean;
+  onConfirm?: (fields: RecordFieldDef[]) => Promise<boolean>;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const builtins = editableBuiltinRecordFields(isMiddleLong);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!onConfirm);
   const [labels, setLabels] = useState<LabelMap>(() => initialLabels(initial, isMiddleLong));
   const [hiddenKeys, setHiddenKeys] = useState<BuiltinRecordFieldKey[]>(() => initialHiddenKeys(initial, isMiddleLong));
   const [fields, setFields] = useState<DraftField[]>(() => toDraft(customRecordFields(initial)));
@@ -115,6 +119,11 @@ export function RecordFieldsSetting({ profileId, initial, isMiddleLong }: { prof
         .map((field) => ({ key: field.key, label: field.label.trim(), type: field.type, sourceHeader: field.sourceHeader, sourceColumn: field.sourceColumn })),
     ];
     try {
+      if (onConfirm) {
+        if (await onConfirm(record_fields)) setOpen(false);
+        else setMessage("保存できませんでした。入力内容を確認して、もう一度お試しください");
+        return;
+      }
       const result = await safeUpdate(createClient(), "profiles", { record_fields: recordFieldsToJson(record_fields) }, { id: profileId });
       if (!result.ok) {
         setMessage(safeUpdateMessage(result.reason));
@@ -131,13 +140,13 @@ export function RecordFieldsSetting({ profileId, initial, isMiddleLong }: { prof
   }
 
   return <>
-    <button data-ui-row type="button" onClick={showEditor} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-bg">
+    {!onConfirm && <button data-ui-row type="button" onClick={showEditor} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-bg">
       <SlidersHorizontal size={19} className="shrink-0 text-accent" />
       <span className="min-w-0 flex-1"><span className="block text-[14px] font-medium">記録フォームを編集</span><span className="block text-micro text-muted">入力項目の名前を変えたり、使わない項目を外したりできます。</span></span>
       <ChevronRight size={18} className="shrink-0 text-muted" />
-    </button>
+    </button>}
 
-    <FormModal open={open} onOpenChange={setOpen} title="記録フォームを編集" autoFocus={false}>
+    <FormModal open={open} onOpenChange={value => { setOpen(value); if (!value) onCancel?.(); }} title="記録の入力・表示項目" autoFocus={false}>
       <FormDraftGuard dirty={JSON.stringify([labels, hiddenKeys, fields]) !== JSON.stringify([initialLabels(initial, isMiddleLong), initialHiddenKeys(initial, isMiddleLong), toDraft(customRecordFields(initial))]) || !!newLabel} busy={saving} onSave={save} />
       <fieldset disabled={saving} className="min-w-0 space-y-4 pb-5">
         <div className="rounded-xl bg-accent/8 px-3 py-2.5 text-caption leading-relaxed">各カードの「項目名」を直接変更できます。不要な項目は右上の×でフォームから外せます。中長距離の強度別距離と日付は集計のため固定です。</div>

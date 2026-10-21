@@ -18,6 +18,37 @@ spec.loader.exec_module(boot)
 
 
 class DiskBootTests(unittest.TestCase):
+    def test_storage_accepts_expansion_without_relaxing_identity(self):
+        config = {'version': 1, 'profile': 'pc-private', 'installEnabled': True,
+                  'mountPoint': boot.MOUNT, 'mapperName': boot.MAPPER,
+                  'luksUuid': '12345678-1234-1234-1234-123456789abc',
+                  'filesystemUuid': 'abcdef12-1234-1234-1234-123456789abc',
+                  'backingFile': '/var/lib/tuat-local-data-20261013.luks'}
+        backing = Mock()
+        backing.__str__ = Mock(return_value=config['backingFile'])
+        backing.parents = []
+        backing.is_symlink.return_value = False
+        for size in (32 * 1024**3, 512 * 1024**3, 1024**4):
+            with self.subTest(size=size), patch.object(boot, 'Path', return_value=backing):
+                backing.lstat.return_value = SimpleNamespace(st_mode=stat.S_IFREG | 0o600,
+                    st_uid=0, st_nlink=1, st_size=size, st_dev=3, st_ino=4)
+                command = Mock(return_value=(0, config['luksUuid']))
+                self.assertEqual(boot.storage_identity(config, command)[1], (3, 4, size))
+                command.return_value = (0, 'different-disk')
+                with self.assertRaisesRegex(boot.Held, 'luks-uuid'):
+                    boot.storage_identity(config, command)
+        for change in ({'st_size': 0}, {'st_size': 32 * 1024**3 + 1},
+                       {'st_uid': 1000}, {'st_nlink': 2}, {'st_mode': stat.S_IFREG | 0o644}):
+            with self.subTest(change=change), patch.object(boot, 'Path', return_value=backing):
+                values = dict(st_mode=stat.S_IFREG | 0o600, st_uid=0, st_nlink=1,
+                              st_size=32 * 1024**3, st_dev=3, st_ino=4)
+                values.update(change)
+                backing.lstat.return_value = SimpleNamespace(**values)
+                command = Mock()
+                with self.assertRaisesRegex(boot.Held, 'backing-identity'):
+                    boot.storage_identity(config, command)
+                command.assert_not_called()
+
     def setUp(self):
         self.config = {'backingFile': '/var/lib/tuat-local-data-20261013.luks'}
         self.backing = Mock()

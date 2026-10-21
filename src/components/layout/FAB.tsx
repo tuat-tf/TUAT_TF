@@ -301,7 +301,7 @@ function ContextualFAB({
     { key: "record", label: "練習記録", icon: <Activity size={21} />, onIntent: () => warmForm("record"), onSelect: () => setRecordOpen(true) },
     { key: "tweet", label: "つぶやき", icon: <MessageCircle size={21} />, onIntent: () => warmForm("tweet"), onSelect: () => { setTweetInitialStory(false); setTweetOpen(true); } },
     { key: "story", label: "ストーリー", icon: <ImagePlus size={21} />, onIntent: () => warmForm("tweet"), onSelect: () => { setTweetInitialStory(true); setTweetOpen(true); } },
-    { key: "result", label: "大会・記録会の結果", icon: <Trophy size={21} />, onIntent: () => warmForm("result"), onSelect: () => setResultOpen(true) },
+    { key: "result", label: "結果を登録", icon: <Trophy size={21} />, onIntent: () => warmForm("result"), onSelect: () => setResultOpen(true) },
   ] : isNotesRoot ? [
     { key: "folder", label: "フォルダ", icon: <FolderPlus size={21} />, onIntent: () => warmForm("folder"), onSelect: () => setDirectForm("folder") },
   ] : [
@@ -366,7 +366,7 @@ function ContextualFAB({
         open={resultOpen}
         onOpenChange={(open) => !open && closeTimelineForm("result")}
         intent="post"
-        title="大会・記録会の結果"
+        title="結果を登録"
       >
         <ResultForm userId={userId} events={catalog.events} competitions={catalog.competitions} onDone={() => closeTimelineForm("result")} />
       </FormModal>

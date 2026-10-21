@@ -1,15 +1,54 @@
 import Link from "next/link";
-import { Activity, Bell, BookOpen, CalendarDays, Flag, ListOrdered, MapPin, MessageCircle, NotebookPen, Settings, ShieldCheck, Users } from "lucide-react";
+import { Activity, Bell, CalendarDays, ChevronRight, ExternalLink, Flag, ListOrdered, MapPin, MessageCircle, NotebookPen, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { NavigationList, NavigationLink } from "@/components/ui/navigation-list";
 import { DashboardRefresh } from "@/components/features/DashboardRefresh";
 import { ServiceStatusPanel } from "@/components/features/ServiceStatusPanel";
-import { SystemSyncStatus } from "@/components/features/SystemSyncStatus";
+import { RecordSourceSetting } from "@/components/features/RecordSourceSetting";
+import { MemberPreviewSetting } from "@/components/features/MemberPreviewSetting";
+import { Card } from "@/components/ui/card";
 import type { AdminDashboardSnapshot } from "@/lib/queries/admin-dashboard";
 import type { permissionsOf } from "@/lib/permissions";
 
-type Props = { snapshot: AdminDashboardSnapshot; permissions: ReturnType<typeof permissionsOf> };
+type Props = { snapshot: AdminDashboardSnapshot | null; permissions: ReturnType<typeof permissionsOf>; showRecordSource: boolean };
 
-export function AdminDashboard({ snapshot, permissions }: Props) {
+export function AdminDashboard({ snapshot, permissions, showRecordSource }: Props) {
+  return <div className="space-y-6 px-4 pb-8 pt-2">
+    <section aria-labelledby="dashboard-management" className="space-y-2">
+      <h2 id="dashboard-management" className="section-label">管理する項目</h2>
+      <NavigationList>
+        {permissions.manageMembers && <NavigationLink href="/admin/members" label="部員・ロール管理" description="所属・権限を確認・変更します。" icon={<ShieldCheck size={20} />} />}
+        {permissions.createSchedule && <NavigationLink href="/venues" label="練習場所" description="集合場所・アクセスを管理します。" icon={<MapPin size={20} />} />}
+        {permissions.manageSystem && <>
+          <NavigationLink href="/competitions" label="大会" description="大会・出場・プログラムを管理します。" icon={<Flag size={20} />} />
+          <NavigationLink href="/mypage/monthly-results" label="部員の大会・記録会の結果" description="月別・年別・新着で確認します。" icon={<Activity size={20} />} />
+          <NavigationLink href="/events" label="種目" description="大会の種目一覧を管理します。" icon={<ListOrdered size={20} />} />
+          <NavigationLink href="/admin/sheets" label="スプレッドシート連携" description="連携状況と部員ごとの入力設定を確認します。" icon={<SlidersHorizontal size={20} />} />
+        </>}
+      </NavigationList>
+    </section>
+    {permissions.manageSystem && <>
+      <section aria-labelledby="dashboard-settings" className="space-y-2">
+        <h2 id="dashboard-settings" className="section-label">管理者用の設定</h2>
+        <Card className="divide-y divide-separator/70 overflow-hidden">
+          <RecordSourceSetting initial={showRecordSource} />
+          <MemberPreviewSetting previewing={false} />
+          <a data-ui-row href="/api/legacy-access" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-4 py-3 active:bg-bg">
+            <ExternalLink size={19} className="shrink-0 text-muted2" />
+            <span className="min-w-0 flex-1 text-[14px] font-medium">旧アプリを開く</span>
+            <ChevronRight size={18} className="shrink-0 text-muted" />
+          </a>
+        </Card>
+      </section>
+      {snapshot && <Overview snapshot={snapshot} permissions={permissions} />}
+      <section id="services" aria-labelledby="dashboard-services" className="scroll-mt-20 space-y-2">
+        <h2 id="dashboard-services" className="section-label">サービスの状態・使用量</h2>
+        <ServiceStatusPanel embedded />
+      </section>
+    </>}
+  </div>;
+}
+
+function Overview({ snapshot, permissions }: { snapshot: AdminDashboardSnapshot; permissions: Props["permissions"] }) {
   const { metrics } = snapshot;
   const period = `${snapshot.since.replaceAll("-", "/")} ～ ${snapshot.today.replaceAll("-", "/")}`;
   return <div className="space-y-6 px-4 pb-8 pt-2">
@@ -34,31 +73,6 @@ export function AdminDashboard({ snapshot, permissions }: Props) {
       {snapshot.unavailable.length > 0 && <p role="alert" className="text-sm text-danger">一部の件数を取得できませんでした。画面上部の「再確認」で再読み込みしてください。</p>}
     </section>
 
-    <section aria-labelledby="dashboard-management" className="space-y-2">
-      <h2 id="dashboard-management" className="section-label">各画面へのショートカット</h2>
-      <NavigationList>
-        {permissions.manageMembers && <NavigationLink href="/admin/members" label="部員・ロール" description="所属・権限の確認と変更" icon={<ShieldCheck size={20} />} />}
-        <NavigationLink href="/competitions" label="大会" description="大会・出場・プログラム・補助担当" icon={<Flag size={20} />} />
-        <NavigationLink href="/mypage/monthly-results" label="大会・記録会の結果" description="月別・年別・新着の結果" icon={<Activity size={20} />} />
-        <NavigationLink href="/schedule" label="予定・出欠" description="練習・イベントの予定と回答" icon={<CalendarDays size={20} />} />
-        {permissions.createSchedule && <NavigationLink href="/venues" label="練習場所" description="集合場所・アクセスの管理" icon={<MapPin size={20} />} />}
-        <NavigationLink href="/notices" label="お知らせ" description="お知らせ・通知の確認" icon={<Bell size={20} />} />
-        <NavigationLink href="/timeline" label="練習記録・つぶやき" description="部員の投稿・コメントの確認" icon={<NotebookPen size={20} />} />
-        <NavigationLink href="/notes" label="ノート" description="共有記事・スレッドの確認" icon={<BookOpen size={20} />} />
-        <NavigationLink href="/events" label="種目" description="大会の種目一覧の管理" icon={<ListOrdered size={20} />} />
-        <NavigationLink href="/mypage/settings" label="システム設定" description="表示の確認・一般部員プレビュー・旧アプリ" icon={<Settings size={20} />} />
-      </NavigationList>
-    </section>
-
-    <section aria-labelledby="dashboard-sync" className="space-y-2">
-      <h2 id="dashboard-sync" className="section-label">スプレッドシート連携</h2>
-      <SystemSyncStatus />
-    </section>
-
-    <section id="services" aria-labelledby="dashboard-services" className="scroll-mt-20 space-y-2">
-      <h2 id="dashboard-services" className="section-label">サービスの状態・使用量</h2>
-      <ServiceStatusPanel embedded />
-    </section>
   </div>;
 }
 

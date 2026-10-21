@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({ profile: vi.fn(), snapshot: vi.fn(), redirect:
 vi.mock("@/lib/supabase/auth", () => ({ getCurrentProfile: mocks.profile }));
 vi.mock("@/lib/queries", () => ({ getAdminDashboard: mocks.snapshot }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 vi.mock("@/components/features/AdminDashboard", () => ({ AdminDashboard: () => null }));
 vi.mock("@/components/layout/SubHeader", () => ({ SubHeader: () => null }));
 import AdminPage from "./page";
@@ -22,12 +23,22 @@ afterEach(() => { vi.unstubAllGlobals(); });
 describe("admin dashboard entry", () => {
   it.each([
     { roles: [], href: "/home" },
-    { roles: [role(false, true)], href: "/admin/members" },
     { roles: [role(true, true, true)], href: "/home" },
   ])("keeps the entry within the user's permissions ($href)", async ({ roles, href }) => {
     mocks.profile.mockResolvedValue({ roles });
     await expect(AdminPage()).rejects.toThrow(`redirect:${href}`);
     expect(mocks.snapshot).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [role(false, true)],
+    [{ can_create_schedule: true }],
+  ])("opens the same management entry without fetching system-only data", async (...roles) => {
+    mocks.profile.mockResolvedValue({ roles });
+    const page = await AdminPage();
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.snapshot).not.toHaveBeenCalled();
+    expect(page.props.children[1].props.snapshot).toBeNull();
   });
 
   it("opens the dashboard with a system role and keeps member management separate", async () => {

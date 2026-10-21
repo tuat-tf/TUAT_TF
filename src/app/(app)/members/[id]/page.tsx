@@ -36,16 +36,20 @@ import type { FeedItem, PbRecord, Profile, RecordWithAuthor } from "@/types";
 
 export default function MemberPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
-  return <Suspense fallback={<MemberSkeleton />}><MemberContent params={params} /></Suspense>;
+  return <Suspense fallback={<MemberSkeleton />}><MemberContent params={params} searchParams={searchParams} /></Suspense>;
 }
 
 async function MemberContent({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
   const [profile, viewer] = await Promise.all([
@@ -53,11 +57,14 @@ async function MemberContent({
     getCurrentProfile(),
   ]);
   if (!profile) notFound();
+  const fromManagement = (await searchParams).from === "management" && permissionsOf(viewer.roles).manageMembers;
 
   return (
     <>
       <SubHeader
         title={profile.display_name || "部員"}
+        backHref={fromManagement ? `/admin/members?member=${id}` : "/members"}
+        forceBackHref={fromManagement}
       />
 
       <div className="px-4 space-y-5 pt-1">
@@ -177,7 +184,7 @@ async function MemberDetails({ profile, viewer }: { profile: Profile; viewer: Pr
         )}
 
         {(pbs.length > 0 || canManageSystem) && (
-          <section className="space-y-2">
+          <section id="results" className="scroll-mt-20 space-y-2">
             <p className="section-label">大会・記録会の結果</p>
             {canManageSystem && !isSelf ? (
               <>

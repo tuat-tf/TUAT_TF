@@ -7,10 +7,11 @@ import { getCurrentProfile } from "@/lib/supabase/auth";
 import { getAllProfiles, getAllRoleCategories, getAllRoles, getLoginAllowedEmails } from "@/lib/queries";
 import { permissionsOf } from "@/lib/permissions";
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ member?: string }> }) {
   const profile = await getCurrentProfile();
   const permissions = permissionsOf(profile.roles);
   if (!permissions.manageMembers) redirect("/home");
+  const { member } = await searchParams;
 
   const [members, roles, categories, allowedEmails] = await Promise.all([
     getAllProfiles(),
@@ -21,7 +22,7 @@ export default async function AdminPage() {
 
   return (
     <>
-      <SubHeader title="部員・ロール管理" backHref={permissions.manageSystem ? "/admin" : "/mypage"} />
+      <SubHeader title="部員・ロール管理" backHref="/admin" />
 
       <div className="px-4 pt-2 space-y-6">
         <section className="space-y-2">
@@ -45,7 +46,7 @@ export default async function AdminPage() {
         <section className="space-y-2">
           <p className="section-label">部員</p>
           <p className="text-caption">各部員にロールを付与・解除できます。</p>
-          <AdminMemberList members={members} roles={roles} canManageSystem={permissions.manageSystem} />
+          <AdminMemberList members={members} roles={roles} canManageSystem={permissions.manageSystem} initialMemberId={member} />
         </section>
       </div>
     </>

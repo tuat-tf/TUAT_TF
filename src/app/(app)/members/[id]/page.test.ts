@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 function openMember() {
-  const content = MemberPage({ params: Promise.resolve({ id: target.id }) }).props.children;
+  const content = MemberPage({ params: Promise.resolve({ id: target.id }), searchParams: Promise.resolve({}) }).props.children;
   return content.type(content.props);
 }
 

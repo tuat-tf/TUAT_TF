@@ -18,13 +18,16 @@ export function AdminMemberList({
   members,
   roles,
   canManageSystem,
+  initialMemberId,
 }: {
   members: Profile[];
   roles: AppRole[];
   canManageSystem: boolean;
+  initialMemberId?: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Profile | null>(null);
+  const [selected, setSelected] = useState<Profile | null>(() => members.find(member => member.id === initialMemberId) ?? null);
   const filtered = useMemo(() => {
     const keyword = query.trim().toLowerCase();
     if (!keyword) return members;
@@ -125,7 +128,7 @@ export function AdminMemberList({
           member={selected}
           roles={roles.filter((role) => !role.is_everyone)}
           canManageSystem={canManageSystem}
-          onClose={() => setSelected(null)}
+          onClose={() => { setSelected(null); if (initialMemberId) router.replace("/admin/members", { scroll: false }); }}
         />
       )}
     </div>
@@ -206,7 +209,7 @@ function MemberRoleEditor({
   }
 
   return (
-    <FormModal open onOpenChange={(open) => !open && onClose()} title="ロールを設定">
+    <FormModal open onOpenChange={(open) => !open && onClose()} title="部員の管理">
       <FormDraftGuard dirty={dirty} busy={saving} onSave={save}/>
       <fieldset disabled={saving} className="space-y-4 pb-4">
         <div className="flex items-center gap-3">
@@ -222,6 +225,11 @@ function MemberRoleEditor({
           </div>
         </div>
 
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button variant="outline" disabled={dirty || saving} onClick={() => router.push(`/members/${member.id}?from=management#results`)}>プロフィール・大会結果</Button>
+          {canManageSystem && <Button variant="outline" disabled={dirty || saving} onClick={() => router.push(`/admin/sheets/${member.id}?from=management`)}>シート・入力設定</Button>}
+        </div>
+        <h2 className="section-label">ロール・権限</h2>
         {canManageSystem && (
           <label className="block space-y-1.5">
             <span className="text-[13px] font-semibold">{"\u30e1\u30f3\u30b7\u30e7\u30f3\u7528\u3072\u3089\u304c\u306a\u540d"}</span>

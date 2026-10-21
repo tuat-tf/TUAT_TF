@@ -67,8 +67,11 @@ def storage_identity(config, command=run):
     for part in (backing, *backing.parents):
         need(not part.is_symlink(), 'backing-link')
     info = backing.lstat()
+    # Capacity can grow independently of RAM. Ownership, LUKS UUID and the
+    # filesystem UUID identify this disk; its original provisioned size does not.
     need(stat.S_ISREG(info.st_mode) and info.st_uid == 0 and info.st_nlink == 1 and
-         stat.S_IMODE(info.st_mode) == 0o600 and info.st_size == 32 * 1024**3, 'backing-identity')
+         stat.S_IMODE(info.st_mode) == 0o600 and info.st_size >= 1024**3 and
+         info.st_size % 4096 == 0, 'backing-identity')
     need(command(['/usr/sbin/cryptsetup', 'luksUUID', str(backing)])[1].strip() == config['luksUuid'], 'luks-uuid')
     return backing, (info.st_dev, info.st_ino, info.st_size)
 

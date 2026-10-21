@@ -2,7 +2,7 @@ import { canModerateComments } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { Trophy, Medal, Settings, Shield, ShieldCheck, Users, Target, MapPin, ListOrdered, Rss, Flag, CalendarDays } from "lucide-react";
+import { Trophy, Medal, Settings, Shield, Users, Target, Rss, Flag } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { NavigationList, NavigationLink } from "@/components/ui/navigation-list";
@@ -98,10 +98,10 @@ export default async function MyPage({
           <NavigationLink prefetch={false} href="/goals" icon={<Target size={20} className="text-accent" />} label="目標" />
           {/* 大会は全員に。追加・編集・並べ替えは大会画面の中で管理者にだけ出る */}
           <NavigationLink prefetch={false} href="/competitions" icon={<Flag size={20} className="text-accent" />} label="大会" />
-          <NavigationLink prefetch={false} href="/mypage/pb" icon={<Medal size={20} className="text-warning" />} label="大会・記録会の結果" />
+          <NavigationLink prefetch={false} href="/mypage/pb" icon={<Medal size={20} className="text-warning" />} label="自分の大会・記録会の結果" />
           <NavigationLink prefetch={false} href="/members" icon={<Users size={20} className="text-accent" />} label="メンバー一覧" />
           <NavigationLink prefetch={false} href="/blog" icon={<Rss size={20} className="text-accent" />} label="ブログ" />
-          <NavigationLink prefetch={false} href="/mypage/settings" icon={<Settings size={20} className="text-muted2" />} label="設定" />
+          <NavigationLink prefetch={false} href="/mypage/settings" icon={<Settings size={20} className="text-muted2" />} label="自分の設定" />
         </NavigationList>
 
         {profile.blocks.includes("middle_long") && (
@@ -123,21 +123,7 @@ export default async function MyPage({
           <section className="space-y-2">
             <p className="section-label">管理メニュー</p>
             <NavigationList>
-              {perms.manageSystem && (
-                <NavigationLink prefetch={false} href="/admin" icon={<Shield size={20} className="text-accent" />} label="管理ダッシュボード" />
-              )}
-              {perms.manageMembers && (
-                <NavigationLink prefetch={false} href="/admin/members" icon={<ShieldCheck size={20} className="text-accent" />} label="部員・ロール管理" />
-              )}
-              {perms.createSchedule && (
-                <NavigationLink prefetch={false} href="/venues" icon={<MapPin size={20} className="text-accent" />} label="練習場所" />
-              )}
-              {perms.manageSystem && (
-                <>
-                  <NavigationLink prefetch={false} href="/mypage/monthly-results" icon={<CalendarDays size={20} className="text-accent" />} label="大会結果（月別・年別・新着）" />
-                  <NavigationLink prefetch={false} href="/events" icon={<ListOrdered size={20} className="text-accent" />} label="種目" />
-                </>
-              )}
+              <NavigationLink prefetch={false} href="/admin" icon={<Shield size={20} className="text-accent" />} label="管理" description="部員・大会・連携などの管理を行います。" />
             </NavigationList>
           </section>
         )}

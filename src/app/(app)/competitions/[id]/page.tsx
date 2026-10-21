@@ -1,3 +1,4 @@
+import { COMPETITION_PROGRAM_LABEL, COMPETITION_MANAGEMENT_LABEL } from "@/lib/competition";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, ListOrdered, Target } from "lucide-react";
@@ -75,7 +76,7 @@ export default async function CompetitionPage({
         </p>
 
         <Card className="divide-y divide-separator">
-          {canOperate && <Link data-ui-row href={`/competitions/${competition.id}/manage`} className="flex items-center gap-3 p-4 pressable"><ListOrdered size={20} className="text-accent"/><span className="flex-1 text-headline">参加者・大会の運営</span><ChevronRight size={16} className="text-muted"/></Link>}
+          {canOperate && <Link data-ui-row href={`/competitions/${competition.id}/manage`} className="flex items-center gap-3 p-4 pressable"><ListOrdered size={20} className="text-accent"/><span className="flex-1 text-headline">{COMPETITION_MANAGEMENT_LABEL}</span><ChevronRight size={16} className="text-muted"/></Link>}
           {hasProgram && (
             <Link
               data-ui-row
@@ -83,7 +84,7 @@ export default async function CompetitionPage({
               className="flex items-center gap-3 p-4 pressable"
             >
               <ListOrdered size={20} className="text-accent" />
-              <span className="flex-1 text-headline">結果</span>
+              <span className="flex-1 text-headline">{COMPETITION_PROGRAM_LABEL}</span>
               <ChevronRight size={16} className="text-muted" />
             </Link>
           )}
