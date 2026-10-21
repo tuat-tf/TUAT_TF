@@ -38,11 +38,22 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
   const pendingContact = useRef(false);
   const sending = useRef(false);
   const currentValue = useRef(value);
+  const displayedValue = useRef(value);
+  const queuedAttendance = useRef<AttendanceChange | null>(null);
   const draft = useRef(note);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const composing = useRef(false);
   const blocked = useRef(false);
   const pendingKind = useRef<"attendance" | "late" | "contact">("attendance");
+  function display(next: AttendanceChange) {
+    displayedValue.current = next;
+    setValue(next);
+    onChanged?.(next);
+  }
+  function restoreConfirmed() {
+    queuedAttendance.current = null;
+    display(currentValue.current);
+  }
   function clearTimer() {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -68,12 +79,19 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
   }, []);
 
   async function save(after: AttendanceChange, kind: "attendance" | "late" | "contact" = "attendance") {
-    if (sending.current) return;
+    if (sending.current) {
+      if (kind === "attendance") {
+        queuedAttendance.current = after;
+        display(after);
+      }
+      return;
+    }
     sending.current = true; setError(null); setContactSaved(false);
     if (!pending.current) {
       pending.current = { before: currentValue.current, after, uncertain: false };
       pendingContact.current = kind === "contact";
       pendingKind.current = kind;
+      if (kind === "attendance") display(after);
     }
     setSaving(pendingKind.current);
     let succeeded = false;
@@ -83,33 +101,45 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
         blocked.current = true; clearTimer();
         setUnknown(result.reason === "unknown");
         if (result.reason !== "unknown") pending.current = null;
+        restoreConfirmed();
         setError(result.reason === "unknown" ? "保存結果を確認できませんでした。入力は残っています。結果を確認してください" : result.reason === "conflict" ? "出欠や連絡が変更されています。画面を開き直して確認してください" : "保存できませんでした。入力は残っています。もう一度お試しください");
         return;
       }
       const savedContact = pendingContact.current;
       currentValue.current = result.value; blocked.current = false; succeeded = true;
-      setValue(result.value); setUnknown(false); pending.current = null; setConfirmClear(false);
+      if (!queuedAttendance.current) display(result.value);
+      setUnknown(false); pending.current = null;
+      if (result.value.status === "none") setConfirmClear(false);
       // An older response must not replace text typed while it was in flight.
-      if (result.value.status === "none" || (savedContact && (draft.current.trim() || null) === attendanceNote(result.value))) {
+      if (!queuedAttendance.current && (result.value.status === "none" || (savedContact && (draft.current.trim() || null) === attendanceNote(result.value)))) {
         draft.current = attendanceNote(result.value) ?? ""; setNote(draft.current);
       }
-      if (result.value.status === "none") setOpen(false);
+      if (!queuedAttendance.current && result.value.status === "none") setOpen(false);
       if (savedContact && (draft.current.trim() || null) === attendanceNote(result.value)) setContactSaved(true);
-      onChanged?.(result.value);
     } catch {
       blocked.current = true; clearTimer();
       const uncertain = pending.current?.uncertain ?? false;
       setUnknown(uncertain);
       if (!uncertain) pending.current = null;
+      restoreConfirmed();
       setError(uncertain ? "保存結果を確認できませんでした。入力は残っています" : "保存できませんでした。入力は残っています。もう一度お試しください");
     } finally {
       sending.current = false; setSaving(null);
-      if (succeeded && !timer.current) flushContact();
+      if (succeeded) {
+        const next = queuedAttendance.current;
+        queuedAttendance.current = null;
+        if (next && (next.status !== currentValue.current.status || next.isLate !== currentValue.current.isLate || next.lateNote !== currentValue.current.lateNote || next.absenceNote !== currentValue.current.absenceNote)) {
+          void save(next);
+        } else if (!timer.current) flushContact();
+      }
     }
   }
   function toggleAttendance() {
-    const next = nextAttendance(value);
-    if (next.status === "none" && (attendanceNote(value) || note.trim())) { setConfirmClear(true); return; }
+    const current = displayedValue.current;
+    const withDraft = current.status === "absent" ? { ...current, absenceNote: draft.current.trim() || null } : { ...current, lateNote: draft.current.trim() || null };
+    const next = nextAttendance(withDraft);
+    if (next.status === "none" && (attendanceNote(current) || draft.current.trim())) { setConfirmClear(true); return; }
+    if (current.status === "none") { draft.current = ""; setNote(""); }
     void save(next);
   }
   const style = STYLE[value.status], Icon = style.icon;
@@ -119,9 +149,9 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
     <div className="grid grid-cols-2 gap-2" data-attendance-controls>
       <button type="button" data-system-glass data-glass-control data-glass-attendance={value.status}
         aria-label={style.label}
-        aria-busy={saving === "attendance"} disabled={busy || unknown} onClick={toggleAttendance}
+        aria-busy={saving === "attendance"} disabled={unknown} onClick={toggleAttendance}
         className={cn("inline-flex items-center justify-center border font-semibold whitespace-nowrap pressable disabled:opacity-60", CONTROL_CLASS, style.cls)}>
-        {saving === "attendance" ? <LoaderCircle size={15} className="animate-spin" /> : <Icon size={15} />}{style.label}
+        <Icon size={15} />{style.label}
       </button>
       {summary}
       {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || unknown} aria-busy={saving === "late"} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}

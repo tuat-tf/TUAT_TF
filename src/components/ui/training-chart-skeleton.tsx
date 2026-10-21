@@ -29,15 +29,9 @@ export function TrainingChartSkeleton() {
         </div>
       </div>
       <div className="rounded-xl bg-bg p-3">
-        <div className="space-y-1.5">
-          <div className="flex h-[18px] items-center"><Skeleton className="h-2.5 w-24" /></div>
-          <Skeleton className="h-12 w-full rounded-[10px] lg:rounded-lg" />
-        </div>
-        <div className="mt-3 border-t border-separator/70">
-          <div className="flex h-11 items-center justify-between gap-3">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-3 w-3 rounded-full" />
-          </div>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-12 min-w-0 flex-1 rounded-[10px] lg:rounded-lg" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center"><Skeleton className="h-3 w-3 rounded-full" /></div>
         </div>
       </div>
     </Card>

@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import { createElement, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { AttendanceChange, AttendancePending } from "@/lib/attendance-save";
@@ -27,7 +27,15 @@ import { AttendanceToggle } from "./AttendanceResponse";
 const initial: AttendanceChange = { status: "present", isLate: false, lateNote: "保存済みの連絡", absenceNote: null };
 function render(value = initial) {
   state.cursor = 0; capture.buttons.clear(); capture.input = null;
-  return renderToStaticMarkup(createElement(AttendanceToggle, { scheduleId: "schedule", attendDate: "2099-11-15", userId: "me", initial: value.status, initialLate: value.isLate, initialLateNote: value.lateNote, initialAbsenceNote: value.absenceNote, onChanged: capture.changed, summary: createElement("button", null, "人数") }));
+  const tree = AttendanceToggle({ scheduleId: "schedule", attendDate: "2099-11-15", userId: "me", initial: value.status, initialLate: value.isLate, initialLateNote: value.lateNote, initialAbsenceNote: value.absenceNote, onChanged: capture.changed, summary: createElement("button", null, "人数") });
+  function captureNativeButtons(node: ReactNode) {
+    if (Array.isArray(node)) { node.forEach(captureNativeButtons); return; }
+    if (!isValidElement<ButtonProps>(node)) return;
+    if (node.type === "button" && node.props["aria-label"]) capture.buttons.set(node.props["aria-label"], node.props);
+    captureNativeButtons(node.props.children);
+  }
+  captureNativeButtons(tree);
+  return renderToStaticMarkup(tree);
 }
 async function click(name: string) { capture.buttons.get(name)!.onClick(); await Promise.resolve(); }
 function type(text: string) { capture.input!.onChange({ target: { value: text } }); }
@@ -37,6 +45,62 @@ beforeEach(() => {
   capture.save.mockImplementation(async (_client: unknown, _key: unknown, pending: AttendancePending) => ({ ok: true, value: pending.after }));
 });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
+
+it("switches attendance immediately and accepts the next choice while the first save is pending", async () => {
+  const empty: AttendanceChange = { status: "none", isLate: false, lateNote: null, absenceNote: null };
+  let finish!: (result: { ok: true; value: AttendanceChange }) => void;
+  capture.save.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  render(empty); await click("出欠を入力"); const first = capture.save.mock.lastCall![2]; render(empty);
+  expect(capture.buttons.get("出席")?.disabled).toBe(false);
+  expect(capture.changed).toHaveBeenLastCalledWith(expect.objectContaining({ status: "present" }));
+  await click("出席"); render(empty);
+  expect(capture.buttons.get("欠席")?.disabled).toBe(false);
+  expect(capture.save).toHaveBeenCalledOnce();
+  finish({ ok: true, value: first.after }); await vi.advanceTimersByTimeAsync(0); render(empty);
+  expect(capture.save).toHaveBeenCalledTimes(2);
+  expect(capture.save.mock.lastCall![2]).toMatchObject({ before: { status: "present" }, after: { status: "absent" } });
+  expect(capture.changed).toHaveBeenLastCalledWith(expect.objectContaining({ status: "absent" }));
+});
+
+it("coalesces rapid choices back to the in-flight value without another write", async () => {
+  const empty: AttendanceChange = { status: "none", isLate: false, lateNote: null, absenceNote: null };
+  let finish!: (result: { ok: true; value: AttendanceChange }) => void;
+  capture.save.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  render(empty); await click("出欠を入力"); const first = capture.save.mock.lastCall![2];
+  for (const label of ["出席", "欠席", "出欠を入力"]) { render(empty); await click(label); }
+  finish({ ok: true, value: first.after }); await vi.advanceTimersByTimeAsync(1000);
+  expect(capture.save).toHaveBeenCalledOnce(); expect(render(empty)).toContain('aria-label="出席"');
+});
+
+it.each(["failed", "conflict", "unknown"])("rolls back the count and stops queued choices after %s", async reason => {
+  const empty: AttendanceChange = { status: "none", isLate: false, lateNote: null, absenceNote: null };
+  let finish!: (result: { ok: false; reason: string }) => void;
+  capture.save.mockImplementationOnce((_client: unknown, _key: unknown, pending: AttendancePending) => {
+    pending.uncertain = reason === "unknown";
+    return new Promise(resolve => { finish = resolve; });
+  });
+  render(empty); await click("出欠を入力"); const first = capture.save.mock.lastCall![2];
+  render(empty); await click("出席"); finish({ ok: false, reason }); await vi.advanceTimersByTimeAsync(1000);
+  const html = render(empty); expect(html).toContain('role="alert"');
+  expect(capture.changed).toHaveBeenLastCalledWith(empty); expect(capture.save).toHaveBeenCalledOnce();
+  if (reason === "unknown") {
+    expect(capture.buttons.get("出欠を入力")?.disabled).toBe(true);
+    await click("保存結果を確認"); expect(capture.save.mock.lastCall![2]).toBe(first);
+    expect(capture.save).toHaveBeenCalledTimes(2);
+  }
+});
+
+it("keeps the latest contact when attendance changes during contact saving", async () => {
+  await open(); let finish!: (result: { ok: true; value: AttendanceChange }) => void;
+  capture.save.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  type("先の連絡"); await vi.advanceTimersByTimeAsync(700); const first = capture.save.mock.lastCall![2];
+  render(); type("新しい連絡"); await click("出席"); render();
+  expect(capture.buttons.get("欠席")?.disabled).toBe(false);
+  finish({ ok: true, value: first.after }); await vi.advanceTimersByTimeAsync(1000);
+  expect(capture.save).toHaveBeenCalledTimes(2);
+  expect(capture.save.mock.lastCall![2]).toMatchObject({ before: first.after, after: { status: "absent", absenceNote: "新しい連絡", lateNote: null } });
+  expect(capture.changed).toHaveBeenLastCalledWith(expect.objectContaining({ status: "absent", absenceNote: "新しい連絡" }));
+});
 
 it.each(["present", "absent"] as const)("automatically saves %s contact once typing settles without a save button", async status => {
   const value = { ...initial, status, lateNote: status === "present" ? initial.lateNote : null, absenceNote: status === "absent" ? initial.lateNote : null };

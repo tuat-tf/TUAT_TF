@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   startOfDay,
   startOfWeek,
@@ -16,13 +17,13 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { jstToday } from "@/lib/date";
 import { Card } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
 import { KeyValue } from "@/components/ui/key-value";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { INTENSITY_ORDER, INTENSITY_LABELS } from "@/lib/constants";
 import { cn, formatKm, roundKm } from "@/lib/utils";
 import { displayedDistance, unclassifiedDistance } from "@/lib/record-distance";
 import { useBooleanPreference } from "@/hooks/use-boolean-preference";
+import { useTrainingReviewSelection } from "@/hooks/use-training-review-selection";
 import { recentTrainingRecords, trainingReviewFields, trainingReviewPreferenceKey } from "@/lib/training-review-display";
 import type { TrainingRecord, Intensity, RecordFieldDef } from "@/types";
 
@@ -64,12 +65,13 @@ export function TrainingChart({
   const [period, setPeriod] = useState<Period>("recent");
   const [selected, setSelected] = useState<number | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const detailId = useId();
   const [showAllFields, setShowAllFields] = useBooleanPreference(
     initialShowAllFields,
     viewerId ? trainingReviewPreferenceKey(viewerId) : undefined,
   );
   const [fieldPickerOpen, setFieldPickerOpen] = useState(false);
-  const [selectedFields, setSelectedFields] = useState<string[] | null>(null);
+  const [selectedFields, setSelectedFields] = useTrainingReviewSelection(viewerId);
   const availableFields = useMemo(() => {
     const options = new Map<string, string>();
     for (const r of records) for (const field of trainingReviewFields(r, recordFields, true)) {
@@ -263,8 +265,8 @@ export function TrainingChart({
 
       {/* 表示項目の選択は切替ボタンから直接開く。 */}
       <div data-training-detail className="rounded-xl bg-bg p-3">
-        <div className="space-y-1.5">
-          <p className="text-caption">練習内容の表示</p>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
           <SegmentedControl
             items={[
               { key: "specified", label: "項目選択" },
@@ -274,12 +276,16 @@ export function TrainingChart({
             onChange={(key) => {
               setShowAllFields(key === "all");
               if (key === "specified") setFieldPickerOpen(true);
+              else setShowDetail(true);
             }}
           />
+          </div>
+          <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 lg:h-11 lg:w-11" aria-label={showDetail ? "練習記録を閉じる" : "練習記録を表示"} aria-expanded={showDetail} aria-controls={detailId} onClick={() => setShowDetail(current => !current)}>
+            <ChevronDown size={18} className={cn("transition-transform", showDetail && "rotate-180")} aria-hidden="true" />
+          </Button>
         </div>
         <Sheet open={fieldPickerOpen} onOpenChange={setFieldPickerOpen}>
-          <SheetContent title="練習内容の表示項目">
-            <p className="mb-3 text-caption">この画面で見たい項目を選んでください。記録の内容や入力項目は変わりません。</p>
+          <SheetContent title="表示項目">
             <div className="space-y-1">
               {availableFields.map(field => <label key={field.key} className="flex min-h-11 items-center gap-3 rounded-xl px-3">
                 <input type="checkbox" checked={effectiveFields.includes(field.key)} onChange={event => { setSelectedFields(event.target.checked ? [...effectiveFields, field.key] : effectiveFields.filter(key => key !== field.key)); setShowAllFields(false); }} className="h-5 w-5 accent-accent" />
@@ -287,16 +293,11 @@ export function TrainingChart({
               </label>)}
               {availableFields.length === 0 && <p className="text-caption">表示できる練習記録がありません。</p>}
             </div>
-            <Button size="lg" className="mt-4" onClick={() => setFieldPickerOpen(false)}>完了</Button>
+            <Button size="lg" className="mt-4" onClick={() => { setFieldPickerOpen(false); setShowDetail(true); }}>完了</Button>
           </SheetContent>
         </Sheet>
-        <Disclosure
-          title="練習内容"
-          open={showDetail}
-          onOpenChange={setShowDetail}
-          className="mt-3"
-        >
-          {sel.records.length === 0 ? (
+        <div id={detailId} hidden={!showDetail} className="mt-3">
+          {showDetail && (sel.records.length === 0 ? (
             <p className="text-caption">この期間は記録がありません</p>
           ) : (
             <div className="space-y-2">
@@ -317,8 +318,8 @@ export function TrainingChart({
                 );
               })}
             </div>
-          )}
-        </Disclosure>
+          ))}
+        </div>
       </div>
     </Card>
   );

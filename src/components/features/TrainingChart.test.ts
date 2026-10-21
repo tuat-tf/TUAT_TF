@@ -40,6 +40,9 @@ describe("training chart display controls", () => {
     expect(html).toMatch(new RegExp(`aria-pressed="${all}"[^>]*>すべて表示</button>`));
     expect(html).not.toContain("選んだ項目");
     expect(html).not.toContain("表示項目を選ぶ");
+    expect(html).not.toContain("練習内容の表示");
+    expect(html).not.toContain("data-ui-disclosure");
+    expect(html).toContain('aria-label="練習記録を表示"');
   });
 
   it("preserves the seven-day totals, previous-period comparison and intensity breakdown in either display mode", () => {
