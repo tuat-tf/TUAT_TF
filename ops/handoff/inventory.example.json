@@ -1,7 +1,7 @@
 {
   "version": 2,
   "backupStorage": "google-drive",
-  "releaseSha": "92e8b09c0c5c683d4f9fa4ef3cbe1968f72c0d29",
+  "releaseSha": "465b57a80c9b5248b0827ee6342cfbd4aed653c2",
   "sourceId": "REPLACE_WITH_CAPTURED_SOURCE_ID",
   "maxSnapshotAgeHours": 24,
   "files": {
