@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 
 type QueryResult = { data: unknown; error: { message: string } | null; count?: number | null };
-const state = vi.hoisted(() => ({ error: null as { message: string } | null, results: {} as Record<string, QueryResult> }));
+const state = vi.hoisted(() => ({ error: null as { message: string } | null, results: {} as Record<string, QueryResult>, roleFailure: false }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => {
   function queryFor(table: string) {
     let single = false;
@@ -15,10 +15,13 @@ vi.mock("@/lib/supabase/server", () => ({ createClient: async () => {
   }
   return { from: queryFor, rpc: queryFor };
 } }));
-vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: async () => new Map() }));
+vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: async () => {
+  if (state.roleFailure) throw new Error("Role lookup unavailable");
+  return new Map();
+} }));
 import { getNotesData, getNoteById, getThreads, getThreadById, getThreadPosts, getNoteArticles, getChildNotes, getNoteArticleById, getRecentSharedNotes, getNoteAncestors } from "./notes";
 import { getCompetitions, getCompetitionEvents, getCompetitionById, getCompetitionProgramEntries, getGoalHub, getHomeCompetition, getCompetitionGoals } from "./competitions";
-import { getMembersList, getAllRoles, getAllRoleCategories } from "./members";
+import { getMembersList, getMemberDirectory, getAllRoles, getAllRoleCategories } from "./members";
 import { getNotices, getHomeNotices, getPersonalNotifications, getUnreadNotificationCount } from "./notices";
 import { getAllVenues } from "./venues";
 import { getUserRecords, getPbRecords } from "./records";
@@ -34,7 +37,7 @@ const reads: [string, () => Promise<unknown>][] = [
   ["competitions", getCompetitions], ["event catalog", getCompetitionEvents],
   ["competition detail", () => getCompetitionById("competition")], ["program", () => getCompetitionProgramEntries("competition")],
   ["home competition", getHomeCompetition], ["competition goals", () => getCompetitionGoals("competition")],
-  ["goal hub", () => getGoalHub("viewer")], ["members", getMembersList],
+  ["goal hub", () => getGoalHub("viewer")], ["members", getMembersList], ["member directory", getMemberDirectory],
   ["roles", getAllRoles], ["role categories", getAllRoleCategories],
   ["notices", () => getNotices("viewer")], ["home notices", () => getHomeNotices("viewer")],
   ["notifications", () => getPersonalNotifications("viewer")], ["unread count", () => getUnreadNotificationCount("viewer")],
@@ -45,7 +48,12 @@ const reads: [string, () => Promise<unknown>][] = [
 ];
 
 describe("query failures are distinct from successful empty results", () => {
-  beforeEach(() => { state.error = null; state.results = {}; });
+  beforeEach(() => { state.error = null; state.results = {}; state.roleFailure = false; });
+  it("does not present a failed role lookup as members without any roles", async () => {
+    state.results.profiles = { data: [{ id: "member", display_name: "合成部員", blocks: ["short"], grade: "1" }], error: null };
+    state.roleFailure = true;
+    await expect(getMemberDirectory()).rejects.toThrow("Role lookup unavailable");
+  });
   it.each(reads)("rejects failed %s rather than displaying empty, zero or missing", async (name, read) => {
     state.error = { message: "synthetic database unavailable" };
     if (name === "competition detail") await expect(read()).rejects.toThrow("大会を取得できませんでした");

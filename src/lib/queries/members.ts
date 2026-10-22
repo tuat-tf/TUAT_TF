@@ -45,6 +45,18 @@ export async function getMembersList(): Promise<AuthorMini[]> {
   return (data ?? []).map(normalizeAuthorRow);
 }
 
+/** 名簿専用の役職表示。選択候補などの軽量な一覧には追加取得しない。 */
+export async function getMemberDirectory() {
+  const members = await getMembersList();
+  const supabase = await createClient();
+  const roles = await fetchRolesByProfileIds(supabase, members.map((member) => member.id), { useCachedCatalog: true });
+  const memberRoles = Object.fromEntries(members.map((member) => [member.id,
+    (roles.get(member.id) ?? []).filter((role) => !role.is_everyone)
+      .map(({ id, name, color }) => ({ id, name, color })),
+  ]));
+  return { members, memberRoles };
+}
+
 /** 全ロール定義を取得（管理画面用） */
 export async function getAllRoles(): Promise<AppRole[]> {
   const supabase = await createClient();

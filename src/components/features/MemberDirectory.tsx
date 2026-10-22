@@ -17,17 +17,19 @@ import {
   matchSimpleBlock,
   gradeShort,
 } from "@/lib/constants";
-import type { AuthorMini } from "@/types";
+import type { AppRole, AuthorMini } from "@/types";
 
 /** メンバー名簿。中長/短・学年・名前で絞り込みでき、学年ごとに区切って表示する */
 export function MemberDirectory({
   members,
   memberHrefPrefix = "/members",
   memberBadges,
+  memberRoles,
 }: {
   members: AuthorMini[];
   memberHrefPrefix?: string;
   memberBadges?: Record<string, string>;
+  memberRoles?: Record<string, Pick<AppRole, "id" | "name" | "color">[]>;
 }) {
   const [block, setBlock] = useState("all");
   const [grades, setGrades] = useState<string[]>([]);
@@ -120,6 +122,17 @@ export function MemberDirectory({
                           </div>
                           {gradeShort(m.grade) && (
                             <span className="text-micro">{gradeShort(m.grade)}</span>
+                          )}
+                          {!!memberRoles?.[m.id]?.length && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              <span className="sr-only">役職：</span>
+                              {memberRoles[m.id].map((role) => (
+                                <Badge key={role.id} className="max-w-full whitespace-normal break-words leading-snug"
+                                  style={{ color: role.color, backgroundColor: `${role.color}18` }}>
+                                  {role.name}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                         </div>
                         <ChevronRight size={18} className="text-muted shrink-0" />
