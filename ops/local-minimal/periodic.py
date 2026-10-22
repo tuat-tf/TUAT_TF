@@ -184,11 +184,19 @@ def pc_offsite_inputs(config, installed, runtime=None):
 
 
 def sender_inventory(runtime, installed, manifest):
-    """Reuse the complete installed release inventory, including SDK dependency bytes."""
-    spec = importlib.util.spec_from_file_location('tuat_offsite_runtime', installed['sources']['runtime.py']['path'])
-    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-    need(module.release_inventory(runtime['releaseDirectory'], runtime['appUid'], runtime['appGid']) ==
-         {'files': manifest['files'], 'links': manifest['links']}, 'periodic-offsite-sender-inventory')
+    """Startup verifies the full immutable release; each backup pins its sender.
+
+    seal() already hashes the exact sender modules and configuration. Do not
+    rehash every Next chunk and installed package on every backup as well.
+    """
+    root = Path(runtime['releaseDirectory'])
+    info = root.lstat()
+    need(root.resolve() == root and stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and
+         not info.st_mode & 0o022 and info.st_dev == MOUNT.stat().st_dev, 'periodic-release-placement')
+    for record in installed['sources'].values():
+        path = Path(record['path'])
+        need(root in path.parents and manifest['files'].get(path.relative_to(root).as_posix()) == record['sha256'],
+             'periodic-offsite-sender-inventory')
 
 
 def actor(config):
@@ -601,6 +609,15 @@ class Attempt:
 
     def hold(self):
         if self.published: return  # Pending SIGTERM after durable publication does not uncommit it.
+        if self.config.get('captureMode') == 'online' and self.value.get('phase') == 'started' and not getattr(self, '_offsite_attempted', False):
+            checkpoint = read_json(Path(self.config['backupRoot'])/'capture-state.json')
+            if checkpoint.get('phase') == 'resumed' and checkpoint.get('controller') == self.identity and \
+               self.upload_publication_state()['receipts'] == self.upload_baseline['receipts']:
+                # A local read/capture failure is safe to retry next day. No
+                # publication or external request occurred; retain the old backup.
+                self.value.update(phase='refused', finishedAt=time.time(), reason='local-capture-failed')
+                self.write(self.path, self.value)
+                return
         self.value['phase'] = 'unknown-hold'
         self.write(self.path, self.value)  # A failed write leaves the original started checkpoint, also held.
 

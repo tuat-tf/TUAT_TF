@@ -23,6 +23,7 @@ import sys
 import tarfile
 import tempfile
 import time
+from contextlib import contextmanager, nullcontext
 # Root services must never add bytecode to the immutable release inventory.
 sys.dont_write_bytecode = True
 _periodic_spec = importlib.util.spec_from_file_location('tuat_periodic', Path(__file__).with_name('periodic.py'))
@@ -420,6 +421,8 @@ def validate_jobs_status(status, journal):
 
 
 def validate_config(config):
+    if config.get('captureMode', 'frozen') not in ('frozen', 'online'):
+        fail('Unknown capture mode')
     pp=periodic.policy(config)
     if pp is not None:
         p=config.get('jobsReceiptFile')
@@ -639,10 +642,57 @@ class LocalCommands:
             self.run(['systemctl', 'freeze' if freeze else 'thaw', name])
 
     def sql(self, config, text, output=None):
+        snapshot = getattr(self, 'snapshot', None)
+        if snapshot and config['containers']['db'] == snapshot['container']:
+            begin = 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;'
+            prefix = begin + " SET TRANSACTION SNAPSHOT '" + snapshot['id'] + "';"
+            text = text.replace(begin, prefix, 1) if text.startswith(begin) else prefix + '\n' + text + '\nCOMMIT;'
         socket_args = ['--host=/tmp', '--port=18304'] if self.profile['name'] == periodic.PC_PROFILE and config['containers']['db'] == 'tuat-local-db' else []
         return self.docker('exec', '-i', config['containers']['db'], 'psql', *socket_args, '-U', database_admin(config),
                            '-d', config['database'], '-X', '-qAt', '-v', 'ON_ERROR_STOP=1',
                            data=text.encode(), output=output)
+
+    @contextmanager
+    def source_snapshot(self, config):
+        """Share one read-only MVCC snapshot with pg_dump and manifest queries.
+
+        No app, Auth, REST or Jobs process is suspended. PostgreSQL expires an
+        abandoned exporter, even if the controller or Docker client disappears.
+        """
+        socket_args = ['--host=/tmp', '--port=18304'] if self.profile['name'] == periodic.PC_PROFILE and config['containers']['db'] == 'tuat-local-db' else []
+        argv = ['docker', '--host', self.profile['socket'], '--config', '/nonexistent',
+                'exec', '-i', config['containers']['db'], 'psql', *socket_args,
+                '-U', database_admin(config), '-d', config['database'], '-X', '-qAt', '-v', 'ON_ERROR_STOP=1']
+        env = {'PATH': '/usr/bin:/bin', 'HOME': '/nonexistent', 'DOCKER_CONFIG': '/nonexistent',
+               'DOCKER_HOST': self.profile['socket'], 'LANG': 'C.UTF-8'}
+        proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env)
+        selector = selectors.DefaultSelector()
+        try:
+            selector.register(proc.stdout, selectors.EVENT_READ)
+            proc.stdin.write(b"SET idle_in_transaction_session_timeout='10min'; BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SELECT pg_export_snapshot();\n")
+            proc.stdin.flush()
+            raw = bytearray(); began = time.monotonic()
+            while b'\n' not in raw:
+                if time.monotonic() - began > 15 or proc.poll() is not None:
+                    fail('Source snapshot exporter unavailable')
+                if selector.select(0.1): raw.extend(os.read(proc.stdout.fileno(), 128))
+                if len(raw) > 128: fail('Invalid exported snapshot')
+            ident = raw.decode().strip()
+            if not re.fullmatch('[0-9A-Fa-f]+-[0-9A-Fa-f]+-[0-9]+', ident):
+                fail('Invalid exported snapshot')
+            self.snapshot = {'id': ident, 'container': config['containers']['db'], 'capturedAt': stamp()}
+            yield
+            if proc.poll() is not None: fail('Source snapshot exporter ended during capture')
+        finally:
+            self.snapshot = None
+            selector.close()
+            proc.stdin.close()  # EOF rolls back the read-only exporting transaction.
+            try: proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.terminate()
+                try: proc.wait(timeout=3)
+                except subprocess.TimeoutExpired: proc.kill(); proc.wait(timeout=3)
+            proc.stdout.close()
 
 
 def container_state(info):
@@ -774,6 +824,10 @@ class CaptureWindow:
         writers += [('container', config['containers'][role]) for role in ('auth', 'rest')]
         self.before = [{'kind': kind, 'name': name, 'state': self.observe(kind, name)} for kind, name in writers]
         self.persist('capturing')
+        if config.get('captureMode') == 'online':
+            if any(entry['state'].get('paused', entry['state'].get('FreezerState') == 'frozen') for entry in self.before):
+                fail('Online capture requires unsuspended writers')
+            return
         for entry in self.before:
             state = entry['state']
             active = state.get('running', state.get('ActiveState') == 'active')
@@ -800,7 +854,7 @@ class CaptureWindow:
         for entry in self.before:
             state = entry['state']
             active = state.get('running', state.get('ActiveState') == 'active')
-            expected = {**state, **({'paused': active} if entry['kind'] == 'container' else
+            expected = state if self.config.get('captureMode') == 'online' else {**state, **({'paused': active} if entry['kind'] == 'container' else
                                     {'FreezerState': 'frozen' if active else 'running'})}
             if self.observe(entry['kind'], entry['name']) != expected:
                 fail('Capture writer no longer frozen or identity changed')
@@ -867,9 +921,10 @@ def assert_database_quiet(config, commands):
         # PC snapshots also restore and fingerprint the existing Vault secrets/key.
         # Only the extension's own namespace is admitted, never any schema named vault.
         vault_schema = "AND NOT (nspname='vault' AND EXISTS (SELECT 1 FROM pg_extension e WHERE e.extname='supabase_vault' AND e.extnamespace=pg_namespace.oid))"
-    value = commands.sql(config, f"""SELECT count(*) FROM pg_stat_activity WHERE datname=current_database()
+    clients = 'SELECT 0;' if config.get('captureMode') == 'online' else f"""SELECT count(*) FROM pg_stat_activity WHERE datname=current_database()
 AND pid<>pg_backend_pid() AND (backend_type='client backend' AND
- (state IS DISTINCT FROM 'idle' OR {idle_client}) OR xact_start IS NOT NULL);
+ (state IS DISTINCT FROM 'idle' OR {idle_client}) OR xact_start IS NOT NULL);"""
+    value = commands.sql(config, clients + f"""
 SELECT count(*) FROM pg_prepared_xacts;
 SELECT CASE WHEN to_regclass('cron.job') IS NULL THEN 0 ELSE 1 END;
 SELECT count(*) FROM pg_subscription;
@@ -958,6 +1013,12 @@ WHERE c.relkind IN ('r','p') AND n.nspname IN ('auth','public','storage','pc_ops
 'extensions',(SELECT jsonb_agg(jsonb_build_array(e.extname,e.extversion,n.nspname) ORDER BY e.extname) FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace));
 """)
     components = json.loads(security)
+    if config.get('captureMode') == 'online':
+        # Sequence counters are deliberately outside MVCC. pg_dump preserves
+        # their safe restore values; compare definitions, not a racing counter.
+        for sequence in components.get('sequences') or []:
+            sequence.pop('last_value', None)
+        security = json.dumps(components, sort_keys=True).encode()
     return {'tables': result, 'securitySha256': hashlib.sha256(security).hexdigest(),
             'securityComponents': {name: hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
                                    for name, value in components.items()}}
@@ -984,11 +1045,15 @@ class BoundedBundle:
 
 
 def capture_bundle(config, commands, stage):
+    online = config.get('captureMode') == 'online'
     retained = retained_unreferenced_images(config)
     periodic.pc_database(config)
     assert_database_quiet(config, commands)
     owner = config.get('sourceOwnerUid', os.getuid())
     journal = journal_snapshot(config['jobsStateRoot'], jobs_owner(config))
+    if online and [row for row in journal if row['name'] != 'status.json'] != \
+       [row for row in commands.snapshot_journal if row['name'] != 'status.json']:
+        fail('Jobs dispatch changed while opening the database snapshot')
     uploads = []
     images = image_inventory(config['imageRoot'], owner, uploads)
     refs = image_references(config, commands)
@@ -1017,18 +1082,21 @@ def capture_bundle(config, commands, stage):
     ):
         if periodic.installation_profile(config)['name'] == periodic.PC_PROFILE:
             argv += ['--host=/tmp', '--port=18304']
+        if online and name == 'database.dump':
+            argv += ['--snapshot=' + commands.snapshot['id'], '--lock-wait-timeout=5s']
         with (stage / name).open('xb') as output:
             os.chmod(stage / name, 0o600)
             commands.docker('exec', config['containers']['db'], *argv, output=output)
             output.flush(); os.fsync(output.fileno())
     manifest = {'version': 1, 'format': 'tuat-local-db-images-v1', 'sourceId': config['sourceId'],
                 'databaseSystemIdentifier': commands.sql(config, 'SELECT system_identifier::text FROM pg_control_system();').decode().strip(),
-                'capturedAt': stamp(), 'database': before, 'schemas': list(SCHEMAS),
+                'capturedAt': commands.snapshot['capturedAt'] if online else stamp(), 'database': before, 'schemas': list(SCHEMAS),
                 'recoveryKeyFingerprint': hashlib.sha256(read_private(config['runtimeKey'],32)).hexdigest(),
                 'imageReferences': refs, 'images': images,
                 'jobs': [{'name': row['name'], 'sha256': row['sha256']} for row in journal],
                 'files': {name: file_hash(stage / name) for name in ('database.dump', 'roles.sql')},
                 'credentials': 'PostgreSQL login passwords and app/Auth/JWT configuration require independent private recovery storage'}
+    if online: manifest['captureMode'] = 'online'
     if retained:
         manifest['retainedUnreferencedImages'] = retained
     files = ['database.dump', 'roles.sql']
@@ -1056,12 +1124,17 @@ def capture_bundle(config, commands, stage):
         os.fsync(stream.fileno())
     sync_directory(stage)
     if config.get('periodic'): periodic.capacity(config, 0)
-    if bundle.stat().st_size > MAX_BYTES or before != database_fingerprint(config, commands) or \
-       images != image_inventory(config['imageRoot'], owner) or journal != journal_snapshot(config['jobsStateRoot'], jobs_owner(config)):
+    # Live DB writes after the exported snapshot are expected. The authenticated
+    # extraction and independent restore below validate the actual archived bytes.
+    # A changed dispatch journal is refused; no external result is guessed/replayed.
+    final_journal = journal_snapshot(config['jobsStateRoot'], jobs_owner(config))
+    stable_jobs = lambda rows: [row for row in rows if row['name'] != 'status.json'] if online else rows
+    if bundle.stat().st_size > MAX_BYTES or (not online and (before != database_fingerprint(config, commands) or
+       images != image_inventory(config['imageRoot'], owner))) or stable_jobs(journal) != stable_jobs(final_journal):
         fail('Capture changed or exceeded bound')
     if pc and (read_private(stage/'vault-root.key', 65) != pc_vault_key() or manifest['vault'] != vault_fingerprint(config, commands)):
         fail('Vault recovery changed while frozen')
-    assert_database_quiet(config, commands)
+    if not online: assert_database_quiet(config, commands)
     return bundle, manifest
 
 
@@ -1180,7 +1253,8 @@ def verify_restore(config, commands, restored, manifest):
             '-c', 'listen_addresses=', '-c', 'shared_preload_libraries='+('supabase_vault' if pc else ''), '-c', 'shared_buffers=64MB', *preload)
         created = True
         commands.docker('start', name)
-        fixture = {**config, 'containers': {'db': name}, 'database': 'fixture'}
+        fixture = {**config, 'containers': {'db': name}, 'database': 'fixture',
+                   'captureMode': manifest.get('captureMode', 'frozen')}
         for attempt in range(60):
             try:
                 commands.sql(fixture, 'SELECT 1;')
@@ -1250,7 +1324,10 @@ def produce_locked(config, commands):
             try:
                 window.enter()
                 window.verify_frozen()
-                bundle, manifest = capture_bundle(config, commands, stage)
+                if config.get('captureMode') == 'online':
+                    commands.snapshot_journal = journal_snapshot(config['jobsStateRoot'], jobs_owner(config))
+                with commands.source_snapshot(config) if config.get('captureMode') == 'online' else nullcontext():
+                    bundle, manifest = capture_bundle(config, commands, stage)
                 window.verify_frozen()
             finally:
                 if entered and window.before:

@@ -33,6 +33,14 @@ describe("club historical records", () => {
     serve(503, "Unavailable");
     await expect(getClubRecordHtml("men-sprint")).rejects.toThrow("503");
   });
+  it("removes image-only navigation grids while preserving blank record cells and intentional line breaks", () => {
+    const html = sanitizeClubRecordHtml('<body><p>&nbsp;<br></p><table><tr><td><img src="nav.gif"></td><td>&nbsp;</td></tr></table><p>合成種目</p><table><tr><td>1</td><td>架空A<br>架空B</td><td></td><td>12.34</td></tr></table></body>');
+    expect(html.match(/<table>/g)).toHaveLength(1);
+    expect(html).toContain('role="region"');
+    expect(html).toContain('<td>架空A<br />架空B</td><td></td>');
+    expect(html).toContain('<p>合成種目</p>');
+    expect(html).not.toContain('&nbsp;');
+  });
   it("fetches only the fixed source and returns sanitized content", async () => {
     serve(200);
     expect(await getClubRecordHtml("men-sprint")).toContain("テスト用の値");

@@ -67,7 +67,7 @@
 - 本人IDを維持したPC内認証と`getClaims`による本人確認を保つ。一時的な認証・通信失敗だけで有効なcookieを消してログアウトさせない。SessionKeepAliveとリダイレクト時のcookie引継ぎを維持する。
 - 旧PC/cloud source fence、旧cloud Data API off、旧relay retired503、旧Windows backend disabled、旧Jobs config=falseを維持する。旧queueの再送、業務mirror、予備への書込み、復帰時の書戻しを再開しない。Google Drive連携は廃止済み。
 - 新しいmigrationは実正本・現在の履歴・RLS・定期処理との依存を確認する。旧構成を根拠にクラウドへ同時適用したり、failover用triggerを一律追加したりしない。保存してある旧履歴・mirror-state・未解決操作は消さない。
-- DB・認証・画像を含む15分ごとのcombined backup、PC外への暗号化保存、読戻しによる完全性確認、別DBでの復元検証を保護する。host/Jobsは同じgeneration・DB identity・新しいreceiptを確認する。35分のbackup期限や120秒の心拍条件を削除して保存を通さない。
+- 2026-10-22所有者指示により、DB・認証・画像のcombined backupは日次にし、通常保存とバックアップ鮮度を切り離す。PC外への暗号化保存・1回の読戻し・日次の別DB復元確認は維持し、採取時にapp/Jobs/Auth/RESTを停止しない。host/Jobsの同じgeneration・DB identity・120秒の心拍条件は保持する。[負荷修正と反映状態](BACKUP-LOAD-2026-10-22.md)を参照。旧15分/35分の記述はこの指示に優先しない。
 - 定期処理は同じNextへ接続するshared-pc Jobsへ集約する。記録・大会・期限切れ整理に加え、明示的に有効なlocal Pushを扱う。既存の`stateDirectory`・`activateAt`・journalと結果不明/失敗履歴を保ち、同じ枠を再送しない。詳細は[Jobs](../ops/pc-jobs/README.md)。
 - 旧DB/Vercel cronの停止と、予定自動同期の取りやめを維持する。新旧の定期処理や手動同期を重複実行せず、プロセス起動だけでなく処理結果と次回実行可能性を確認する。
 - 計画的にappを停止する前には正式監視と独立した保全監視を維持する。正式監視の終了でWSLサービスやmountが失われる場合がある。WSL/DB、保護mount、`D:\TUAT_TF\node_modules`、旧`.contingency`を保全し、全Node終了・WSL停止・Docker volume削除を検証準備にしない。

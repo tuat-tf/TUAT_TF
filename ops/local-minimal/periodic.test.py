@@ -230,6 +230,15 @@ class PeriodicOffsite(unittest.TestCase):
                 periodic.Attempt(f.config, f.commands, f.write, f.hashed, f.write)
             self.assertEqual(f.dispatch, [])
 
+    def test_online_capture_failure_can_retry_but_unknown_publication_cannot(self):
+        for phase in ('started', 'local-verified', 'offsite-started'):
+            with self.subTest(phase=phase), tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+                f = self.fixture(directory); self.upload_ready(f)
+                f.config['captureMode'] = 'online'; f.attempt.value['phase'] = phase
+                f.attempt.hold()
+                self.assertEqual(f.attempt.value['phase'], 'refused' if phase == 'started' else 'unknown-hold')
+                self.assertEqual(f.dispatch, [])
+
     def test_one_sender_call_uses_fixed_node_and_overrides_only_verified_archive(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
             f = self.fixture(directory); f.attempt.finish(f.result); ack = f.attempt.transfer_offsite(f.result)

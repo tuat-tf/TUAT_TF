@@ -1,7 +1,7 @@
 // Reuse the one pinned PC app. Cloud Auth and private R2 remain separate services.
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { backupStatusReady, utcTime } from '../pc-backup/status.mjs';
+import { backupStatusReady, runtimeStatusReady, utcTime } from '../pc-backup/status.mjs';
 
 export function loopbackRoot(value) {
   if (typeof value !== 'string' || !/^http:\/\/127\.0\.0\.1:[1-9][0-9]{0,4}$/.test(value)) throw Error('Explicit loopback root URL required');
@@ -61,8 +61,7 @@ export function backendReady(config, { read = readFileSync, now = Date.now(), im
       || (host.backup?.identity?.databaseName ?? 'postgres') !== databaseName
       || host.backup?.statusPath !== config.backupStatusPath) return false;
     const status = JSON.parse(read(config.backupStatusPath, 'utf8'));
-    if(imageRoot&&status.backup?.localSnapshot?.imageRoot!==imageRoot)return false;
-    return backupStatusReady(status, host.backup.identity, now);
+    return imageRoot ? runtimeStatusReady(status, host.backup.identity, now) : backupStatusReady(status, host.backup.identity, now);
   } catch { return false; }
 }
 

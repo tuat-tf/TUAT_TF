@@ -112,6 +112,31 @@ class BackupBehaviour(unittest.TestCase):
     def window(self):
         return backup.CaptureWindow(self.config, self.commands, Path(self.config['backupRoot']) / 'capture-state.json')
 
+    def test_online_capture_never_suspends_writers_and_detects_changed_identity(self):
+        self.config['captureMode'] = 'online'
+        for state in self.commands.states.values():
+            state['State']['Paused'] = False
+        window = self.window(); window.enter(); window.verify_frozen(); window.restore()
+        self.assertEqual(self.commands.events, [])
+        self.assertEqual(json.loads(window.checkpoint.read_bytes())['phase'], 'resumed')
+        window = self.window(); window.enter()
+        self.commands.states[self.config['containers']['rest']]['Id'] = 'changed'
+        with self.assertRaises(backup.BackupFailure): window.verify_frozen()
+        self.assertEqual(self.commands.events, [])
+
+    def test_snapshot_queries_import_one_transaction_and_never_affect_restore_db(self):
+        commands = backup.LocalCommands()
+        commands.snapshot = {'container': self.config['containers']['db'], 'id': '00000003-00000001-1'}
+        with patch.object(commands, 'docker', return_value=b'') as run:
+            commands.sql(self.config, 'SELECT 1;')
+            text = run.call_args.kwargs['data'].decode()
+            self.assertIn("SET TRANSACTION SNAPSHOT '00000003-00000001-1'", text)
+            self.assertEqual(text.count('BEGIN'), 1)
+            commands.sql(self.config, 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY; SELECT 1; COMMIT;')
+            self.assertEqual(run.call_args.kwargs['data'].decode().count('BEGIN'), 1)
+            commands.sql({**self.config, 'containers': {'db': 'restored-db'}}, 'SELECT 2;')
+            self.assertEqual(run.call_args.kwargs['data'], b'SELECT 2;')
+
     def host(self):
         self.config['writerMode'] = 'surface-systemd'
         self.config['containers'] = {role: self.config['containers'][role] for role in ('db', 'auth', 'rest')}

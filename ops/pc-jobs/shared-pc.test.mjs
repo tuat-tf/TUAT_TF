@@ -118,8 +118,8 @@ test('native local shared Jobs require one local issuer, private images and the 
       json:async()=>({swagger:'2.0'})};
   };
   assert.equal(await sharedPcReady(config,local,{fetchRequest,read:reader(data),clock:()=>now}),true);
-  status.backup.localSnapshot.imageRoot=resolve('..','wrong-images');
-  assert.equal(await sharedPcReady(config,local,{fetchRequest,read:reader(data),clock:()=>now}),false);
+  status.backup=null;
+  assert.equal(await sharedPcReady(config,local,{fetchRequest,read:reader(data),clock:()=>now}),true);
   assert.throws(()=>validateConfig(config,{...local,NEXT_PUBLIC_CLOUD_AUTH_URL:env.NEXT_PUBLIC_CLOUD_AUTH_URL}));
 });
 

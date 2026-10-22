@@ -27,14 +27,22 @@ export function clubRecordSource(id: string) {
 export function sanitizeClubRecordHtml(source: string): string {
   const body = source.match(/<body\b[^>]*>([\s\S]*?)<\/body\s*>/i)?.[1];
   if (!body || !/<table\b/i.test(body) || !/<tr\b/i.test(body)) throw new Error("Record page structure unavailable");
-  return sanitizeHtml(body, {
+  const html = sanitizeHtml(body, {
     allowedTags: ["p", "br", "div", "span", "b", "strong", "i", "em", "u", "h1", "h2", "h3", "h4", "ul", "ol", "li", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption", "hr"],
     allowedAttributes: { td: ["colspan", "rowspan"], th: ["colspan", "rowspan", "scope"] },
     allowedSchemes: [],
     nonTextTags: ["script", "style", "iframe", "object", "embed", "form", "button", "textarea", "select", "svg", "math"],
     parseStyleAttributes: false,
+    // The original site uses image-only navigation/layout tables. Their images
+    // are intentionally removed; do not leave the resulting empty grid visible.
+    exclusiveFilter: (frame) => ["table", "p"].includes(frame.tag) && !frame.text.replace(/[\s\u200b\ufeff]/g, ""),
     transformTags: { font: "span", nobr: "span", center: "div" },
   });
+  if (!/<table\b/i.test(html)) throw new Error("Record tables unavailable");
+  // Attributes have already been stripped. Keep scrolling on each table so a
+  // long relay row cannot move the section headings and all the other tables.
+  return html.replace(/<table>/g, '<div class="club-records-scroll" role="region" aria-label="記録表。横にスクロールできます" tabindex="0"><table>')
+    .replace(/<\/table>/g, "</table></div>");
 }
 
 export async function getClubRecordHtml(id: string): Promise<string> {

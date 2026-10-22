@@ -4,12 +4,26 @@ export const HEARTBEAT_INTERVAL_MS=20_000;
 export const HEARTBEAT_MAX_AGE_MS=120_000;
 export const BACKUP_INTERVAL_MS=15*60_000;
 export const BACKUP_MAX_AGE_MS=35*60_000;
+export const LOCAL_SNAPSHOT_MAX_AGE_MS=48*60*60_000;
 export const STATUS_FILE='backup-lifecycle.json';
 const uuid=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
 export function utcTime(value) {
   if(typeof value!=='string') return NaN;
   const parsed=Date.parse(value);
   return Number.isFinite(parsed)&&new Date(parsed).toISOString()===value?parsed:NaN;
+}
+/** Local primary availability depends on its live host/DB, not backup delivery. */
+export function runtimeStatusReady(status,identity,now=Date.now()) {
+  try {
+    if(!Number.isFinite(now)||status?.version!==STATUS_VERSION||!uuid(identity?.instanceId)||!uuid(identity?.generation)
+      ||status.instanceId!==identity.instanceId||status.generation!==identity.generation||status.startedAt!==identity.startedAt
+      ||!/^\d{10,20}$/.test(identity.databaseSystemIdentifier??'')||!/^[a-z_][a-z0-9_]{0,62}$/.test(identity.databaseName??'postgres'))return false;
+    const started=utcTime(status.startedAt),heartbeat=utcTime(status.heartbeat?.checkedAt),targetAt=utcTime(status.target?.checkedAt);
+    return Number.isFinite(started)&&started<=now&&[heartbeat,targetAt].every(time=>Number.isFinite(time)&&time>=started&&time<=now&&now-time<HEARTBEAT_MAX_AGE_MS)
+      &&status.heartbeat.healthy===true&&status.heartbeat.maintenance===false&&status.target.healthy===true
+      &&status.target.databaseSystemIdentifier===identity.databaseSystemIdentifier&&status.target.databaseName===(identity.databaseName??'postgres')
+      &&/^[a-f0-9]{64}$/.test(status.target.containerId??'')&&/^sha256:[a-f0-9]{64}$/.test(status.target.containerImageId??'');
+  }catch{return false;}
 }
 export function backupStatusReady(status,identity,now=Date.now()) {
   try {
@@ -51,5 +65,5 @@ export function localSnapshotReady(status,identity,imageRoot,now=Date.now()) {
   const started=utcTime(identity.startedAt);
   const captured=utcTime(snapshot.capturedAt),restored=utcTime(snapshot.restoreVerifiedAt),offsite=utcTime(snapshot.offsiteVerifiedAt);
   return Number.isFinite(now)&&Number.isFinite(started)&&captured<=restored&&restored<=offsite
-    &&[captured,restored,offsite].every(time=>Number.isFinite(time)&&time>=started&&time<=now&&now-time<BACKUP_MAX_AGE_MS);
+    &&[captured,restored,offsite].every(time=>Number.isFinite(time)&&time>=started&&time<=now&&now-time<LOCAL_SNAPSHOT_MAX_AGE_MS);
 }

@@ -1,5 +1,26 @@
 # Consistent encrypted local snapshots
 
+## PC policy from 2026-10-22
+
+The owner requested lower backup load and uninterrupted normal use. The PC uses
+`captureMode: online` and `pc/tuat-local-backup.timer` (one day after completion,
+initial run five minutes after boot). An exported PostgreSQL read-only snapshot
+binds `pg_dump`, row fingerprints and image references without suspending app,
+Jobs, Auth or REST. Concurrent image deletion or Jobs dispatch invalidates that
+attempt; the previous backup remains. Unknown external uploads are still held.
+
+Encryption, one remote full readback and one independent restore run per daily
+backup remain. Cleanup reuses the same upload's in-memory readback evidence for
+at most 120 seconds, with a fresh exact HEAD; no persisted receipt can bypass a
+readback. The full release inventory is checked at startup, while daily runs use
+the existing executable/configuration seal. Code is versioned in Git, not added
+to each data snapshot.
+
+Local application and Jobs writes require a healthy, matching host/database and
+fresh 120-second heartbeat. Backup age or failure alone does not reject writes.
+Snapshot monitoring accepts daily receipts for 48 hours. This supersedes the old
+15-minute/35-minute policy below; the frozen capture mode remains for old fixtures.
+
 `backup.py` is an opt-in Linux CLI, not a daemon or a Windows host requirement.
 It reuses the installed Node runtime for the compatible `TUATPC01` AES-256-GCM
 codec, Python standard library, Docker, `pg_dump` and tar. Importing either file

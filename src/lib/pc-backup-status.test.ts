@@ -58,30 +58,22 @@ describe("operational status conformance", () => {
     vi.stubEnv("PC_APP_BACKUP_DATABASE_NAME","tuat_pc_candidate");
     await expect(assertPcAppWriteAllowed()).resolves.toBeUndefined();
   });
-  it("holds local writes for DB-only receipts and requires fresh, same-source image restore and off-PC evidence", async () => {
+  it("keeps local writes available when backup delivery is missing or overdue", async () => {
     mocks.local = true;
-    const imageRoot = resolve("..", "synthetic-private-images"); vi.stubEnv("LOCAL_IMAGE_STORAGE_ROOT", imageRoot);
-    await expect(assertPcAppWriteAllowed()).rejects.toBeInstanceOf(PcBackupProtectionError);
-    const status = snapshot() as PcBackupStatus;
-    status.backup!.localSnapshot = { format: "tuat-local-db-images-v1", sourceId: golden.identity.instanceId,
-      generation: golden.identity.generation, databaseSystemIdentifier: golden.identity.databaseSystemIdentifier, imageRoot,
-      archiveKey: `ops/pc-backend/${golden.identity.instanceId}/backups/${golden.identity.startedAt.replace(/[:.]/g,"-")}.local.tar.enc`,
-      archiveSha256: "a".repeat(64), archiveBytes: 128, capturedAt: golden.identity.startedAt, restoreVerifiedAt: status.heartbeat.checkedAt, offsiteVerifiedAt: status.heartbeat.checkedAt,
-      independentRecoveryCopyChecked: true };
-    mocks.status = status; await expect(assertPcAppWriteAllowed()).resolves.toBeUndefined();
-    status.backup!.key = status.backup!.localSnapshot.archiveKey;
-    status.backup!.sha256 = status.backup!.localSnapshot.archiveSha256;
-    status.backup!.bytes = status.backup!.localSnapshot.archiveBytes;
-    delete status.backup!.recoveryKey; delete status.backup!.recoverySha256; delete status.backup!.recoveryBytes;
-    expect(opsReady(status, golden.identity, golden.now)).toBe(true); expect(backupStatusReady(status, golden.identity, golden.now)).toBe(true);
-    await expect(assertPcAppWriteAllowed()).resolves.toBeUndefined();
-    for (const changes of [{ generation: "33333333-3333-4333-8333-333333333333" },{ imageRoot: resolve("..","wrong-images") },
-      { offsiteVerifiedAt: "2026-10-10T00:00:00.000Z" },{ independentRecoveryCopyChecked: false },{ archiveKey: "https://other.example.invalid/image.enc" }]) {
-      mocks.status = { ...status, backup: { ...status.backup, localSnapshot: { ...status.backup!.localSnapshot, ...changes } } };
+    for (const backup of [null, { ...snapshot().backup, verifiedAt: "2020-01-01T00:00:00.000Z" }]) {
+      mocks.status = { ...snapshot(), backup };
+      await expect(assertPcAppWriteAllowed()).resolves.toBeUndefined();
+    }
+    for (const mutate of [
+      (s: PcBackupStatus) => { s.target.healthy = false; },
+      (s: PcBackupStatus) => { s.heartbeat.maintenance = true; },
+      (s: PcBackupStatus) => { s.heartbeat.checkedAt = new Date(golden.now - 120_000).toISOString(); },
+      (s: PcBackupStatus) => { s.target.databaseSystemIdentifier = "9999999999999999999"; },
+    ]) {
+      const status = snapshot() as PcBackupStatus; status.backup = null; mutate(status); mocks.status = status;
       await expect(assertPcAppWriteAllowed()).rejects.toBeInstanceOf(PcBackupProtectionError);
     }
-  });
-  it("mirrors the ordered capture/restore/offsite contract and holds old captures under a fresh host", async () => {
+  });  it("mirrors the ordered capture/restore/offsite contract and holds old captures under a fresh host", async () => {
     mocks.local = true;
     const imageRoot=resolve("..","synthetic-private-images");vi.stubEnv("LOCAL_IMAGE_STORAGE_ROOT",imageRoot);
     const status=snapshot() as PcBackupStatus;
@@ -99,7 +91,7 @@ describe("operational status conformance", () => {
       expect(opsReady(changed,golden.identity,golden.now)).toBe(false);expect(backupStatusReady(changed,golden.identity,golden.now)).toBe(false);
       const legacyPair={...snapshot(),backup:{...snapshot().backup,localSnapshot:changed.backup.localSnapshot}};
       expect(opsReady(legacyPair,golden.identity,golden.now)).toBe(false);expect(backupStatusReady(legacyPair,golden.identity,golden.now)).toBe(false);
-      await expect(assertPcAppWriteAllowed()).rejects.toBeInstanceOf(PcBackupProtectionError);
+      await expect(assertPcAppWriteAllowed()).resolves.toBeUndefined();
     }
   });
   it.each(vectors)("agrees with ops for $name", vector => {

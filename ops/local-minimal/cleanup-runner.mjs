@@ -63,7 +63,7 @@ export function snapshotProducerOwner(config,{read=readPrivateFile,readProc=read
 /** No policy is an opt-out. Retention failures never uncommit a verified backup
  * or change its strict three-field ACK. The private outcome is separate. */
 export async function runSnapshotCleanup(config,{client,now=Date.now,read=readPrivateFile,owner=snapshotProducerOwner,
-  inspect=inspectSnapshotCleanup,dryRun=dryRunSnapshotCleanup,apply=applySnapshotCleanup,writeOutcome=writeSnapshotCleanupOutcome,onHeld=()=>{}}={}) {
+  inspect=inspectSnapshotCleanup,dryRun=dryRunSnapshotCleanup,apply=applySnapshotCleanup,writeOutcome=writeSnapshotCleanupOutcome,onHeld=()=>{},verifiedUpload}={}) {
   if(config.profile!=='pc-private')return {state:'disabled'};
   let policy,policyBytes;
   try{policyBytes=read(SNAPSHOT_CLEANUP_POLICY,16384);policy=JSON.parse(policyBytes);}catch(error){if(error?.code==='ENOENT')return {state:'disabled'};policy=null;}
@@ -79,7 +79,7 @@ export async function runSnapshotCleanup(config,{client,now=Date.now,read=readPr
     const initial=owner(config,{read});
     const assertOwner=()=>{need(read(SNAPSHOT_CLEANUP_POLICY,16384).equals(policyBytes));const current=owner(config,{read});
       need(current.ownerToken===initial.ownerToken&&current.receiptDigest===initial.receiptDigest);return current;};
-    const options={client,now,read,conditionalDeleteSupported:false,immutableSourceNamespace:true,maxOperations:8,
+    const options={client,now,read,verifiedUpload,conditionalDeleteSupported:false,immutableSourceNamespace:true,maxOperations:8,
       async assertExclusiveLifecycleWriter({identity,prefix}){const current=assertOwner();return {exclusive:true,...scope,generation:identity.generation,prefix,ownerToken:current.ownerToken};},
       async verifyRetainedRecovery({snapshot,identity}) {
         const current=assertOwner(),receipt=current.receipt,producer=current.parentConfig;

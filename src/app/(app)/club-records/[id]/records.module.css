@@ -1,0 +1,50 @@
+.content {
+  min-width: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.content :global(.club-records-scroll) {
+  max-width: 100%;
+  margin-block: 1rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--color-separator);
+  border-radius: 0.75rem;
+}
+
+.content table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.content td,
+.content th {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-separator);
+  text-align: start;
+  vertical-align: top;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.content tr:last-child > td,
+.content tr:last-child > th {
+  border-bottom: 0;
+}
+
+.content th {
+  font-weight: 600;
+}
+
+.content p { margin-block: 1rem 0.5rem; }
+.content td p, .content th p { margin: 0; }
+.content h1, .content h2, .content h3, .content h4 {
+  margin-block: 1.5rem 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.content hr { border-color: var(--color-separator); }

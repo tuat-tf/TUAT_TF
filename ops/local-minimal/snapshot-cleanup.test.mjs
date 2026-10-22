@@ -5,10 +5,26 @@ import {mkdtemp,writeFile,readFile,rm,link,symlink,rename,readdir} from 'node:fs
 import {tmpdir} from 'node:os';
 import {resolve} from 'node:path';
 import {inspectSnapshotCleanup,dryRunSnapshotCleanup,applySnapshotCleanup,verifySnapshotCiphertext,removeSnapshotCiphertext,createSnapshotCleanupAdapter,
-  planCompletedSnapshotMetadata} from './snapshot-cleanup.mjs';
+  planCompletedSnapshotMetadata,remoteCiphertext} from './snapshot-cleanup.mjs';
 import {planSnapshotRetention} from './snapshot-retention.mjs';
 
 const NOW=Date.parse('2026-10-15T03:00:00.000Z'),MINUTE=60_000;
+
+test('same-upload readback is reused only with matching live HEAD and fresh exact identity',async()=>{
+  const bytes=Buffer.from('TUATPC01synthetic encrypted bytes'),hash=createHash('sha256').update(bytes).digest('hex');
+  const snap={archiveKey:'one',objectEtag:'etag-one',archiveBytes:bytes.length,archiveSha256:hash};
+  const events=[];let changed=false;
+  const client={async send(command){events.push(command.constructor.name);return {ContentLength:bytes.length,ETag:changed?'changed':'etag-one',Metadata:{sha256:hash},Body:(async function*(){yield bytes;})()};}};
+  const proof={client,bucket:'bucket',key:'one',etag:'etag-one',bytes:bytes.length,sha256:hash,checkedAt:NOW};
+  for(let n=0;n<2;n++)await remoteCiphertext(client,'bucket',snap,proof,()=>NOW+1000);
+  assert.deepEqual(events,['HeadObjectCommand','HeadObjectCommand']);
+  for(const altered of [undefined,{...proof,checkedAt:NOW-120_000},{...proof,client:{}},{...proof,bucket:'other'},
+    {...proof,key:'other'},{...proof,etag:'other'},{...proof,sha256:'0'.repeat(64)},{...proof,bytes:1},{...proof,checkedAt:NOW+1}]) {
+    events.length=0;await remoteCiphertext(client,'bucket',snap,altered,()=>NOW);
+    assert.deepEqual(events,['HeadObjectCommand','GetObjectCommand']);
+  }
+  changed=true;await assert.rejects(remoteCiphertext(client,'bucket',snap,proof,()=>NOW),/HEAD changed/);
+});
 const sha=data=>createHash('sha256').update(data).digest('hex');
 const digest=value=>sha(JSON.stringify(value));
 const identity={sourceId:'11111111-1111-4111-8111-111111111111',storageScopeId:'a'.repeat(64),archiveKeyId:'b'.repeat(64),

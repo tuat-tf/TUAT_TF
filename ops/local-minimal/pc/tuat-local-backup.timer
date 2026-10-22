@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily encrypted application data backup
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=1d
+AccuracySec=1min
+Unit=tuat-local-backup.service
+
+[Install]
+WantedBy=timers.target

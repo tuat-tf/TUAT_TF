@@ -40,7 +40,7 @@ async function digest(stream,limit) {
   for await(const chunk of stream){bytes+=chunk.length;need(bytes<=limit);hash.update(chunk);}
   return {bytes,sha256:hash.digest('hex')};
 }
-export async function transferSnapshot(config,{client,now=Date.now,apply=false,read=readPrivateFile,assertRoot=rootActor}={}) {
+export async function transferSnapshot(config,{client,now=Date.now,apply=false,read=readPrivateFile,assertRoot=rootActor,onVerifiedUpload=()=>{}}={}) {
   need(config.version===1 && typeof config.enabled==='boolean');
   need(uuid(config.sourceId)&&(config.profile===undefined||config.profile==='pc-private')&&(config.profile==='pc-private'||uuid(config.generation)));
   need(/^\d{10,20}$/.test(config.databaseSystemIdentifier??''));
@@ -107,6 +107,7 @@ export async function transferSnapshot(config,{client,now=Date.now,apply=false,r
     const result=await send(new GetObjectCommand({Bucket:config.bucket,Key:key,IfMatch:head.ETag}));
     need(result.ContentLength===entry.size&&result.ETag===head.ETag&&result.Metadata?.sha256===local.sha256&&result.Body);
     const remote=await digest(result.Body,entry.size);need(remote.bytes===entry.size&&remote.sha256===local.sha256);
+    const verifiedUpload=Object.freeze({client,bucket:config.bucket,key,etag:head.ETag,sha256:local.sha256,bytes:local.bytes,checkedAt:now()});
     const after=await archive.stat();need(after.size===info.size&&after.mtimeMs===info.mtimeMs);
     const finished=now();need(Number.isFinite(finished)&&[capturedAt,restoreVerifiedAt].every(value=>Date.parse(value)<=finished&&finished-Date.parse(value)<BACKUP_MAX_AGE_MS));
     recheck();
@@ -128,6 +129,7 @@ export async function transferSnapshot(config,{client,now=Date.now,apply=false,r
     recheck();need(finished<=now());
     await rename(temporary,target);
     if(process.platform!=='win32') {const directory=await open(config.stateDirectory,'r');try{await directory.sync();}finally{await directory.close();}}
+    onVerifiedUpload(verifiedUpload);
     return {verified:true,sourceId:config.sourceId,receipt:target};
   } finally {await archive.close();}
 }
@@ -147,13 +149,14 @@ async function offsiteMain() {
         client=new S3Client({region:'auto',endpoint:`https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,credentials:{accessKeyId:env.R2_ACCESS_KEY_ID,secretAccessKey:env.R2_SECRET_ACCESS_KEY},maxAttempts:1,requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED'});
       }
     }
-    const result=await transferSnapshot(config,{client,apply:flag==='--apply'});
+    let verifiedUpload;
+    const result=await transferSnapshot(config,{client,apply:flag==='--apply',onVerifiedUpload:proof=>{verifiedUpload=proof;}});
     if(result.verified===true&&config.profile==='pc-private') {
       // Cleanup is a separate known/held outcome. A failure here cannot reverse
       // the canonical verified backup or change the producer's exact ACK.
       try {
         const {runSnapshotCleanup}=await import('./cleanup-runner.mjs');
-        await runSnapshotCleanup(config,{client,onHeld:()=>console.error('Snapshot retention is held; inspect its private outcome and checkpoint.')});
+        await runSnapshotCleanup(config,{client,verifiedUpload,onHeld:()=>console.error('Snapshot retention is held; inspect its private outcome and checkpoint.')});
       } catch {console.error('Snapshot retention is held; the canonical backup remains verified.');}
     }
     console.log(JSON.stringify(result));

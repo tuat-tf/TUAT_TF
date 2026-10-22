@@ -21,6 +21,20 @@ const utcTime = (value: unknown) => {
 };
 
 /** Mirrored operational contract; conformance uses the same synthetic vectors. */
+export function runtimeStatusReady(value: unknown, expected: unknown, now = Date.now()): boolean {
+  try {
+    const status = value as PcBackupStatus | null, identity = expected as PcBackupIdentity | null;
+    if (!Number.isFinite(now) || status?.version !== 1 || !uuid(identity?.instanceId) || !uuid(identity?.generation)
+      || status.instanceId !== identity.instanceId || status.generation !== identity.generation || status.startedAt !== identity.startedAt
+      || !/^\d{10,20}$/.test(identity.databaseSystemIdentifier ?? "") || !/^[a-z_][a-z0-9_]{0,62}$/.test(identity.databaseName ?? "postgres")) return false;
+    const started = utcTime(status.startedAt), heartbeat = utcTime(status.heartbeat?.checkedAt), targetAt = utcTime(status.target?.checkedAt);
+    return Number.isFinite(started) && started <= now && [heartbeat, targetAt].every(time => Number.isFinite(time) && time >= started && time <= now && now - time < 120_000)
+      && status.heartbeat.healthy === true && status.heartbeat.maintenance === false && status.target.healthy === true
+      && status.target.databaseSystemIdentifier === identity.databaseSystemIdentifier && status.target.databaseName === (identity.databaseName ?? "postgres")
+      && /^[a-f0-9]{64}$/.test(status.target.containerId ?? "") && /^sha256:[a-f0-9]{64}$/.test(status.target.containerImageId ?? "");
+  } catch { return false; }
+}
+
 export function backupStatusReady(value: unknown, expected: unknown, now = Date.now()): boolean {
   try {
     const status = value as PcBackupStatus | null, identity = expected as PcBackupIdentity | null;
@@ -56,7 +70,7 @@ export function backupStatusReady(value: unknown, expected: unknown, now = Date.
 export class PcBackupProtectionError extends Error {
   readonly status = 503;
   readonly code = "PC_BACKUP_UNAVAILABLE";
-  constructor() { super("データの保存を一時停止しています。バックアップの状態を確認できるまでお待ちください。"); }
+  constructor() { super("データの保存を一時停止しています。サーバーの接続状態を確認できるまでお待ちください。"); }
 }
 
 /** A legacy DB-only R2 receipt cannot admit writes with new local image storage. */
@@ -71,7 +85,7 @@ export function localSnapshotReady(status: PcBackupStatus, identity: PcBackupIde
   const started = utcTime(identity.startedAt);
   const captured = utcTime(snapshot.capturedAt), restored = utcTime(snapshot.restoreVerifiedAt), offsite = utcTime(snapshot.offsiteVerifiedAt);
   return Number.isFinite(now) && Number.isFinite(started) && captured <= restored && restored <= offsite &&
-    [captured, restored, offsite].every(time => Number.isFinite(time) && time >= started && time <= now && now - time < 35 * 60_000);
+    [captured, restored, offsite].every(time => Number.isFinite(time) && time >= started && time <= now && now - time < 48 * 60 * 60_000);
 }
 
 /** No cached approval: each dispatch observes this host generation's latest state. */
@@ -94,7 +108,7 @@ export async function assertPcAppWriteAllowed(): Promise<void> {
     } finally { await file.close(); }
     const identity = { instanceId: process.env.PC_APP_BACKUP_INSTANCE_ID, generation: process.env.PC_APP_BACKUP_GENERATION,
       startedAt: process.env.PC_APP_BACKUP_STARTED_AT, databaseSystemIdentifier: process.env.PC_APP_BACKUP_DATABASE_SYSTEM_IDENTIFIER, databaseName: process.env.PC_APP_BACKUP_DATABASE_NAME };
-    if (!backupStatusReady(status, identity) || (app.local && !localSnapshotReady(status as PcBackupStatus, identity as PcBackupIdentity, process.env.LOCAL_IMAGE_STORAGE_ROOT))) throw new PcBackupProtectionError();
+    if (!(app.local ? runtimeStatusReady(status, identity) : backupStatusReady(status, identity))) throw new PcBackupProtectionError();
   } catch { throw new PcBackupProtectionError(); }
 }
 

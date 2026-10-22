@@ -15,7 +15,7 @@ export {loadBackup};
 export function backupPlan(config) {
   validateBackupConfig(config);
   return {version:1,enabled:config.enabled,starts:false,targetReads:false,providerReads:false,providerWrites:false,
-    intervalMinutes:15,backupMaximumAgeMinutes:35,heartbeatMaximumAgeSeconds:120,firstPairEachStartup:!config.localSnapshotReceiptFile,
+    intervalMinutes:config.localSnapshotReceiptFile?1440:15,backupMaximumAgeMinutes:config.localSnapshotReceiptFile?2880:35,heartbeatMaximumAgeSeconds:120,firstPairEachStartup:!config.localSnapshotReceiptFile,
     combinedLocalSnapshot:!!config.localSnapshotReceiptFile};
 }
 export async function startBackupSupervisor({configFile,config:providedConfig,env:providedEnv,expectedInstanceId,expectedDatabaseSystemIdentifier,expectedDatabaseName='postgres',

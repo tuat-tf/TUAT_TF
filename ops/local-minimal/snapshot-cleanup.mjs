@@ -133,11 +133,17 @@ async function removeCheckedFile(snapshot,{archiveRoot,expected,nonce,assertFres
 }
 export const removeSnapshotCiphertext=(snapshot,options)=>removeCheckedFile(snapshot,{...options,ciphertext:true});
 
-async function remoteCiphertext(client,bucket,snapshot) {
+export async function remoteCiphertext(client,bucket,snapshot,verifiedUpload,now=Date.now) {
   const send=command=>client.send(command,{abortSignal:AbortSignal.timeout(120_000)});
   const head=await send(new HeadObjectCommand({Bucket:bucket,Key:snapshot.archiveKey,IfMatch:snapshot.objectEtag}));
   const matches=value=>value.ContentLength===snapshot.archiveBytes&&value.ETag===snapshot.objectEtag&&value.Metadata?.sha256===snapshot.archiveSha256;
   need(matches(head),'Remote snapshot HEAD changed');
+  // Reuse only this sender invocation's completed readback. Recheck provider
+  // identity each time; changed, missing or expired evidence requires a new GET.
+  if(verifiedUpload&&verifiedUpload.client===client&&verifiedUpload.bucket===bucket
+    &&verifiedUpload.key===snapshot.archiveKey&&verifiedUpload.etag===snapshot.objectEtag
+    &&verifiedUpload.sha256===snapshot.archiveSha256&&verifiedUpload.bytes===snapshot.archiveBytes
+    &&Number.isFinite(verifiedUpload.checkedAt)&&verifiedUpload.checkedAt<=now()&&now()-verifiedUpload.checkedAt<120_000)return;
   const response=await send(new GetObjectCommand({Bucket:bucket,Key:snapshot.archiveKey,IfMatch:snapshot.objectEtag}));
   need(matches(response)&&response.Body,'Remote snapshot read changed');
   const hash=createHash('sha256');let count=0,header=Buffer.alloc(0);
@@ -150,7 +156,7 @@ async function remoteCiphertext(client,bucket,snapshot) {
  * this client/endpoint. An SDK parameter alone does not establish that ability.
  * The client must use maxAttempts:1; unknown DELETEs must never be retried by it. */
 export async function createSnapshotCleanupAdapter(config,{client,conditionalDeleteSupported=false,immutableSourceNamespace=false,assertExclusiveLifecycleWriter,verifyRetainedRecovery,
-  now=Date.now,read=readPrivateFile,assertRoot}={}) {
+  now=Date.now,read=readPrivateFile,assertRoot,verifiedUpload}={}) {
   need(config?.version===1&&config.profile==='pc-private'&&config.enabled===true&&client,'Enabled dedicated PC snapshot cleanup required');
   need(config.imageRoot==='/var/lib/tuat-local/images'&&absolute(config.stateDirectory)&&absolute(config.environmentFile),'Dedicated snapshot paths required');
   need(typeof verifyRetainedRecovery==='function','Retained recovery verifier required');
@@ -282,7 +288,7 @@ export async function createSnapshotCleanupAdapter(config,{client,conditionalDel
     async assertFresh(proof){await recheck();need(proof.binding===binding,'Cleanup target changed');
       need(digest(json(resolve(config.stateDirectory,'local-snapshot.json')))===proof.currentDigest,'Current recovery snapshot changed');},
     async verifyLocal(snapshot,proof){const entry=proof.localFiles.find(file=>file.path===snapshot.localArchiveFile);need(entry,'Local snapshot missing');return verifySnapshotCiphertext(snapshot.localArchiveFile,snapshot,entry);},
-    async verifyRemote(snapshot){return remoteCiphertext(client,config.bucket,snapshot);},
+    async verifyRemote(snapshot){return remoteCiphertext(client,config.bucket,snapshot,verifiedUpload,now);},
     async verifyRecovery(snapshot){return verifyRetainedRecovery({snapshot,localArchiveFile:snapshot.localArchiveFile,identity:{...identity}});},
     async planMetadata(captured,plan){
       return planCompletedSnapshotMetadata(captured,plan,config,{readJson:json});

@@ -64,7 +64,7 @@ Windowsの配置は、releaseとNode/PowerShell実行directoryをSYSTEM/Administ
 
 今後の移設でも、DB/WSLの起動、15分backupと別場所の検証済み保存、backup失敗時の保護停止を維持する主体と配置を確認する。archiveの読戻し・別DB復元、単一実行・失敗・復帰を保ち、Jobsのready判定も同じ主体へ接続する。旧heartbeatを架空の成功状態で更新したり、backup期限を外して通さない。専用accountのapp配置検査だけでWSL/DBや復旧鍵を隔離済みとは扱わない。
 
-PC専用REST/Server Action/service-roleの変更、画像保存、GAS/Sheetsへの変更は、hostが所有する同じgenerationとDB IDの状態で保護する。POSTの読み取りRPCは既知の関数・引数・public schemaに限って区別する。backup未完了/35分超過・心拍/target120秒以上・未来時刻・別generation/DB・状態取得不明は503で保存を止める。認証はPC内の既存経路を使い、cloud Authへ迂回しない。JobsもhostのSHA/releaseId/心拍と同じbackupを照合する。直接運用SQL・認証管理・DB cronはこのapp transportの外側なので個別の運用保護が必要であり、アプリの試験だけで継承済みとはしない。
+PC専用REST/Server Action/service-roleの変更、画像保存、GAS/Sheetsへの変更は、hostが所有する同じgenerationとDB IDの状態で保護する。POSTの読み取りRPCは既知の関数・引数・public schemaに限って区別する。PC集約構成ではバックアップの未完了や経過時間だけでは保存を止めない。心拍/target120秒以上・未来時刻・別generation/DB・保守中・状態取得不明は503で保存を止める。認証はPC内の既存経路を使い、cloud Authへ迂回しない。JobsもhostのSHA/releaseId/心拍とDB identityを照合する。日次バックアップの監視期限は48時間で、保存可否とは分離する。直接運用SQL・認証管理・DB cronはこのapp transportの外側なので個別の運用保護が必要であり、アプリの試験だけで継承済みとはしない。
 
 Jobsは現在動いているtaskが指定するconfigの `stateDirectory` と `activateAt` を読み、journalの同じ境界・未解決status・Sheets failure履歴を保持する。例の新stateや2099年の境界で置換しない。現在のreleaseと候補の識別も別に確認する。
 
