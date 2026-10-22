@@ -43,7 +43,7 @@ export function NoteDetailActions({
         showToast("フォルダを削除できませんでした");
         return false;
       }
-      router.push("/notes");
+      router.replace("/notes");
       router.refresh();
       return true;
     } catch {

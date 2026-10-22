@@ -46,7 +46,7 @@ export function NoteArticleActions({
         showToast("記事を削除できませんでした");
         return false;
       }
-      router.push(`/notes/${noteId}`);
+      router.replace(`/notes/${noteId}`);
       router.refresh();
       return true;
     } catch {

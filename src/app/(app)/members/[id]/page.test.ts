@@ -35,10 +35,22 @@ beforeEach(() => {
   mocks.competitions.mockResolvedValue([]);
 });
 
-function openMember() {
-  const content = MemberPage({ params: Promise.resolve({ id: target.id }), searchParams: Promise.resolve({}) }).props.children;
+function openMember(from?: string) {
+  const content = MemberPage({ params: Promise.resolve({ id: target.id }), searchParams: Promise.resolve({ from }) }).props.children;
   return content.type(content.props);
 }
+
+it("returns to management through history and retains the member fallback for direct links", async () => {
+  mocks.viewer.mockResolvedValue({ ...viewer, roles: [{ can_manage_members: true }] });
+  const shell = await openMember("management");
+  expect(shell.props.children[0].props.backHref).toBe("/admin/members?member=other");
+  expect(shell.props.children[0].props.forceBackHref).toBeFalsy();
+});
+
+it("does not give a non-manager a management fallback from a URL parameter", async () => {
+  const shell = await openMember("management");
+  expect(shell.props.children[0].props.backHref).toBe("/members");
+});
 
 it("shows a member profile before slow history and results finish loading", async () => {
   let releaseHistory!: (records: unknown[]) => void;

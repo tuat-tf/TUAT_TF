@@ -113,27 +113,28 @@ export function MemberDirectory({
                           size="sm"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[14px] font-semibold truncate">
+                          <div className="flex h-[21px] items-center gap-1.5">
+                            <span className="min-w-0 text-[14px] font-semibold truncate">
                               {m.display_name || "名前未設定"}
                             </span>
                             <BlockPills blocks={m.blocks} />
                             {memberBadges?.[m.id] && <Badge className="bg-bg text-muted2">{memberBadges[m.id]}</Badge>}
                           </div>
-                          {gradeShort(m.grade) && (
-                            <span className="text-micro">{gradeShort(m.grade)}</span>
-                          )}
-                          {!!memberRoles?.[m.id]?.length && (
-                            <div className="mt-1.5 flex flex-wrap gap-1">
-                              <span className="sr-only">役職：</span>
-                              {memberRoles[m.id].map((role) => (
-                                <Badge key={role.id} className="max-w-full whitespace-normal break-words leading-snug"
-                                  style={{ color: role.color, backgroundColor: `${role.color}18` }}>
-                                  {role.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
+                          <div className="flex h-4 items-center gap-2 text-[11px] leading-4">
+                            {gradeShort(m.grade) && (
+                              <span className="shrink-0 text-muted">{gradeShort(m.grade)}</span>
+                            )}
+                            {!!memberRoles?.[m.id]?.length && (
+                              <span className="min-w-0 truncate" title={memberRoles[m.id].map(role => role.name).join("・")}>
+                                <span className="sr-only">役職：</span>
+                                {memberRoles[m.id].map((role, index) => (
+                                  <span key={role.id} style={{ color: role.color }}>
+                                    {index > 0 && <span className="text-muted">・</span>}{role.name}
+                                  </span>
+                                ))}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <ChevronRight size={18} className="text-muted shrink-0" />
                       </Card>

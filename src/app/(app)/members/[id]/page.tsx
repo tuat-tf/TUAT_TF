@@ -64,7 +64,6 @@ async function MemberContent({
       <SubHeader
         title={profile.display_name || "部員"}
         backHref={fromManagement ? `/admin/members?member=${id}` : "/members"}
-        forceBackHref={fromManagement}
       />
 
       <div className="px-4 space-y-5 pt-1">

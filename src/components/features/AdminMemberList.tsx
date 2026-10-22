@@ -90,26 +90,24 @@ export function AdminMemberList({
                     size="sm"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex h-[21px] items-center gap-1.5">
                       <span className="truncate text-[14px] font-semibold">
                         {member.display_name || "名前未設定"}
                       </span>
                       <BlockPills blocks={member.blocks} />
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <div className="h-4 truncate text-[11px] leading-4" title={member.roles.filter(role => !role.is_everyone).map(role => role.name).join("・")}>
                       {member.roles.filter((role) => !role.is_everyone).length === 0 ? (
                         <span className="text-micro">ロールなし</span>
                       ) : (
-                        member.roles.filter((role) => !role.is_everyone).map((role) => (
+                        member.roles.filter((role) => !role.is_everyone).map((role, index) => (
                           <span
                             key={role.id}
-                            className="rounded-full px-2 py-0.5 text-micro"
                             style={{
                               color: role.color,
-                              backgroundColor: `${role.color}18`,
                             }}
                           >
-                            {role.name}
+                            {index > 0 && <span className="text-muted">・</span>}{role.name}
                           </span>
                         ))
                       )}

@@ -13,7 +13,7 @@ export default async function AdminMemberSheetPage({ params, searchParams }: { p
   const member = await getMemberSheetSettingsById(id);
   if (!member) notFound();
   return <>
-    <SubHeader title="スプレッドシート連携" backHref={fromManagement ? `/admin/members?member=${id}` : "/admin/sheets"} forceBackHref={fromManagement} />
+    <SubHeader title="スプレッドシート連携" backHref={fromManagement ? `/admin/members?member=${id}` : "/admin/sheets"} />
     <AdminSheetSettingsDetail key={member.id} member={member} />
   </>;
 }

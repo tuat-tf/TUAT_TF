@@ -7,7 +7,7 @@ import { getCurrentUserId } from "@/lib/supabase/auth";
 export default async function ClubRecordsPage() {
   await getCurrentUserId();
   return <>
-    <SubHeader title="歴代十傑" backHref="/mypage" forceBackHref />
+    <SubHeader title="歴代十傑" backHref="/mypage" />
     <main className="space-y-5 px-4 pb-6 pt-1 md:px-6">
       <div><p className="text-headline">東京農工大学陸上競技部 歴代十傑</p><p className="mt-1 text-caption text-muted">公式サイトの記録を種目別に見られます。</p></div>
       {(["men", "women"] as const).map((gender) => <section key={gender} className="space-y-2" aria-labelledby={`records-${gender}`}>

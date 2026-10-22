@@ -2,7 +2,7 @@
 
 ## 最新注記（2026-10-22、下の旧記録より優先）
 
-部活Cloudflare入口は https://app.tuat-tf.workers.dev 。稼働commitは `b5b045f222322cd839f6ed01061b738f6a2f9acd`。バックアップ保存先は部活Google Driveで、日次・オンライン採取へ変更済み。通常保存とJobsはバックアップの35分期限に依存せず、同一host/DBと120秒の心拍で可否を判定する。DB・認証・画像は引き続きこのPCの暗号化領域が正本。詳細・実検証・未整理の旧世代は [負荷修正記録](../../docs/BACKUP-LOAD-2026-10-22.md)を参照。下の15分/R2/旧公開URLや「Drive廃止」は過去構成の記録であり、現在値として使わない。
+部活Cloudflare入口は https://app.tuat-tf.workers.dev 。稼働commitは公開 `/api/version`・GitHub master・PC runtimeで照合する。2026-10-22 19:02 JSTの照合版は `dd0c1f192df4b4c47fd4af0d3a19a881bb093711`。部活管理への運用移管と現在の引き継ぎ資料は [完了照合](../../docs/REMAINING-WORK-2026-10-22.md)を参照。バックアップ保存先は部活Google Driveで、日次・オンライン採取へ変更済み。通常保存とJobsはバックアップの35分期限に依存せず、同一host/DBと120秒の心拍で可否を判定する。DB・認証・画像は引き続きこのPCの暗号化領域が正本。詳細・実検証・未整理の旧世代は [負荷修正記録](../../docs/BACKUP-LOAD-2026-10-22.md)を参照。下の15分/R2/旧公開URLや「Drive廃止」は過去構成の記録であり、現在値として使わない。
 
 ## 切替後の最新状態（2026-10-16、下の旧記録より優先）
 

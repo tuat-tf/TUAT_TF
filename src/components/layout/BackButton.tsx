@@ -36,7 +36,7 @@ export function BackButton({
 
   function back() {
     if (forceFallback) {
-      router.push(fallback);
+      router.replace(fallback);
       return;
     }
     if (hasAppBackEntry()) {
@@ -45,10 +45,10 @@ export function BackButton({
       const before = window.location.href;
       router.back();
       window.setTimeout(() => {
-        if (window.location.href === before) router.push(fallback);
+        if (window.location.href === before) router.replace(fallback);
       }, 500);
     } else {
-      router.push(fallback);
+      router.replace(fallback);
     }
   }
 

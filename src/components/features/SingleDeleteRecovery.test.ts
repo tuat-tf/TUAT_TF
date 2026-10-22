@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import type { AuthorMini, CompetitionRow, NoteWithRelations, NoteArticleWithAuthor, PracticeSchedule, ThreadWithAuthor } from "@/types";
 
 const harness = vi.hoisted(() => ({
-  states: [] as unknown[], index: 0, refresh: vi.fn(), push: vi.fn(), toast: vi.fn(), from: vi.fn(),
+  states: [] as unknown[], index: 0, refresh: vi.fn(), push: vi.fn(), replace: vi.fn(), toast: vi.fn(), from: vi.fn(),
 }));
 vi.mock("react", async (original) => ({
   ...await original<typeof import("react")>(),
@@ -21,7 +21,7 @@ vi.mock("react", async (original) => ({
     }];
   },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: harness.refresh, push: harness.push }), useSearchParams: () => new URLSearchParams() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: harness.refresh, push: harness.push, replace: harness.replace }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ showToast: harness.toast }) }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ from: harness.from }) }));
 
@@ -83,6 +83,7 @@ it.each(cases)("%s keeps the current view after a zero-row or unknown deletion, 
     expect(harness.states).toEqual(before);
     expect(harness.refresh).not.toHaveBeenCalled();
     expect(harness.push).not.toHaveBeenCalled();
+    expect(harness.replace).not.toHaveBeenCalled();
   }
   response = { data: null, error: { message: "permission denied" } };
   expect(await remove()).toBe(false);
@@ -91,6 +92,7 @@ it.each(cases)("%s keeps the current view after a zero-row or unknown deletion, 
   expect(harness.states).toEqual(before);
   expect(harness.refresh).not.toHaveBeenCalled();
   expect(harness.push).not.toHaveBeenCalled();
+  expect(harness.replace).not.toHaveBeenCalled();
   expect(harness.toast).toHaveBeenCalled();
   expect(harness.from).toHaveBeenCalledTimes(5);
   expect(harness.from).toHaveBeenLastCalledWith(table);
@@ -101,4 +103,14 @@ it.each(cases)("%s keeps the current view after a zero-row or unknown deletion, 
   if (table === "note_articles") expect(chain.eq).toHaveBeenCalledWith("note_id", "folder");
   expect(chain.select).toHaveBeenCalledWith("id");
   expect(harness.refresh).toHaveBeenCalledOnce();
+});
+
+it.each([
+  [() => NoteDetailActions({ note, currentUser, members: [], isAdmin: true, canEdit: true, canDelete: true }), "/notes"],
+  [() => NoteArticleActions({ noteId: "folder", article, currentUser }), "/notes/folder"],
+] as const)("does not leave the deleted detail as the previous screen", async (render, destination) => {
+  response = { data: [{ id: "target" }], error: null };
+  expect(await deleteAction(render)()).toBe(true);
+  expect(harness.replace).toHaveBeenCalledWith(destination);
+  expect(harness.push).not.toHaveBeenCalled();
 });
