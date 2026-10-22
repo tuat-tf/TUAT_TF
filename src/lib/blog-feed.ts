@@ -1,4 +1,6 @@
 import sanitizeHtml from "sanitize-html";
+import { createHash } from "node:crypto";
+import type { BlogRevision } from "./blog-read-state";
 
 export const BLOG_HOME_URL = "https://nokotandf.livedoor.blog/";
 export const BLOG_PAGE_SIZE = 20;
@@ -14,6 +16,28 @@ export type BlogFeedItem = {
 };
 
 export type BlogArticle = BlogFeedItem & { id: string; html: string };
+
+/** Use the same source page as the first blog list; avoid downloading seven pages for a badge. */
+export function blogRevision(items: BlogFeedItem[]): BlogRevision | null {
+  if (!items.length) return null;
+  const latest = items.slice(0, BLOG_SOURCE_PAGE_SIZE);
+  return {
+    hash: createHash("sha256").update(JSON.stringify(latest.map(({ url, title, publishedAt, description }) => [url, title, publishedAt, description]))).digest("hex"),
+    newestAt: Math.max(0, ...latest.map((item) => Date.parse(item.publishedAt) || 0)),
+  };
+}
+
+async function fetchBlogIndex(page: number): Promise<string> {
+  const response = await fetch(`${BLOG_HOME_URL}?p=${page}`, {
+    headers: { Accept: "text/html;charset=UTF-8" }, next: { revalidate: 15 * 60 }, signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`Blog page request failed: ${response.status}`);
+  return response.text();
+}
+
+export async function getLatestBlogRevision(): Promise<BlogRevision | null> {
+  return blogRevision(parseBlogIndex(await fetchBlogIndex(1)));
+}
 
 function decodeEntities(value: string): string {
   const named: Record<string, string> = {
@@ -128,15 +152,7 @@ export function blogSourcePagesForAppPage(page: number): { start: number; count:
 export async function getBlogPage(page: number): Promise<BlogFeedItem[]> {
   const source = blogSourcePagesForAppPage(page);
   if (!source) return [];
-  const responses = await Promise.all(
-    Array.from({ length: source.count }, (_, index) => fetch(
-      `${BLOG_HOME_URL}?p=${source.start + index}`,
-      { headers: { Accept: "text/html;charset=UTF-8" }, next: { revalidate: 15 * 60 } },
-    )),
-  );
-  const failed = responses.find((response) => !response.ok);
-  if (failed) throw new Error(`Blog page request failed: ${failed.status}`);
-  const pages = await Promise.all(responses.map((response) => response.text()));
+  const pages = await Promise.all(Array.from({ length: source.count }, (_, index) => fetchBlogIndex(source.start + index)));
   return pages
     .flatMap(parseBlogIndex)
     .slice(source.offset, source.offset + BLOG_PAGE_SIZE + 1);

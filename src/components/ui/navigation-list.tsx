@@ -8,12 +8,13 @@ export function NavigationList({ children }: { children: ReactNode }) {
   return <Card data-ui-navigation-list className="overflow-hidden">{children}</Card>;
 }
 
-export function NavigationLink({ href, label, description, icon, prefetch }: {
+export function NavigationLink({ href, label, description, icon, prefetch, trailing }: {
   href: string;
   label: string;
   description?: string;
   icon: ReactNode;
   prefetch?: boolean;
+  trailing?: ReactNode;
 }) {
   return <Link data-ui-row href={href} prefetch={prefetch} className="flex min-h-14 items-center gap-3 border-t border-separator/70 px-4 py-3 first:border-t-0 first:rounded-t-card last:rounded-b-card active:bg-bg focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2">
     <span className="shrink-0 text-accent">{icon}</span>
@@ -21,6 +22,7 @@ export function NavigationLink({ href, label, description, icon, prefetch }: {
       <span className="block text-headline">{label}</span>
       {description && <span className="block text-micro text-muted">{description}</span>}
     </span>
+    {trailing}
     <ChevronRight size={18} className="shrink-0 text-muted" />
   </Link>;
 }

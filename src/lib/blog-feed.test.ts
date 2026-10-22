@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BLOG_PAGE_SIZE, blogSourcePagesForAppPage, sanitizeBlogArticleHtml } from "./blog-feed";
+import { BLOG_PAGE_SIZE, blogRevision, blogSourcePagesForAppPage, sanitizeBlogArticleHtml } from "./blog-feed";
 
 describe("sanitizeBlogArticleHtml", () => {
   it("preserves readable text, supported photos and blog links", () => {
@@ -26,6 +26,15 @@ describe("sanitizeBlogArticleHtml", () => {
     expect(html).not.toContain("audit-marker");
   });
 });
+describe("blogRevision", () => {
+  it("detects changes in the visible latest source page without marking older pagination as new", () => {
+    const items = Array.from({ length: 4 }, (_, index) => ({ title: `Sample ${index}`, url: `https://nokotandf.livedoor.blog/archives/${index + 1}.html`, publishedAt: "2026-10-22T00:00:00Z", description: "Synthetic content", category: null, author: null }));
+    expect(blogRevision([])).toBeNull();
+    expect(blogRevision(items)).toEqual(blogRevision(items.slice(0, 3)));
+    expect(blogRevision([{ ...items[0], description: "Edited" }, ...items.slice(1)])?.hash).not.toBe(blogRevision(items)?.hash);
+  });
+});
+
 describe("blogSourcePagesForAppPage", () => {
   it("collects enough three-item source pages for twenty app articles plus lookahead", () => {
     expect(BLOG_PAGE_SIZE).toBe(20);

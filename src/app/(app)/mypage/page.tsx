@@ -20,6 +20,8 @@ import { RECORD_SOURCE_COOKIE, recordSourceEnabled } from "@/lib/record-source-d
 import { trainingReviewPreferenceKey } from "@/lib/training-review-display";
 import type { RecordFieldDef } from "@/types";
 import { ActivitySkeleton, TrainingChartSkeleton } from "@/components/ui/page-skeletons";
+import { BlogNavigationLink } from "@/components/features/BlogUpdates";
+import { getLatestBlogRevision } from "@/lib/blog-feed";
 
 export default async function MyPage({
   searchParams,
@@ -100,7 +102,10 @@ export default async function MyPage({
           <NavigationLink prefetch={false} href="/competitions" icon={<Flag size={20} className="text-accent" />} label="大会" />
           <NavigationLink prefetch={false} href="/mypage/pb" icon={<Medal size={20} className="text-warning" />} label="自分の大会・記録会の結果" />
           <NavigationLink prefetch={false} href="/members" icon={<Users size={20} className="text-accent" />} label="メンバー一覧" />
-          <NavigationLink prefetch={false} href="/blog" icon={<Rss size={20} className="text-accent" />} label="ブログ" />
+          <Suspense fallback={<NavigationLink prefetch={false} href="/blog" icon={<Rss size={20} className="text-accent" />} label="ブログ" />}>
+            <BlogEntry userId={userId} />
+          </Suspense>
+          <NavigationLink prefetch={false} href="/club-records" icon={<Trophy size={20} className="text-warning" />} label="歴代十傑" />
           <NavigationLink prefetch={false} href="/mypage/settings" icon={<Settings size={20} className="text-muted2" />} label="自分の設定" />
         </NavigationList>
 
@@ -148,6 +153,12 @@ export default async function MyPage({
       </div>
     </>
   );
+}
+
+async function BlogEntry({ userId }: { userId: string }) {
+  let revision: Awaited<ReturnType<typeof getLatestBlogRevision>> = null;
+  try { revision = await getLatestBlogRevision(); } catch { /* The blog link remains available if checking updates fails. */ }
+  return <BlogNavigationLink userId={userId} revision={revision} />;
 }
 
 /** グラフを表示する中長距離の部員だけ取得する。 */

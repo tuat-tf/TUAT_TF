@@ -3,13 +3,14 @@ import Link from "next/link";
 import { SubHeader } from "@/components/layout/SubHeader";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BLOG_PAGE_SIZE, blogArticleId, getBlogPage } from "@/lib/blog-feed";
+import { BLOG_PAGE_SIZE, blogArticleId, blogRevision, getBlogPage } from "@/lib/blog-feed";
+import { BlogReadMarker } from "@/components/features/BlogUpdates";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric" });
 
 export default async function BlogPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  await getCurrentUserId();
+  const userId = await getCurrentUserId();
   const requestedPage = Number.parseInt((await searchParams).page ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   let items: Awaited<ReturnType<typeof getBlogPage>> = [];
@@ -24,7 +25,9 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
     unavailable = true;
   }
 
+  const revision = !unavailable && page === 1 ? blogRevision(items) : null;
   return <>
+    {revision && <BlogReadMarker userId={userId} revision={revision} />}
     <SubHeader title="ブログ" backHref="/mypage" forceBackHref />
     <main className="space-y-4 px-4 pb-6 pt-1 md:px-6">
       <div><p className="text-headline">東京農工大学陸上競技部ブログ</p><p className="mt-0.5 text-caption text-muted">公式ブログの記事一覧</p></div>
