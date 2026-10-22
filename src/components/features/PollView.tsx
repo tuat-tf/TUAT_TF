@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { Check, Plus } from "lucide-react";
@@ -229,7 +230,7 @@ export function PollView({
             type="button"
             disabled={saving}
             onClick={() => handleOptionClick(option.id)}
-            onPointerDown={(event) => { event.preventDefault(); window.getSelection()?.removeAllRanges(); startLongPress(option.id); }}
+            onPointerDown={(event) => { if (event.button !== 0) return; window.getSelection()?.removeAllRanges(); startLongPress(option.id); }}
             onPointerUp={cancelLongPress}
             onPointerCancel={cancelLongPress}
             onPointerLeave={cancelLongPress}
@@ -239,7 +240,7 @@ export function PollView({
               setDetailOptionId(option.id);
             }}
             className={cn(
-              "relative flex min-h-11 w-full select-none touch-manipulation items-center overflow-hidden rounded-xl border px-3 text-left [-webkit-touch-callout:none]",
+              "relative flex disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-11 w-full select-none touch-manipulation items-center overflow-hidden rounded-xl border px-3 text-left [-webkit-touch-callout:none]",
               option.voted_by_me ? "border-accent text-accent" : "border-separator bg-card",
             )}
           >
@@ -253,16 +254,17 @@ export function PollView({
       })}
       {allowOptions && (
         adding ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input aria-label="追加する選択肢" disabled={saving} value={newOption} maxLength={80} autoFocus placeholder="選択肢を追加" onChange={(event) => setNewOption(event.target.value)} className="min-w-0 flex-1" />
-            <button data-ui-action data-ui-tone="primary" type="button" onClick={addOption} disabled={saving || !newOption.trim()} className="rounded-xl bg-accent px-3 text-[13px] font-semibold text-white">追加</button>
+            <Button onClick={addOption} disabled={saving || !newOption.trim()}>追加する</Button>
+            <Button variant="ghost" disabled={saving} onClick={() => setAdding(false)}>キャンセル</Button>
           </div>
         ) : (
-          <button data-ui-action type="button" onClick={() => setAdding(true)} className="flex items-center gap-1 text-[13px] font-semibold text-accent"><Plus size={15} />選択肢を追加</button>
+          <Button variant="ghost" disabled={saving} onClick={() => setAdding(true)}><Plus size={16} />選択肢を追加</Button>
         )
       )}
       <p className="text-micro">{totalVotes}票 ・ {multiple ? "複数選択可" : "1つ選択"} ・ {anonymous ? "匿名" : "記名"}</p>
-      {!anonymous && <button data-ui-action type="button" onClick={() => setDetailOptionId(options[0]?.id ?? null)} className="text-micro text-accent">投票者を確認</button>}
+      {!anonymous && <Button variant="ghost" onClick={() => setDetailOptionId(options[0]?.id ?? null)}>投票者を確認</Button>}
       {!anonymous && detailOptionId && detailOption && (
         <Sheet open onOpenChange={(open) => !open && setDetailOptionId(null)}>
           <SheetContent

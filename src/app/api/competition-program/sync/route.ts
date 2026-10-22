@@ -61,7 +61,8 @@ export async function POST(request: Request) {
       const start = Date.parse(competition.starts_on);
       const end = Date.parse(competition.ends_on ?? competition.starts_on);
       const now = Date.parse(today);
-      if (!onlyCompetitionId && (start > now + 86400000 || end < now - 2 * 86400000)) continue;
+      // 日本時間の開催前日〜終了翌日だけ自動取得する。指定大会の手動取得は継続可能。
+      if (!onlyCompetitionId && (start > now + 86400000 || end < now - 86400000)) continue;
       const url = new URL(sourceUrl);
       if (url.hostname !== "sairiku.net" || !/^https?:$/.test(url.protocol) || !url.pathname.startsWith("/result/") || url.username || url.password || url.port) throw new Error("対応していない取得元URLです");
       const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });

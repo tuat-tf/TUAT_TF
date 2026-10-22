@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createElement, type ReactNode } from "react";
+import { createElement, type ReactNode, type ButtonHTMLAttributes } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { AuthorMini, NoteArticleWithAuthor, NotePollOption } from "@/types";
 
 type Draft = { dirty: boolean; busy: boolean; intent?: string; onSave: () => void | Promise<void> };
-type ButtonProps = { children: ReactNode; disabled?: boolean; onClick?: () => void };
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string; size?: string };
 const hooks = vi.hoisted(() => ({ cursor: 0, values: [] as unknown[] }));
 const mocks = vi.hoisted(() => ({
   rpc: vi.fn(), read: vi.fn(), refresh: vi.fn(), done: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock("@/components/ui/form-modal", () => ({
 vi.mock("@/components/features/NoteBodyEditor", () => ({ NoteBodyEditor: () => null }));
 vi.mock("@/components/ui/confirm-dialog", () => ({ ConfirmDialog: () => null }));
 vi.mock("@/components/ui/button", () => ({
-  Button: (props: ButtonProps) => createElement("button", { disabled: props.disabled, onClick: props.onClick }, props.children),
+  Button: (props: ButtonProps) => createElement("button", { "aria-label": props["aria-label"], disabled: props.disabled, onClick: props.onClick }, props.children),
 }));
 
 import { NoteArticleEditor } from "./NoteArticleEditor";

@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- local object URL preview */
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { BarChart3, ImagePlus, Link2, LoaderCircle, Plus, Send, X } from "lucide-react";
+import { ImagePlus, Link2, LoaderCircle, Plus, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -62,6 +62,7 @@ export const TweetForm = forwardRef<
   const uploadedImage = useRef<{ file: File; path: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expiresIn24Hours, setExpiresIn24Hours] = useState(initialStory);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }>>([]);
   const [membersFailed, setMembersFailed] = useState(false);
@@ -353,20 +354,13 @@ export const TweetForm = forwardRef<
               return !value;
             })}
           />
-          {!pollEnabled && (
-            <Button variant="outline" onClick={() => setPollEnabled(true)}>
-              <BarChart3 size={18} className="text-accent" />
-              投票を追加
-            </Button>
-          )}
+          <Toggle
+            label="投票を追加"
+            checked={pollEnabled}
+            onChange={() => setPollEnabled((value) => !value)}
+          />
           {pollEnabled && (
-            <section data-ui-section className="space-y-3 rounded-card border border-separator bg-card p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="section-label">投票</p>
-                <Button variant="ghost" size="sm" data-ui-tone="danger" onClick={() => setPollEnabled(false)}>
-                  投票をやめる
-                </Button>
-              </div>
+            <section data-ui-section aria-label="投票の設定" className="space-y-3 rounded-card border border-separator bg-card p-3">
               <div className="space-y-2">
                 {pollOptions.map((option, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -403,15 +397,18 @@ export const TweetForm = forwardRef<
               {imagePreview && (
                 <div className="relative overflow-hidden rounded-card border border-separator">
                   <img src={imagePreview} alt="投稿画像のプレビュー" className="max-h-80 w-full object-contain" />
-                  <button data-ui-action="icon" type="button" aria-label="画像を外す" onClick={() => setImageFile(null)} className="absolute right-2 top-2 rounded-full bg-black/65 p-2 text-white">
+                  <Button variant="secondary" size="icon" aria-label="画像を外す" onClick={() => setImageFile(null)} className="absolute right-2 top-2">
                     <X size={17} />
-                  </button>
+                  </Button>
                 </div>
               )}
-              <label data-ui-action className="flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-separator bg-card text-[14px] font-semibold">
-                <ImagePlus size={18} />画像を追加
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => {
+              <Button variant="outline" className="w-full" onClick={() => imageInputRef.current?.click()}>
+                <ImagePlus size={18} />{imageFile ? "画像を変更" : "画像を追加"}
+              </Button>
+              <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;
+                  event.target.value = "";
+                  if (!file) return;
                   try {
                     if (file) validateTweetImage(file);
                     setImageFile(file);
@@ -421,7 +418,6 @@ export const TweetForm = forwardRef<
                     setError(fileError instanceof Error ? fileError.message : "画像を選択できませんでした");
                   }
                 }} />
-              </label>
             </div>
           )}
         </div>

@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BarChart3, ImagePlus, Plus, X } from "lucide-react";
+import { ImagePlus, Plus, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -387,38 +387,28 @@ export function NoteArticleEditor({
             }}
           />
         </label>
-        {!pollEnabled && (
-          <Button variant="outline"
-            disabled={saving}
-            onClick={() => {
-              setPollEnabled(true);
-              if (!keptOptions.length && !newOptions.length) setNewOptions(["", ""]);
-            }}
-          >
-            <BarChart3 size={18} className="text-accent" />
-            投票を追加
-          </Button>
-        )}
       </div>
       <p className="text-caption">
         写真はJPG・PNG・WebP、1枚12MBまで。保存前に圧縮します。
         {preparing ? "画像を準備中…" : ""}
       </p>
 
+      <Toggle
+        label="投票を追加"
+        checked={pollEnabled}
+        disabled={saving}
+        onChange={() => {
+          if (pollEnabled) {
+            if (savedOptions.length) setConfirmRemovePoll(true);
+            else setPollEnabled(false);
+          } else {
+            setPollEnabled(true);
+            if (!keptOptions.length && !newOptions.length) setNewOptions(["", ""]);
+          }
+        }}
+      />
       {pollEnabled && (
-        <section data-ui-section className="space-y-3 rounded-card border border-separator bg-card p-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="section-label">投票</p>
-            <Button variant="ghost" size="sm" data-ui-tone="danger"
-              disabled={saving}
-              onClick={() =>
-                savedOptions.length ? setConfirmRemovePoll(true) : setPollEnabled(false)
-              }
-            >
-              投票をやめる
-            </Button>
-          </div>
-
+        <section data-ui-section aria-label="投票の設定" className="space-y-3 rounded-card border border-separator bg-card p-3">
           {keptOptions.map((option) => (
             <div key={option.id} className="flex items-center gap-2">
               <span className="min-h-11 min-w-0 flex-1 rounded-xl border border-separator bg-card px-3 py-3 text-[14px]">
@@ -427,18 +417,17 @@ export function NoteArticleEditor({
               <span className="shrink-0 text-caption tabular-nums">
                 {option.vote_count}票
               </span>
-              <button data-ui-action="icon"
-                type="button"
+              <Button variant="ghost" size="icon"
                 aria-label={`${option.text}を外す`}
                 disabled={saving || option.vote_count > 0}
                 title={option.vote_count > 0 ? "票が入っている選択肢は外せません" : undefined}
                 onClick={() =>
                   setKeptOptions((old) => old.filter((kept) => kept.id !== option.id))
                 }
-                className="grid h-10 w-10 shrink-0 place-items-center text-muted disabled:opacity-30"
+                className="shrink-0"
               >
                 <X size={18} />
-              </button>
+              </Button>
             </div>
           ))}
 
