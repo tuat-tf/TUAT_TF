@@ -1,7 +1,7 @@
 "use client";
 
 import { COMPETITION_MANAGEMENT_LABEL } from "@/lib/competition";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,6 +37,8 @@ function useMeetMutation(competitionId: string, backend: "pc" | "cloud") {
   const pending = useRef<{ id: string; command: MeetCommand } | null>(null), sending = useRef(false);
   const savedId=useRef<string|undefined>(undefined);
   const router = useRouter();
+  // A previous result must not follow the user into the next form; an unresolved send keeps its message.
+  const clearMessage = useCallback(() => { if (!sending.current && !pending.current) setMessage(""); }, []);
   async function run(command: MeetCommand) {
     if (sending.current || pending.current) return false;
     sending.current = true; setBusy(true); setMessage("");
@@ -64,7 +66,7 @@ function useMeetMutation(competitionId: string, backend: "pc" | "cloud") {
     sending.current=true;setBusy(true);setNotSaved(false);
     try{const attempt=pending.current,result=await mutateCompetitionMeet(competitionId,attempt.id,attempt.command);if(result.ok){savedId.current=result.id;pending.current=null;setUncertain(false);setConfirmedRequest(attempt.id);setMessage("保存しました");router.refresh();}else{setMessage(result.message??"保存結果を確認してください");if(!result.uncertain){pending.current=null;setUncertain(false);}}}catch{setMessage("保存結果を確認できませんでした。入力は残っています。結果を確認してください");}finally{sending.current=false;setBusy(false);}
   }
-  return { run, check, retry, getSavedId:()=>savedId.current, notSaved, confirmedRequest, busy, message, uncertain, locked: busy || uncertain };
+  return { run, check, retry, clearMessage, getSavedId:()=>savedId.current, notSaved, confirmedRequest, busy, message, uncertain, locked: busy || uncertain };
 }
 
 type Editor = { kind: "participant"; id?: string; self?:boolean } | { kind: "appearance"; participantId?: string; event?: string; id?: string; returnEvent?:string } | { kind: "event"; name: string; appearanceId?:string } | { kind: "configure" } | {kind:"role";id?:string;slot?:MeetDutySlot} | {kind:"newDuty";roleId?:string;slot?:MeetDutySlot;personId?:string} | {kind:"staff"} | { kind: "duty"; id: string } | { kind: "party"; id?: string; participantId?:string };
@@ -77,6 +79,8 @@ export function CompetitionMeetWorkspace({ meet, me, startsOn, endsOn, initialSe
   const [confirm, setConfirm] = useState<{ title: string; command: MeetCommand; description: string } | null>(null);
   const mutation = useMeetMutation(meet.competitionId,meet.backend);
   const [handledRequest,setHandledRequest]=useState("");
+  const { clearMessage } = mutation;
+  useEffect(() => { if (editor || confirm) clearMessage(); }, [editor, confirm, clearMessage]);
   if(mutation.confirmedRequest&&mutation.confirmedRequest!==handledRequest){setHandledRequest(mutation.confirmedRequest);setEditor(null);setConfirm(null);setDetailId(null);}
   const detail = meet.participants.find(person => person.id === detailId);
   const canEdit = (person: MeetParticipant) => meet.permissions.manage || canRegister && person.profile_id === me.id;
