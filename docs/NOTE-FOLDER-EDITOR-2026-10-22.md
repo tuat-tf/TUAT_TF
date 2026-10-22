@@ -16,3 +16,7 @@
 - Node24で型、対象eslint、全Vitest224ファイル1955件成功。check:environmentは同一環境の先行成功を再利用。新しいコード変更があるため型/lint/全テストを再実行した。
 
 公開作業を続行中。問題時は既存releaseへ戻せる。移動/権限のDB一括更新は実施しない。
+
+## 本番反映（18時台）
+
+メンバー役職表示と合わせて d1a51c647bd203ae17b2a33738f13306c6e3477d をmasterへ1回push。Linux隔離build・候補起動・配信ファイル照合成功。2026-10-22T09:19:21.546Zに本番PCを同commitへ切替。公開 /api/version 200でSHA一致、変更したUIの2チャンクもhash一致。Cloudflare versionは60dfe69c-3406-4daa-83c2-f2b4035f20f2。DB・認証・Tunnelを維持し、Jobsと日次タイマーを再開。スマホ実機/実ログインでの編集は未確認で、合成UI操作確認とは区別する。

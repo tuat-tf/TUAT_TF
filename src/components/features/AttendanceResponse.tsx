@@ -33,7 +33,6 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
   const busy = saving !== null;
   const [unknown, setUnknown] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contactSaved, setContactSaved] = useState(false);
   const pending = useRef<AttendancePending | null>(null);
   const pendingContact = useRef(false);
   const sending = useRef(false);
@@ -67,7 +66,7 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
     void save(current.status === "absent" ? { ...current, absenceNote: text } : { ...current, lateNote: text }, "contact");
   }
   function changeNote(text: string) {
-    draft.current = text; setNote(text); setContactSaved(false);
+    draft.current = text; setNote(text);
     clearTimer();
     if (!blocked.current && !composing.current) timer.current = setTimeout(flushContact, 700);
   }
@@ -86,7 +85,7 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
       }
       return;
     }
-    sending.current = true; setError(null); setContactSaved(false);
+    sending.current = true; setError(null);
     if (!pending.current) {
       pending.current = { before: currentValue.current, after, uncertain: false };
       pendingContact.current = kind === "contact";
@@ -115,7 +114,6 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
         draft.current = attendanceNote(result.value) ?? ""; setNote(draft.current);
       }
       if (!queuedAttendance.current && result.value.status === "none") setOpen(false);
-      if (savedContact && (draft.current.trim() || null) === attendanceNote(result.value)) setContactSaved(true);
     } catch {
       blocked.current = true; clearTimer();
       const uncertain = pending.current?.uncertain ?? false;
@@ -154,27 +152,27 @@ export function AttendanceToggle({ scheduleId, attendDate, userId, initial, init
         <Icon size={15} />{style.label}
       </button>
       {summary}
-      <Button variant="ghost" size="sm" className={cn(CONTROL_CLASS, value.isLate && "text-accent")} style={CONTROL_STYLE} disabled={value.status === "none" || busy || unknown} aria-expanded={open} aria-controls={contactId} aria-label={savedNote ? "連絡を編集" : "連絡する"} title="遅刻・連絡" onClick={() => { if (!sending.current) setOpen(current => !current); }}>{value.isLate ? <Clock3 size={18} /> : <MessageSquare size={18} />}</Button>
+      <Button variant="ghost" size="sm" className={cn(CONTROL_CLASS, value.isLate && "text-accent")} style={CONTROL_STYLE} disabled={value.status === "none" || busy || unknown} aria-expanded={open} aria-controls={contactId} aria-label={savedNote ? "連絡を編集" : "連絡する"} title="遅刻・連絡" onClick={() => { if (!sending.current) setOpen(current => !current); }}><MessageSquare size={18} /></Button>
     </div>
-    {!open && savedNote && <p className="whitespace-pre-wrap break-words text-caption">{savedNote}</p>}
+    {!open && (value.isLate || savedNote) && <p className="whitespace-pre-wrap break-words text-caption">{value.isLate && <span className="font-medium text-accent">遅刻{savedNote ? " · " : ""}</span>}{savedNote}</p>}
     {unknown && !open && <Button variant="outline" size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy} onClick={() => void save(value)}>保存結果を確認</Button>}
     {error && !open && <p role="alert" className="text-caption text-danger">{error}</p>}
     {open && <div id={contactId} className="space-y-2">
         {value.status === "present" && <Button variant={value.isLate ? "secondary" : "outline"} size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy || unknown} aria-busy={saving === "late"} aria-pressed={value.isLate} aria-label={value.isLate ? "遅刻を取り消す" : "遅刻を連絡"}
-          onClick={() => void save({ ...currentValue.current, isLate: !currentValue.current.isLate }, "late")}>{saving === "late" ? <LoaderCircle size={15} className="animate-spin" /> : <Clock3 size={15} />}{value.isLate ? "遅刻" : "遅刻を連絡"}</Button>}
+          onClick={() => void save({ ...currentValue.current, isLate: !currentValue.current.isLate }, "late")}>{saving === "late" ? <LoaderCircle size={15} className="animate-spin" /> : <Clock3 size={15} />}遅刻</Button>}
         <fieldset disabled={unknown} className="space-y-2">
           <label htmlFor={`${contactId}-input`} className="block text-caption">連絡事項（任意）</label>
-          <Input id={`${contactId}-input`} className="h-11 lg:h-11 lg:text-base" value={note} onChange={event => changeNote(event.target.value)} onBlur={flushContact}
+          <div className="relative">
+          <Input id={`${contactId}-input`} className="h-11 pr-10 lg:h-11 lg:text-base" aria-busy={saving === "contact"} value={note} onChange={event => changeNote(event.target.value)} onBlur={flushContact}
             onCompositionStart={() => { composing.current = true; clearTimer(); }} onCompositionEnd={event => { composing.current = false; changeNote(event.currentTarget.value); }}
             maxLength={60} placeholder="例: 練習の途中で早退します" />
+          {saving === "contact" && <span role="status" aria-label="連絡を保存中" className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted"><LoaderCircle size={15} aria-hidden="true" className="animate-spin" /></span>}
+          </div>
         </fieldset>
-        <div className="grid grid-cols-2 items-center gap-2">
-        <p role="status" className="col-span-2 min-h-5 text-caption">{saving === "contact" ? "保存中…" : contactSaved ? "保存しました" : error ? "" : "自動で保存します"}</p>
         {error && (unknown || pendingKind.current === "contact") && <Button variant="outline" size="sm" className={CONTROL_CLASS} style={CONTROL_STYLE} disabled={busy} onClick={() => {
           if (unknown) void save(currentValue.current);
           else { blocked.current = false; flushContact(); }
         }}>{unknown ? "保存結果を確認" : "もう一度保存する"}</Button>}
-        </div>
         {error && <p role="alert" className="text-caption text-danger">{error}</p>}
     </div>}
     <ConfirmDialog open={confirmClear} onOpenChange={next => { if (!sending.current) setConfirmClear(next); }} title="出欠と連絡を取り消しますか？" description={`この日の出欠と連絡事項を取り消し、未回答に戻します。${error ? ` ${error}` : ""}`} confirmLabel={unknown ? "保存結果を確認" : "取り消す"} busyLabel="保存中…" busy={busy} onConfirm={() => void save(nextAttendance(value))} />

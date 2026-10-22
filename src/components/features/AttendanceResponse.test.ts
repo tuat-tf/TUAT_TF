@@ -33,11 +33,20 @@ describe("future attendance contact entry points", () => {
   });
   it("keeps lateness visible on the compact entry without hiding the general note", () => {
     const html = render("present", true, "10分ほど遅れます");
-    expect(html).toContain("lucide-clock-3");
+    expect(html).toContain("lucide-message-square");
+    expect(html).not.toContain("lucide-clock-3");
+    expect(html).toContain("遅刻 · ");
     expect(html).not.toContain("遅刻を取り消す");
     expect(html).toContain("10分ほど遅れます");
     expect(html).not.toContain("遅刻連絡済み");
     expect(html).not.toContain("遅刻中");
+  });
+  it("keeps the contact icon and a single readable late status without a note", () => {
+    const html = render("present", true);
+    expect(html).toContain("lucide-message-square");
+    expect(html).not.toContain("lucide-clock-3");
+    expect(html).toContain(">遅刻</span>");
+    expect(html).not.toContain("自動で保存します");
   });
   it("keeps absence contact accessible without offering lateness for an absent day", () => {
     const html = render("absent", false, "授業があるため欠席します");

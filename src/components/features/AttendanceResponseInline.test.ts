@@ -124,13 +124,28 @@ it.each(["present", "absent"] as const)("automatically saves %s contact once typ
   await vi.advanceTimersByTimeAsync(699); expect(capture.save).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1); const html = render(value);
   expect(capture.save).toHaveBeenCalledOnce(); expect(capture.input!.value).toBe("変更した連絡");
-  expect(html).toContain("保存しました"); expect(capture.buttons.has("保存する")).toBe(false);
+  expect(html).not.toContain("保存しました"); expect(capture.buttons.has("保存する")).toBe(false);
   expect(capture.changed).toHaveBeenCalledWith(expect.objectContaining(status === "present" ? { lateNote: "変更した連絡" } : { absenceNote: "変更した連絡" }));
 });
 it("flushes on blur and does not send an unchanged value or the trailing timer again", async () => {
   await open(); capture.input!.onBlur(); await vi.advanceTimersByTimeAsync(1000); expect(capture.save).not.toHaveBeenCalled();
   type("早退します"); capture.input!.onBlur(); await vi.advanceTimersByTimeAsync(1000); render(); expect(capture.save).toHaveBeenCalledOnce();
   type(" 早退します "); await vi.advanceTimersByTimeAsync(1000); expect(capture.save).toHaveBeenCalledOnce();
+});
+it("keeps routine contact saving text-free and removes the small progress indicator after success", async () => {
+  await open();
+  expect(render()).not.toContain("自動で保存します");
+  let finish!: (result: { ok: true; value: AttendanceChange }) => void;
+  capture.save.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  type("10分遅れます"); await vi.advanceTimersByTimeAsync(700);
+  const pending = capture.save.mock.lastCall![2];
+  expect(render()).toContain('aria-label="連絡を保存中"');
+  expect(render()).not.toContain("保存中…");
+  finish({ ok: true, value: pending.after }); await vi.advanceTimersByTimeAsync(0);
+  const html = render();
+  expect(html).not.toContain('role="status"');
+  expect(html).not.toContain("保存しました");
+  expect(capture.input!.value).toBe("10分遅れます");
 });
 it("does not submit an intermediate Japanese composition", async () => {
   await open(); capture.input!.onCompositionStart(); type("へんかんちゅう"); await vi.advanceTimersByTimeAsync(2000); expect(capture.save).not.toHaveBeenCalled();
@@ -144,7 +159,7 @@ it("keeps typing enabled during saving and serializes the latest draft using the
   expect(render()).not.toContain('fieldset disabled=""'); type("最新の連絡"); await vi.advanceTimersByTimeAsync(700);
   expect(capture.save).toHaveBeenCalledOnce(); finish({ ok: true, value: first.after }); await vi.advanceTimersByTimeAsync(0);
   expect(capture.save).toHaveBeenCalledTimes(2); expect(capture.save.mock.lastCall![2].before).toEqual(first.after);
-  expect(capture.save.mock.lastCall![2].after.lateNote).toBe("最新の連絡"); expect(render()).toContain("保存しました"); expect(capture.input!.value).toBe("最新の連絡");
+  expect(capture.save.mock.lastCall![2].after.lateNote).toBe("最新の連絡"); expect(render()).not.toContain("保存しました"); expect(capture.input!.value).toBe("最新の連絡");
 });
 it("shows a spinner only on lateness and saves a concurrent contact against its confirmed state", async () => {
   await open(); let finish!: (result: { ok: true; value: AttendanceChange }) => void;
@@ -160,13 +175,13 @@ it("stops automatic retries for an uncertain save and checks the same pending re
   await open(); capture.save.mockImplementationOnce(async (_client: unknown, _key: unknown, pending: AttendancePending) => { pending.uncertain = true; return { ok: false, reason: "unknown" }; });
   type("送信した連絡"); await vi.advanceTimersByTimeAsync(700); const pending = capture.save.mock.lastCall![2];
   expect(render()).toContain('fieldset disabled=""'); await vi.advanceTimersByTimeAsync(5000); expect(capture.save).toHaveBeenCalledOnce();
-  await click("保存結果を確認"); expect(capture.save.mock.lastCall![2]).toBe(pending); expect(render()).toContain("保存しました");
+  await click("保存結果を確認"); expect(capture.save.mock.lastCall![2]).toBe(pending); expect(render()).not.toContain("保存しました");
 });
 it.each(["failed", "conflict"])("retains contact after %s and waits for explicit retry", async reason => {
   await open(); capture.save.mockResolvedValueOnce({ ok: false, reason }); type("残す連絡"); await vi.advanceTimersByTimeAsync(700);
   expect(render()).toContain('role="alert"'); expect(capture.input!.value).toBe("残す連絡");
   type("残す連絡の続き"); capture.input!.onBlur(); await vi.advanceTimersByTimeAsync(5000); expect(capture.save).toHaveBeenCalledOnce();
-  await click("もう一度保存する"); expect(capture.save).toHaveBeenCalledTimes(2); expect(render()).toContain("保存しました");
+  await click("もう一度保存する"); expect(capture.save).toHaveBeenCalledTimes(2); expect(render()).not.toContain("保存しました");
 });
 it("flushes a pending draft when leaving the card and does not send twice", async () => {
   await open(); type("移動前の連絡"); state.cleanup!(); await vi.advanceTimersByTimeAsync(1000);
