@@ -1,4 +1,5 @@
 import sanitizeHtml from "sanitize-html";
+import { get } from "node:https";
 
 export const CLUB_RECORDS_HOME = "https://web.tuat.ac.jp/~rikubu/record.html";
 const ROOT = "https://web.tuat.ac.jp/~rikubu/record/top10/";
@@ -39,24 +40,28 @@ export function sanitizeClubRecordHtml(source: string): string {
 export async function getClubRecordHtml(id: string): Promise<string> {
   const source = clubRecordSource(id);
   if (!source) throw new Error("Unknown record category");
-  const response = await fetch(source.url, { redirect: "error", next: { revalidate: 15 * 60 }, signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error(`Record page request failed: ${response.status}`);
-  if (!response.body) throw new Error("Record response unavailable");
-  const reader = response.body.getReader(), chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 2 * 1024 * 1024) throw new Error("Record response too large");
-      chunks.push(value);
-    }
-  } finally { await reader.cancel(); }
-  const bytes = new Uint8Array(size); let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-  const prefix = new TextDecoder("ascii").decode(bytes.slice(0, 4096));
-  const charset = response.headers.get("content-type")?.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1]
-    ?? prefix.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1] ?? "shift_jis";
-  return sanitizeClubRecordHtml(new TextDecoder(charset).decode(bytes));
+  // This IPv4-only site intermittently stalls the WSL resolver on dual-family lookups.
+  // Scope IPv4 to this request; retain TLS verification and do not alter global DNS.
+  return new Promise((resolve, reject) => {
+    const request = get(source.url, { family: 4, agent: false, signal: AbortSignal.timeout(8000) }, (response) => {
+      void (async () => {
+        try {
+          if (response.statusCode !== 200) throw new Error(`Record page request failed: ${response.statusCode}`);
+          const chunks: Buffer[] = []; let size = 0;
+          for await (const chunk of response) {
+            const bytes = Buffer.from(chunk); size += bytes.length;
+            if (size > 2 * 1024 * 1024) throw new Error("Record response too large");
+            chunks.push(bytes);
+          }
+          const bytes = Buffer.concat(chunks);
+          const prefix = new TextDecoder("ascii").decode(bytes.subarray(0, 4096));
+          const charset = response.headers["content-type"]?.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1]
+            ?? prefix.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1] ?? "shift_jis";
+          resolve(sanitizeClubRecordHtml(new TextDecoder(charset).decode(bytes)));
+        } catch (error) { reject(error); }
+        finally { response.destroy(); }
+      })();
+    });
+    request.on("error", reject);
+  });
 }

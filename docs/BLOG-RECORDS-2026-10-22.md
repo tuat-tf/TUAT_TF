@@ -16,3 +16,11 @@
 - check:environment、tsc、対象eslint、全Vitest223ファイル1946件成功。初回Vitestはsandbox一時ファイルrenameでEPERMとなり、通常権限で対象13件→全体を実施。JSX内try/catchのlint指摘を修正後、型/lintも再成功。
 - 127.0.0.1:4153の合成プレビューで、未読ドット表示→ブログ先頭を開く→戻ると消える→新着模擬で再表示、を実ブラウザで確認。実際のページコンポーネントを使い、男女16リンクと詳細表・戻る入口を確認。390px幅でdocumentWidth390、表領域332/scrollWidth576、横移動を確認。画像は.contingency/blog-records-20261022に保管。実会員の認証/記録や公式ページの個人情報を表示検証へ使っていない。
 - 本番build/deploy/pushはまだ未実施。移管の未完了項目・OB公開承認等と、この個別UI依頼は区別する。
+
+## 本番反映と実通信の追加修正
+
+- 初版d283bffをmasterへ統合して1回push。ネットワーク隔離・非特権のLinux build/smoke、成果物39436ファイル/28リンク検証成功。旧版を保持した358静的資産を部活Workerへ反映（version80dbe5cb-b886-4ff6-9818-b3e583fe66ba）。旧新両方の同名_buildManifest.jsを除外しPC配信へ統一。初回の除外件数想定1件は実際の2件と不一致で停止し、両ファイルのhash差を確認して修正した。
+- PC切替後の公開version d283bff一致、ブログ/十傑の新JS4種のhash一致、匿名ページ3件のログイン誘導を確認。本人の元4ロール保持、部活Gmail profile0/roles0/login不可を読み取り再確認した。
+- 新世代e9e24259-5424-4565-b9bc-583e2daee910で初回・timer再開後の2バックアップとも復元/Drive読戻し成功。正式watch/app/jobs/timer/tunnel正常を確認し、一時keepaliveのみ停止済み。
+- 続くLinux実通信検証で標準fetchが16区分中4件タイムアウト。DNS全アドレス取得が15秒停滞する現象と、IPv4指定HTTPSが約70msで応答する差を確認。全体DNS・認証・TLS検証を弱めず、当該固定16URLのHTTPSだけfamily4・8秒期限・2MiB上限・リダイレクト拒否へ変更。Nextの15分キャッシュはqueriesのunstable_cacheで維持する（cacheComponentsは導入しない）。
+- 修正後、Linux・アプリUID65530で男女16区分すべて成功（各66〜379ms）。本文・氏名・実記録はログ/モデル/退避ファイルへ出力せず、表件数と時間だけを確認。改修の受入が未完了だったため初版の配備成功で終了しなかった。

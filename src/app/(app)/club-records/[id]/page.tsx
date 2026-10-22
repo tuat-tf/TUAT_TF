@@ -3,7 +3,8 @@ import { ExternalLink, Trophy } from "lucide-react";
 import { SubHeader } from "@/components/layout/SubHeader";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { clubRecordSource, getClubRecordHtml } from "@/lib/club-records";
+import { clubRecordSource } from "@/lib/club-records";
+import { getClubRecordHtml } from "@/lib/queries";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 
 export default async function ClubRecordPage({ params }: { params: Promise<{ id: string }> }) {

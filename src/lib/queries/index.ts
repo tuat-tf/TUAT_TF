@@ -15,3 +15,4 @@ export * from "./competitions";
 export * from "./monthly-results";
 export * from "./admin-dashboard";
 export * from "./competition-meet";
+export * from "./club-records";
