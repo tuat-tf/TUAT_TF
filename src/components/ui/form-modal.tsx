@@ -58,6 +58,17 @@ export function FormModal({
   intent?: UnsavedIntent;
 }) {
   const draft = useRef<DraftState | null>(null);
+  // Reloading or closing the tab would silently drop unsaved input; the browser asks first.
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!draft.current?.dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [open]);
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmIntent, setConfirmIntent] = useState<UnsavedIntent>(intent);
   function requestOpenChange(next: boolean) {
