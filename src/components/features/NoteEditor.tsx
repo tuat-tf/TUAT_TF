@@ -9,6 +9,7 @@ import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SegmentedControl } from "@/components/ui/segmented";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { createClient } from "@/lib/supabase/client";
 import { PersonPicker } from "@/components/features/PersonPicker";
 import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
@@ -64,26 +65,30 @@ export function NoteEditor({
   const [folderOptions, setFolderOptions] = useState<
     { id: string; title: string; parent_id: string | null; scope: NoteScope }[] | null
   >(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [folderError, setFolderError] = useState(false);
+  const [folderLoadAttempt, setFolderLoadAttempt] = useState(0);
 
   useEffect(() => {
     // 移動UIは既存フォルダの編集時のみ（新規作成はFAB/親から場所が決まる）
-    if (!note || !canManagePermissions) return;
+    if (!note || !canManagePermissions || !moveOpen || folderOptions) return;
     let active = true;
-    void createClient()
+    void Promise.resolve(createClient()
       .from("notes")
-      .select("id, title, parent_id, scope")
-      .then(({ data }) => {
+      .select("id, title, parent_id, scope"))
+      .then(({ data, error }) => {
         if (active) {
+          if (error || !data) { setFolderError(true); return; }
+          setFolderError(false);
           setFolderOptions(
             (data ?? []) as { id: string; title: string; parent_id: string | null; scope: NoteScope }[],
           );
         }
-      });
+      }).catch(() => { if (active) setFolderError(true); });
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [note, canManagePermissions, moveOpen, folderOptions, folderLoadAttempt]);
 
   // 移動先候補: 同scope・自分自身と子孫は除外（循環禁止）・移動後もツリー全体が深さ3以内
   const moveTargets = (() => {
@@ -125,6 +130,17 @@ export function NoteEditor({
       .map((f) => ({ ...f, depth: depthOf(f.id) }))
       .sort((a, b) => a.title.localeCompare(b.title, "ja"));
   })();
+  const folderLabel = (id: string | null): string => {
+    if (id === null) return "ノート一覧";
+    const path: string[] = [];
+    const seen = new Set<string>();
+    let current = folderOptions?.find((folder) => folder.id === id);
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id); path.unshift(current.title);
+      current = folderOptions?.find((folder) => folder.id === current?.parent_id);
+    }
+    return path.join(" / ") || "現在の場所";
+  };
   const [error, setError] = useState<string | null>(null);
   const draft = JSON.stringify([scope, title, description, status, editPolicy, [...editorIds].sort(), parentIdValue]);
   const [initialDraft] = useState(draft);
@@ -202,83 +218,6 @@ export function NoteEditor({
   return (
     <div className="min-w-0 space-y-5 pb-4">
       <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-5">
-      {(!note || canManagePermissions) && (
-        <div>
-          <p className="section-label mb-1.5">種類</p>
-          <SegmentedControl
-            items={[
-              { key: "shared", label: "共有" },
-              { key: "personal", label: "個人作成" },
-            ]}
-            value={scope}
-            onChange={(value) => {
-              setScope(value);
-              // 種類を切り替えたら移動先は一旦ルートへ（別scopeの親に残さない）
-              if (note) setParentIdValue(null);
-            }}
-          />          {scope === "personal" && (
-            <p className="mt-1.5 text-micro text-muted2">
-              個人作成でも「公開」にすると、プロフィール経由で全部員が閲覧できます。
-            </p>
-          )}
-        </div>
-      )}
-
-      {note && canManagePermissions && moveTargets && (
-        <div>
-          <p className="section-label mb-1.5">場所</p>
-          <div data-ui-panel className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-separator bg-card p-1">
-            {[{ id: null as string | null, title: "ルート（ノート一覧の直下）", depth: 0 }, ...moveTargets].map(
-              (target) => {
-                const active = parentIdValue === target.id;
-                return (
-                  <button
-                    data-ui-row
-                    key={target.id ?? "root"}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setParentIdValue(target.id)}
-                    className={cn(
-                      "flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left",
-                      active ? "bg-accent/10" : "active:bg-bg",
-                    )}
-                  >
-                    <span
-                      className="min-w-0 flex-1 truncate text-[14px] font-medium"
-                      style={{ paddingLeft: `${target.depth * 14}px` }}
-                    >
-                      {target.title}
-                    </span>
-                    {active && <Check size={18} className="text-accent" />}
-                  </button>
-                );
-              },
-            )}
-          </div>
-        </div>
-      )}
-
-      {canManagePermissions && (
-        <>
-          <div>
-            <p className="section-label mb-1.5">記事を追加・編集できる人</p>
-            <SegmentedControl
-              items={[
-                { key: "everyone", label: "全員" },
-                { key: "specified", label: "指定者" },
-                { key: "author", label: "作者のみ" },
-              ]}
-              value={editPolicy}
-              onChange={(value) => setEditPolicy(value)}
-            />
-          </div>
-
-          {editPolicy === "specified" && (
-            <PersonPicker people={members} value={editorIds} onChange={setEditorIds} label="編集できる部員" excludeIds={[currentUser.id]} />
-          )}
-        </>
-      )}
-
       <div>
         <p className="section-label mb-1.5">フォルダ名</p>
         <Input
@@ -312,7 +251,79 @@ export function NoteEditor({
         />
       </div>
 
+      {(!note || canManagePermissions) && (
+        <div>
+          <p className="section-label mb-1.5">種類</p>
+          <SegmentedControl
+            items={[
+              { key: "shared", label: "共有" },
+              { key: "personal", label: "個人作成" },
+            ]}
+            value={scope}
+            onChange={(value) => {
+              if (value === scope) return;
+              setScope(value);
+              // 種類を切り替えたら移動先は一旦ルートへ（別scopeの親に残さない）
+              if (note) setParentIdValue(null);
+            }}
+          />          {scope === "personal" && (
+            <p className="mt-1.5 text-micro text-muted2">
+              個人作成でも「公開」にすると、プロフィール経由で全部員が閲覧できます。
+            </p>
+          )}
+        </div>
+      )}
+
+      {canManagePermissions && (
+        <>
+          <div>
+            <p className="section-label mb-1.5">記事を追加・編集できる人</p>
+            <SegmentedControl
+              items={[
+                { key: "everyone", label: "全員" },
+                { key: "specified", label: "指定者" },
+                { key: "author", label: "作者のみ" },
+              ]}
+              value={editPolicy}
+              onChange={(value) => setEditPolicy(value)}
+            />
+          </div>
+
+          {editPolicy === "specified" && (
+            <PersonPicker people={members} value={editorIds} onChange={setEditorIds} label="編集できる部員" excludeIds={[currentUser.id]} />
+          )}
+        </>
+      )}
+
+      {note && canManagePermissions && (
+        <div className="border-t border-separator pt-3">
+          <Button variant="outline" onClick={() => setMoveOpen(true)}>保存先を変更</Button>
+          {parentIdValue !== note.parent_id && <p className="mt-2 break-words text-caption">保存先：{folderLabel(parentIdValue)}（更新すると移動します）</p>}
+        </div>
+      )}
+
       </fieldset>
+      <Sheet open={moveOpen} onOpenChange={setMoveOpen}>
+        <SheetContent title="保存先を選択" autoFocus={false}>
+          <p className="mb-3 text-caption">フォルダを選び、編集画面で「更新する」を押すと移動します。</p>
+          {!folderOptions ? folderError ? <div role="alert" className="space-y-3">
+            <p className="text-caption text-danger">保存先を読み込めませんでした。もう一度お試しください。</p>
+            <Button variant="outline" onClick={() => { setFolderError(false); setFolderLoadAttempt((attempt) => attempt + 1); }}>再読み込み</Button>
+          </div> : <p role="status" className="text-caption">保存先を読み込み中…</p> : (
+            <div className="max-h-[60vh] overflow-y-auto pb-4">
+              {[{ id: null as string | null }, ...(moveTargets ?? [])].map((target) => (
+                <button data-ui-row key={target.id ?? "root"} type="button" aria-pressed={parentIdValue === target.id}
+                  disabled={saving || unconfirmed}
+                  onClick={() => { setParentIdValue(target.id); setMoveOpen(false); }}
+                  className={cn("flex min-h-12 w-full items-center gap-2 border-t border-separator/70 px-1 py-3 text-left text-body first:border-t-0", parentIdValue === target.id ? "text-accent" : "active:bg-bg")}>
+                  <span className="min-w-0 flex-1 break-words">{folderLabel(target.id)}</span>
+                  {parentIdValue === target.id && <Check size={18} className="shrink-0 text-accent" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
       {error && <p className="text-center text-caption text-danger">{error}</p>}
       <FormModalFooter>
         <Button size="lg" disabled={saving} onClick={submit}>
