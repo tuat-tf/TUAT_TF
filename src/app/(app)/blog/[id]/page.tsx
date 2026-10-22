@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { ScrollAwareSubHeader } from "@/components/layout/ScrollAwareSubHeader";
 import { Card } from "@/components/ui/card";
-import { getBlogArticle } from "@/lib/blog-feed";
+import { getBlogArticle } from "@/lib/queries/blog";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric" });

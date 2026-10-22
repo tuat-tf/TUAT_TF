@@ -21,7 +21,7 @@ import { trainingReviewPreferenceKey } from "@/lib/training-review-display";
 import type { RecordFieldDef } from "@/types";
 import { ActivitySkeleton, TrainingChartSkeleton } from "@/components/ui/page-skeletons";
 import { BlogNavigationLink } from "@/components/features/BlogUpdates";
-import { getLatestBlogRevision } from "@/lib/blog-feed";
+import { getLatestBlogRevision } from "@/lib/queries/blog";
 
 export default async function MyPage({
   searchParams,

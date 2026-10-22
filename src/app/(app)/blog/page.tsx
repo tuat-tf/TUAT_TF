@@ -3,7 +3,8 @@ import Link from "next/link";
 import { SubHeader } from "@/components/layout/SubHeader";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BLOG_PAGE_SIZE, blogArticleId, blogRevision, getBlogPage } from "@/lib/blog-feed";
+import { BLOG_PAGE_SIZE, blogArticleId, blogRevision } from "@/lib/blog-feed";
+import { getBlogPage } from "@/lib/queries/blog";
 import { BlogReadMarker } from "@/components/features/BlogUpdates";
 import { getCurrentUserId } from "@/lib/supabase/auth";
 

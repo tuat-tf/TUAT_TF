@@ -1,5 +1,6 @@
 import sanitizeHtml from "sanitize-html";
 import { createHash } from "node:crypto";
+import { get } from "node:https";
 import type { BlogRevision } from "./blog-read-state";
 
 export const BLOG_HOME_URL = "https://nokotandf.livedoor.blog/";
@@ -27,16 +28,41 @@ export function blogRevision(items: BlogFeedItem[]): BlogRevision | null {
   };
 }
 
-async function fetchBlogIndex(page: number): Promise<string> {
-  const response = await fetch(`${BLOG_HOME_URL}?p=${page}`, {
-    headers: { Accept: "text/html;charset=UTF-8" }, next: { revalidate: 15 * 60 }, signal: AbortSignal.timeout(8000),
+// The production WSL resolver intermittently fails dual-family lookups for this
+// host. Keep IPv4 local to official-blog requests, with normal TLS validation.
+async function fetchBlogHtml(url: string): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const request = get(url, {
+      family: 4, agent: false, headers: { Accept: "text/html;charset=UTF-8" }, signal: AbortSignal.timeout(8000),
+    }, (response) => {
+      void (async () => {
+        try {
+          if (response.statusCode === 404) { resolve(null); return; }
+          if (response.statusCode !== 200) throw new Error(`Blog page request failed: ${response.statusCode}`);
+          const chunks: Buffer[] = []; let size = 0;
+          for await (const chunk of response) {
+            const bytes = Buffer.from(chunk); size += bytes.length;
+            if (size > 2 * 1024 * 1024) throw new Error("Blog response too large");
+            chunks.push(bytes);
+          }
+          resolve(Buffer.concat(chunks).toString("utf8"));
+        } catch (error) { reject(error); }
+        finally { response.destroy(); }
+      })();
+    });
+    request.on("error", reject);
   });
-  if (!response.ok) throw new Error(`Blog page request failed: ${response.status}`);
-  return response.text();
 }
 
-export async function getLatestBlogRevision(): Promise<BlogRevision | null> {
-  return blogRevision(parseBlogIndex(await fetchBlogIndex(1)));
+export async function fetchBlogIndex(page: number): Promise<string> {
+  if (!Number.isSafeInteger(page) || page < 1) throw new Error("Invalid blog page");
+  const html = await fetchBlogHtml(`${BLOG_HOME_URL}?p=${page}`);
+  if (html === null) throw new Error("Blog index unavailable");
+  return html;
+}
+
+export async function getLatestBlogRevision(loadIndex = fetchBlogIndex): Promise<BlogRevision | null> {
+  return blogRevision(parseBlogIndex(await loadIndex(1)));
 }
 
 function decodeEntities(value: string): string {
@@ -149,17 +175,19 @@ export function blogSourcePagesForAppPage(page: number): { start: number; count:
   return { start, count, offset };
 }
 
-export async function getBlogPage(page: number): Promise<BlogFeedItem[]> {
+export async function getBlogPage(page: number, loadIndex = fetchBlogIndex): Promise<BlogFeedItem[]> {
   const source = blogSourcePagesForAppPage(page);
   if (!source) return [];
-  const pages = await Promise.all(Array.from({ length: source.count }, (_, index) => fetchBlogIndex(source.start + index)));
+  const pages = await Promise.all(Array.from({ length: source.count }, (_, index) => loadIndex(source.start + index)));
   return pages
     .flatMap(parseBlogIndex)
     .slice(source.offset, source.offset + BLOG_PAGE_SIZE + 1);
 }
 export async function getBlogArticle(id: string): Promise<BlogArticle | null> {
   if (!/^\d+$/.test(id)) return null;
-  const response = await fetch(`${BLOG_HOME_URL}archives/${id}.html`, { headers: { Accept: "text/html;charset=UTF-8" }, next: { revalidate: 15 * 60 } });
-  if (!response.ok) return null;
-  return parseBlogArticle(await response.text(), id);
+  const html = await fetchBlogHtml(`${BLOG_HOME_URL}archives/${id}.html`);
+  if (html === null) return null;
+  const article = parseBlogArticle(html, id);
+  if (!article) throw new Error("Blog article structure unavailable");
+  return article;
 }
