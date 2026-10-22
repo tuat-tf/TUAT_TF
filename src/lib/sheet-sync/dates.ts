@@ -28,6 +28,14 @@ export function sheetPullCutoff(today: string, historyImportedAt: string | null)
 }
 
 /**
+ * 練習日0時(JST)で投稿扱いにする境界日。この日より前の新規行が対象で、境界日と未来は同期時刻のまま。
+ * 初回の履歴補完か、手動の一括取り込み(backfillAtRecordDate)のときだけ境界を返す。
+ */
+export function sheetHistoricalBoundary(eligibleThrough: string, historyImportedAt: string | null, backfillAtRecordDate = false): string | undefined {
+  return historyImportedAt && !backfillAtRecordDate ? undefined : eligibleThrough;
+}
+
+/**
  * スプレッドシート由来の新規記録を、タイムラインで「いつ投稿されたもの」として扱うか。
  *
  * 通常は取り込んだ時刻を使う。初回の履歴補完では historicalBefore より前の行を

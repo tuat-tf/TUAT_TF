@@ -35,6 +35,8 @@ export async function POST(request: Request) {
   const onlySheet = typeof body?.onlySheet === "string" ? body.onlySheet : undefined;
   const resetCycle = body?.resetCycle === true;
   const skipSheetWrites = body?.skipSheetWrites === true;
+  // 一括取り込み時だけ、新規行を練習日0時の投稿として扱う（管理者の手動実行のみ）。
+  const backfillAtRecordDate = body?.backfillAtRecordDate === true;
 
   const secret = process.env.SHEET_SYNC_SECRET;
   const authHeader = request.headers.get("authorization") ?? "";
@@ -135,6 +137,7 @@ export async function POST(request: Request) {
       // Midnight cron publishes completed days; an administrator's manual pull
       // can explicitly retrieve today's entries without waiting for midnight.
       includeToday: !isCron,
+      backfillAtRecordDate: !isCron && backfillAtRecordDate,
     });
     if (!dryRun && (result.failedMembers.length || result.sheetWritesSkipped)) {
       const protection = await pcAppWriteProtectionResponse();

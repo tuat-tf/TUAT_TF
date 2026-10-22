@@ -7,7 +7,7 @@ import type { RecordFieldDef } from "@/types";
 import { relevantSheetHeaderSignature, relocatedSheetFields } from "@/lib/sheet-field-config";
 import { sheetContentSignature } from "@/lib/sheet-public-csv";
 import type { SyncOptions, SyncResult } from "./types";
-import { SHEET_HISTORY_START, todayJST, sheetPullCutoff, sheetPullThrough } from "./dates";
+import { SHEET_HISTORY_START, todayJST, sheetPullCutoff, sheetPullThrough, sheetHistoricalBoundary } from "./dates";
 import { resolveFieldMap, appToCellsFull } from "./field-map";
 import type { DbRecord } from "./field-map";
 import { fetchAllRaw } from "./gas-client";
@@ -289,7 +289,7 @@ async function runSheetSyncBatch(
       (date) => date >= cutoff && date <= eligibleThrough && inRange(date),
       nowIso,
       profile.record_source === "sheet" && stagedSheetFlow ? "replace_mapped" : "merge_nonempty",
-      profile.sheet_history_imported_at ? undefined : eligibleThrough,
+      sheetHistoricalBoundary(eligibleThrough, profile.sheet_history_imported_at, options.backfillAtRecordDate),
     );
     inserts.push(...pulled.inserts);
     updates.push(...pulled.updates.map((update) => ({ ...update, profileId: profile.id, expectedUpdatedAt: updatedAtByRecord.get(update.id) ?? null })));
@@ -480,7 +480,7 @@ export async function runSheetSync(admin: SupabaseClient, options: SyncOptions =
     if (!groups[period].length) continue;
     const sheetWriteState = { attempted: false };
     try {
-      const result = await runSheetSyncBatch(admin, { dryRun: options.dryRun, skipSheetWrites: options.skipSheetWrites, includeToday: options.includeToday }, groups[period], period, sheetWriteState, activeReceipts);
+      const result = await runSheetSyncBatch(admin, { dryRun: options.dryRun, skipSheetWrites: options.skipSheetWrites, includeToday: options.includeToday, backfillAtRecordDate: options.backfillAtRecordDate }, groups[period], period, sheetWriteState, activeReceipts);
       if (result.sheetWritesUncertain) total.sheetWritesUncertain = true;
       for (const key of ["inserted", "updated", "pushed"] as const) total[key] += result[key];
       for (const key of ["conflicts", "skippedMembers", "unchangedMembers", "failedMembers"] as const) total[key].push(...result[key] as never[]);

@@ -10,6 +10,8 @@ export type SyncOptions = {
   skipSheetWrites?: boolean;
   /** 定期取り込みは前日まで。当日の明示的な手動取り込みは既定で許可する。 */
   includeToday?: boolean;
+  /** 手動の一括取り込み用。最新の対象日より前の新規行を、同期時刻ではなく練習日0時(JST)の投稿として扱う。既定はオフ。 */
+  backfillAtRecordDate?: boolean;
 };
 
 export type SyncResult = {
