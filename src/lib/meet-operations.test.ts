@@ -60,3 +60,12 @@ it("keeps generic order and participant limits while allowing OB order600 and se
   expect(new MeetEvent(rule, { participants: [a, { ...b, heatScope: "男子" }], confirmed: false }, { maxOrder: 600 }).validate()).toContain("重複");
   expect(new MeetEvent(rule, { participants: Array.from({ length: 301 }, (_, i) => emptyPerformance(String(i))), confirmed: false }, { maxOrder: 600 }).validate()).toContain("出場者");
 });
+
+it('reports which participant a validation error belongs to', () => {
+  const bad = { ...emptyPerformance('b'), trials: [{ mark: 'abc', status: 'valid' as const, wind: '' }] };
+  const detailed = event([emptyPerformance('a'), bad]).validateDetailed();
+  expect(detailed?.entryId).toBe('b');
+  expect(detailed?.message).toContain('タイム');
+  expect(event([bad]).validate()).toBe(detailed?.message);
+  expect(event([emptyPerformance('a')]).validateDetailed()).toBeNull();
+});

@@ -102,8 +102,8 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
     const changes=data.participants.filter(p=>JSON.stringify(p)!==JSON.stringify(base.data.participants.find(old=>old.entryId===p.entryId))).map(p=>({id:p.entryId,revision:base.appearances.find(a=>a.id===p.entryId)!.revision,performance:storedMeetPerformance(p)}));
     const changedIds=new Set(changes.map(c=>c.id));
     const active=data.participants.filter(p=>{const a=appearances.find(a=>a.id===p.entryId)!;return availableAppearance(people.get(a.participant_id),a);});
-    const invalid=(changes.length?new MeetEvent(rule,{confirmed:false,participants:active.map(p=>changedIds.has(p.entryId)?p:{...p,trials:[]})},limits).validate():null)??(confirmation===true?new MeetEvent(rule,{confirmed:true,participants:active},limits).validate():null);
-    if(invalid){setError(invalid);return;}
+    const problem=(changes.length?new MeetEvent(rule,{confirmed:false,participants:active.map(p=>changedIds.has(p.entryId)?p:{...p,trials:[]})},limits).validateDetailed():null)??(confirmation===true?new MeetEvent(rule,{confirmed:true,participants:active},limits).validateDetailed():null);
+    if(problem){const who=problem.entryId?people.get(appearances.find(a=>a.id===problem.entryId)?.participant_id??"")?.name:undefined;setError(who?`${who}さん：${problem.message}`:problem.message);return;}
     const anchor=base.event;
     if(await mutation.run({action:"event.save",event:anchor.name,revision:anchor.revision,expectedConfirmed:anchor.confirmed,changes,confirmed:confirmation??anchor.confirmed,...(confirmation===undefined?{}:{confirmEvents:base.events.map(({name,revision,confirmed})=>({name,revision,confirmed}))})}))onClose();
   }
