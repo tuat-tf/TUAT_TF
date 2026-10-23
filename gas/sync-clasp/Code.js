@@ -38,7 +38,18 @@ function getSyncSecret() {
 function verifySyncSecret(provided) {
   const s = getSyncSecret();
   if (!s) throw new Error('SYNC_SECRET not set'); // 未設定なら全拒否（fail closed）
-  if ((provided || '').toString() !== s) throw new Error('unauthorized');
+  const p = (provided || '').toString();
+  // Compare every character so the response time does not reveal how much of the secret matched.
+  let diff = p.length ^ s.length;
+  for (let i = 0; i < s.length; i++) diff |= s.charCodeAt(i) ^ (p.charCodeAt(i) || 0);
+  if (diff !== 0) throw new Error('unauthorized');
+}
+
+// A failure before the first sheet mutation is reported as written:false, so the app
+// knows nothing was written and may send again. Anything later stays an unknown result.
+function notWritten(error) {
+  if (error && typeof error === 'object') error.notWritten = true;
+  return error;
 }
 
 // 管理用：Script Properties に secret を設定する（owner が clasp run で呼ぶ。Web公開はしていない）。
@@ -52,12 +63,17 @@ function doGet() {
 }
 function doPost(e) {
   try {
-    const body = JSON.parse(e.postData.contents);
-    verifySyncSecret(body.secret);
-    const target = body.spreadsheetId || getSpreadsheetId();
-    if (target !== getSpreadsheetId() && target !== OCTOBER_SPREADSHEET_ID) throw new Error('Spreadsheet not allowed');
-    if (target === OCTOBER_SPREADSHEET_ID && body.date && body.date < '2026-10-01') throw new Error('Date outside spreadsheet period');
-    requestSpreadsheetId = target;
+    let body;
+    try {
+      body = JSON.parse(e.postData.contents);
+      verifySyncSecret(body.secret);
+      const target = body.spreadsheetId || getSpreadsheetId();
+      if (target !== getSpreadsheetId() && target !== OCTOBER_SPREADSHEET_ID) throw new Error('Spreadsheet not allowed');
+      if (target === OCTOBER_SPREADSHEET_ID && body.date && body.date < '2026-10-01') throw new Error('Date outside spreadsheet period');
+      requestSpreadsheetId = target;
+    } catch (err) {
+      throw notWritten(err); // Rejected before any action ran.
+    }
     if (body.action === 'listMembers') return handleListMembers();
     if (body.action === 'fetchAllRaw') return handleFetchAllRaw();
     if (body.action === 'fetchMember') return body.clearContract !== undefined
@@ -68,7 +84,9 @@ function doPost(e) {
     if (body.action === 'deleteReply' || body.action === 'writeReply') return createJsonResponse({ error: 'Sheet reply synchronization is disabled' });
     return createJsonResponse({ error: 'unknown action' });
   } catch (err) {
-    return createJsonResponse({ error: err.toString() });
+    const response = { error: err.toString() };
+    if (err && err.notWritten === true) response.written = false;
+    return createJsonResponse(response);
   } finally {
     requestSpreadsheetId = '';
   }
@@ -181,11 +199,14 @@ function handleFetchMember(memberName) {
 // a failed flush is an unconfirmed write, never a successful acknowledgement.
 function writeCellsRecord(data) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  try { lock.waitLock(10000); } catch (err) { throw notWritten(err); }
+  const progress = { mutated: false };
   try {
-    const result = writeCellsRecordUnlocked(data);
+    const result = writeCellsRecordUnlocked(data, progress);
     SpreadsheetApp.flush();
     return result;
+  } catch (err) {
+    throw progress.mutated ? err : notWritten(err);
   } finally { lock.releaseLock(); }
 }
 
@@ -193,7 +214,8 @@ function literalSheetValue(value) {
   return typeof value === 'string' && value !== '' ? "'" + value : value;
 }
 
-function writeCellsRecordUnlocked(data) {
+function writeCellsRecordUnlocked(data, progress) {
+  progress = progress || { mutated: false };
   const memberName = data.memberName;
   const date = data.date;
   const cells = data.cells || {};
@@ -233,6 +255,7 @@ function writeCellsRecordUnlocked(data) {
   let sheetRowNum;
   if (rowIdx === -1) {
     const insertAfter = sheet.getLastRow();
+    progress.mutated = true;
     sheet.insertRowAfter(insertAfter);
     sheetRowNum = insertAfter + 1;
     const targetDate = new Date(date);
@@ -246,14 +269,16 @@ function writeCellsRecordUnlocked(data) {
   const protectedHeaders = [];
   // 日付行に式がある距離列を保護する。月間合計の式だけを持つ手入力列は区別する。
   // 既に数式が消された行でも、計算列へ値や空欄を再送しない。
-  const formulas = sheet.getDataRange().getFormulas();
+  // Read formulas only for distance columns, not the whole sheet: long member sheets made
+  // every write slow enough for the app to time out and record an unknown result.
   const calculatedDistanceColumns = new Set();
   headerRow.forEach(function (h, col) {
-    if (/実際の距離|実距離|走行距離|総距離/.test(normalizeHeaderCell(h))
-      && formulas.some(function (row, index) {
-        return Boolean(row[col] && values[index] && values[index][dateColumn] != null
-          && /^\d{4}-\d{2}-\d{2}$/.test(parseSheetDate(values[index][dateColumn])));
-      })) {
+    if (!/実際の距離|実距離|走行距離|総距離/.test(normalizeHeaderCell(h))) return;
+    const columnFormulas = sheet.getRange(1, col + 1, values.length, 1).getFormulas();
+    if (columnFormulas.some(function (row, index) {
+      return Boolean(row[0] && values[index] && values[index][dateColumn] != null
+        && /^\d{4}-\d{2}-\d{2}$/.test(parseSheetDate(values[index][dateColumn])));
+    })) {
       calculatedDistanceColumns.add(col);
     }
   });
@@ -274,6 +299,7 @@ function writeCellsRecordUnlocked(data) {
     }
     // Sheets consumes the leading apostrophe as a literal marker. Keep actual
     // numbers numeric, and preserve strings (including numeric/formula text).
+    progress.mutated = true;
     cell.setValue(literalSheetValue(cells[h]));
   });
 
@@ -317,10 +343,19 @@ function validClearDate(date) {
 function clearIfExistingRecord(data) {
   if (data.contractVersion !== CLEAR_CONTRACT_VERSION || !validClearDate(data.date)
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.attemptId || '')
-    || !data.memberName || !Array.isArray(data.clearColumns) || !data.clearColumns.length) throw new Error('Invalid clear contract');
+    || !data.memberName || !Array.isArray(data.clearColumns) || !data.clearColumns.length) throw notWritten(new Error('Invalid clear contract'));
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  try { lock.waitLock(10000); } catch (err) { throw notWritten(err); }
+  const progress = { mutated: false };
   try {
+    return clearIfExistingLocked(data, progress);
+  } catch (err) {
+    throw progress.mutated ? err : notWritten(err);
+  } finally { lock.releaseLock(); }
+}
+
+function clearIfExistingLocked(data, progress) {
+  {
     const sheet = findMemberSheet(data.memberName);
     if (!sheet) throw new Error('Clear target unavailable');
     const values = sheet.getDataRange().getValues();
@@ -373,6 +408,7 @@ function clearIfExistingRecord(data) {
         const cell = sheet.getRange(result.row, column.index + 1);
         if (header === '日付' || header === '曜日' || header.indexOf('週合計') !== -1
           || calculated.has(column.index) || cell.getFormula()) { result.protectedHeaders.push(column.header); return; }
+        progress.mutated = true;
         cell.setValue('');
         result.clearedColumns.push(column.index);
       });
@@ -380,7 +416,7 @@ function clearIfExistingRecord(data) {
     }
     SpreadsheetApp.flush();
     return result;
-  } finally { lock.releaseLock(); }
+  }
 }
 
 

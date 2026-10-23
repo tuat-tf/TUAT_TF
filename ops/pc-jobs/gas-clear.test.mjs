@@ -115,3 +115,27 @@ test('normal writeCells participates in the same lock and retains existing row-c
   assert.equal(result.action, 'created'); assert.equal(f.inserted(), 1);
   assert.equal(f.events[0], 'script-lock'); assert.equal(f.events[1], 'wait:10000'); assert.deepEqual(f.events.slice(-2), ['flush', 'release']);
 });
+
+test('writeCells reports written:false only when it failed before touching the sheet', () => {
+  const write = (f, body = {}) => f.post({ action: 'writeCells', memberName: 'B1 synthetic', date: '2026-10-10', cells: { 感想: '新しい感想' }, ...body });
+  // Lock timeout, unknown member and a rejected secret all happen before any mutation.
+  assert.equal(write(fixture({ busy: true })).written, false);
+  assert.equal(write(fixture(), { memberName: 'B9 missing' }).written, false);
+  const denied = fixture();
+  assert.equal(denied.post({ action: 'writeCells', secret: 'wrong', memberName: 'B1 synthetic', date: '2026-10-10', cells: {} }).written, false);
+  assert.deepEqual(denied.writes, []);
+  // A failure after a cell was written stays an unknown result (no written field).
+  const flushed = fixture({ failFlush: true });
+  const unknown = write(flushed);
+  assert.ok(unknown.error); assert.equal(unknown.written, undefined); assert.equal(flushed.writes.length, 1);
+  // Success carries no written:false either.
+  const ok = write(fixture());
+  assert.equal(ok.success, true); assert.equal(ok.written, undefined);
+});
+
+test('clearIfExisting reports written:false for a busy lock and keeps unknown after clearing', () => {
+  assert.equal(fixture({ busy: true }).clear().written, false);
+  const flushed = fixture({ failFlush: true });
+  const unknown = flushed.clear();
+  assert.ok(unknown.error); assert.equal(unknown.written, undefined); assert.equal(flushed.writes.length, 1);
+});

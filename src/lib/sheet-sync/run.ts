@@ -14,7 +14,7 @@ import { fetchAllRaw } from "./gas-client";
 import { sheetRecordsWithoutPendingPushes, computeMemberPull } from "./pull";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { type PendingClear } from "./clear";
-import { clearIfExistingWithReceipt, finishPushAttempt, listActivePushReceipts, pushProfileSnapshot, resolvePendingClear, sheetRowMatchesCells,
+import { SheetPushReceiptError, clearIfExistingWithReceipt, finishPushAttempt, listActivePushReceipts, pushProfileSnapshot, resolvePendingClear, sheetRowMatchesCells,
   writeCellsIdentity, writeCellsTargetSlot, writeCellsWithReceipt,
   type ActivePushReceipt, type PushProfileSnapshot, type WriteCellsTarget } from "./push-receipt";
 import { unmappedRecordFields } from "./push";
@@ -439,7 +439,9 @@ async function runSheetSyncBatch(
       }
       result.pushed++;
     } catch (err) {
-      result.sheetWritesUncertain = true;
+      // Known unsent failures (explicit written:false with its reservation released, or the pre-send guard)
+      // must not stop every member's writes; anything else may have reached the sheet.
+      if (!(err instanceof SheetPushReceiptError && err.externallySent === false && !err.resultUnknown)) result.sheetWritesUncertain = true;
       result.failedMembers.push({
         member: p.memberName,
         reason: err instanceof Error ? err.message : "スプレッドシートに書き込めませんでした",

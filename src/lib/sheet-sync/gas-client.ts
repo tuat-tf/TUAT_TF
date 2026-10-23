@@ -22,6 +22,15 @@ export class GasWriteResultUnknownError extends Error {
   constructor() { super("スプレッドシートへの書き込み完了を確認できませんでした。送信結果を確認するまで再送を保留してください。"); }
 }
 
+/** GAS rejected the request before touching the sheet (written:false); sending again is safe. */
+export class GasWriteNotSentError extends Error {
+  readonly code = "SHEET_WRITE_NOT_SENT";
+  readonly status = 503;
+  readonly resultUnknown = false;
+  readonly retryable = true;
+  constructor() { super("スプレッドシート側が書き込み前に処理を断りました。次回の同期で送り直します。"); }
+}
+
 export async function gasPost<T>(body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   if (body.action === "writeReply" || body.action === "deleteReply") {
     throw new Error("返信のスプレッドシート連携は終了しました。コメントはアプリ内で管理してください。");
@@ -37,7 +46,10 @@ export async function gasPost<T>(body: Record<string, unknown>, signal?: AbortSi
     throw new Error("スプレッドシートへの書き込み完了を確認できませんでした。送信結果を確認するまで再送を保留してください。");
   }
   return result;
-  } catch (error) { if (mutation) throw new GasWriteResultUnknownError(); throw error; }
+  } catch (error) {
+    if (mutation) throw (error as { notWritten?: boolean })?.notWritten === true ? new GasWriteNotSentError() : new GasWriteResultUnknownError();
+    throw error;
+  }
 }
 
 // 本文・認証情報をエラーへ含めず、HTTP状態と応答形式だけを知らせる。
@@ -53,7 +65,12 @@ export async function readGasJson<T>(res: Response): Promise<T> {
   }
   if (!res.ok) throw new Error(`スプレッドシートとの通信に失敗しました（HTTP ${res.status}・JSON）。送信結果を確認してください。`);
   if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("スプレッドシートの応答形式が不正です。送信結果を確認してください。");
-  if (json.error) throw new Error(`GASエラー: ${json.error}`);
+  if (json.error) {
+    const error = new Error(`GASエラー: ${json.error}`);
+    // Only a successful HTTP response that explicitly says nothing was written counts as not sent.
+    if ((json as { written?: unknown }).written === false) Object.assign(error, { notWritten: true });
+    throw error;
+  }
   return json;
 }
 

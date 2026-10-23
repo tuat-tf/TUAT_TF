@@ -5,10 +5,10 @@ import { readFileSync } from 'node:fs';
 
 function setup(headers, formulas = {}) {
   const writes = [];
+  const matrix = [headers.map(() => ''), headers.map((_, i) => formulas[i + 1] || ''), headers.map((_, i) => formulas.neighbor?.[i + 1] || '')];
   const sheet = {
-    getDataRange: () => ({ getValues: () => [headers, ['10/1', '木'], [formulas.neighborDate ?? '10/2', '金']],
-      getFormulas: () => [headers.map(() => ''), headers.map((_, i) => formulas[i + 1] || ''), headers.map((_, i) => formulas.neighbor?.[i + 1] || '')] }),
-    getRange: (row, column) => ({
+    getDataRange: () => ({ getValues: () => [headers, ['10/1', '木'], [formulas.neighborDate ?? '10/2', '金']], getFormulas: () => matrix }),
+    getRange: (row, column, numRows) => numRows ? ({ getFormulas: () => matrix.slice(row - 1, row - 1 + numRows).map(r => [r[column - 1]]) }) : ({
       getFormula: () => formulas[column] || '',
       setValue: value => writes.push({ row, column, value }),
     }),
@@ -64,7 +64,8 @@ function writeFixture(headers, dates = ['2026-10-01']) {
   let inserted = 0, released = 0;
   const sheet = { getDataRange: () => ({ getValues: () => values, getFormulas: () => values.map(row => row.map(() => '')) }),
     getLastRow: () => values.length, insertRowAfter() { inserted++; values.push(headers.map(() => '')); },
-    getRange: (row, column) => ({ getFormula: () => '', setValue: value => writes.push({ row, column, value }) }) };
+    getRange: (row, column, numRows) => numRows ? ({ getFormulas: () => values.slice(row - 1, row - 1 + numRows).map(() => ['']) })
+      : ({ getFormula: () => '', setValue: value => writes.push({ row, column, value }) }) };
   const ctx = vm.createContext({ SpreadsheetApp: { flush() {} }, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() { released++; } }) } });
   vm.runInContext(readFileSync(new URL('../../gas/sync-clasp/Code.js', import.meta.url), 'utf8'), ctx);
   ctx.findMemberSheet = () => sheet;

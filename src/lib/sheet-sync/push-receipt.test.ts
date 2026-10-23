@@ -201,11 +201,23 @@ describe("durable writeCells dispatch boundary", () => {
     await expect(beginPushAttempt(client(rpc).admin, { ...input, expectedVersion: "", ...writeCellsIdentity(target, input.date, cells) } as PushAttemptInput)).rejects.toThrow("更新時刻");
     expect(rpc).toHaveBeenCalledOnce(); expect(gas).not.toHaveBeenCalled();
   });
-  it("records a confirmed pre-dispatch backup refusal as held, without calling it an external unknown", async () => {
-    const rpc = vi.fn().mockImplementation(async (_name: string, args: Record<string, unknown>) => ({ data: { outcome: "send", attempt_id: args.p_attempt_id, marker_status: "pending" }, error: null }));
-    gas.mockRejectedValueOnce({ code: "PC_BACKUP_UNAVAILABLE" });
-    await expect(writeCellsWithReceipt(client(rpc).admin, input, target, cells)).rejects.toMatchObject({ code: "SHEET_PUSH_BLOCKED", externallySent: false, resultUnknown: false });
-    expect(rpc).toHaveBeenCalledOnce();
+  it.each([["PC_BACKUP_UNAVAILABLE"], ["SHEET_WRITE_NOT_SENT"]])("releases the reservation when %s proves nothing was sent, without calling it unknown", async code => {
+    const rpc = vi.fn().mockImplementation(async (name: string, args: Record<string, unknown>) => name === "sheet_push_release"
+      ? { data: { outcome: "released" }, error: null }
+      : { data: { outcome: "send", attempt_id: args.p_attempt_id, marker_status: "pending" }, error: null });
+    gas.mockRejectedValueOnce({ code });
+    await expect(writeCellsWithReceipt(client(rpc).admin, input, target, cells)).rejects.toMatchObject({ code: "SHEET_PUSH_NOT_SENT", externallySent: false, resultUnknown: false });
+    expect(rpc).toHaveBeenCalledTimes(2);
+    const begin = rpc.mock.calls[0][1], release = rpc.mock.calls[1];
+    expect(release[0]).toBe("sheet_push_release");
+    expect(release[1]).toEqual({ p_attempt_id: begin.p_attempt_id, p_target_fingerprint: begin.p_target_fingerprint, p_payload_sha256: begin.p_payload_sha256 });
+  });
+  it("keeps a known-unsent attempt held when its release cannot be confirmed", async () => {
+    const rpc = vi.fn().mockImplementation(async (name: string, args: Record<string, unknown>) => name === "sheet_push_release"
+      ? { data: null, error: { message: "synthetic lost release" } }
+      : { data: { outcome: "send", attempt_id: args.p_attempt_id, marker_status: "pending" }, error: null });
+    gas.mockRejectedValueOnce({ code: "SHEET_WRITE_NOT_SENT" });
+    await expect(writeCellsWithReceipt(client(rpc).admin, input, target, cells)).rejects.toMatchObject({ code: "SHEET_PUSH_NOT_SENT", resultUnknown: true });
   });
 });
 

@@ -106,7 +106,7 @@ export type PushAttemptInput = {
 export class SheetPushReceiptError extends Error {
   readonly retryable = false;
   constructor(
-    readonly code: "SHEET_PUSH_BLOCKED" | "SHEET_PUSH_STALE" | "SHEET_PUSH_BEGIN_UNCONFIRMED" | "SHEET_SENT_MARKER_UNCONFIRMED" | "SHEET_PUSH_PARTIAL" | "SHEET_WRITE_RESULT_UNKNOWN",
+    readonly code: "SHEET_PUSH_BLOCKED" | "SHEET_PUSH_NOT_SENT" | "SHEET_PUSH_STALE" | "SHEET_PUSH_BEGIN_UNCONFIRMED" | "SHEET_SENT_MARKER_UNCONFIRMED" | "SHEET_PUSH_PARTIAL" | "SHEET_WRITE_RESULT_UNKNOWN",
     message: string,
     readonly attemptId: string,
     readonly externallySent: boolean | "unknown",
@@ -140,6 +140,32 @@ export async function beginPushAttempt(admin: SupabaseClient, input: PushAttempt
     || (result.outcome === "confirmed" && result.marker_status !== "partial")
     || (result.outcome === "completed" && !["applied", "superseded"].includes(String(result.marker_status)))) return uncertainBegin(admin, attemptId, response.error);
   return { attemptId: result.attempt_id, outcome: result.outcome as BeginOutcome, markerStatus: result.marker_status as PushMarkerStatus };
+}
+
+/** Remove a still-reserved attempt after the provider explicitly wrote nothing. Returns false if it could not be confirmed. */
+export async function releasePushAttempt(admin: SupabaseClient, attemptId: string, input: Pick<PushAttemptInput, "targetFingerprint" | "payloadSha256">): Promise<boolean> {
+  try {
+    const response = await admin.rpc("sheet_push_release", { p_attempt_id: attemptId,
+      p_target_fingerprint: input.targetFingerprint, p_payload_sha256: input.payloadSha256 });
+    return !response.error && receiptObject(response.data)?.outcome === "released";
+  } catch {
+    return false;
+  }
+}
+
+/** GAS said nothing was written (written:false), or the PC backup guard refused before dispatch. */
+function isKnownUnsent(error: unknown): boolean {
+  const code = typeof error === "object" && error !== null && "code" in error ? (error as { code?: unknown }).code : undefined;
+  return code === "SHEET_WRITE_NOT_SENT" || code === "PC_BACKUP_UNAVAILABLE";
+}
+
+/** A known-unsent request frees its reservation; if that cannot be confirmed it stays held like an unknown result. */
+async function notSent(admin: SupabaseClient, attemptId: string, input: Pick<PushAttemptInput, "targetFingerprint" | "payloadSha256">, cause: unknown): Promise<never> {
+  const released = await releasePushAttempt(admin, attemptId, input);
+  throw new SheetPushReceiptError("SHEET_PUSH_NOT_SENT", released
+    ? "スプレッドシート側が書き込み前に処理を断りました。次回の同期で送り直します。"
+    : "書き込み前に断られましたが、送信予約を解除できませんでした。再送せず、送信先を確認してください。",
+    attemptId, false, !released, cause);
 }
 
 export async function finishPushAttempt(admin: SupabaseClient, attemptId: string, input: PushAttemptInput, providerComplete: boolean): Promise<PushReceiptResult> {
@@ -209,8 +235,9 @@ export async function writeCellsWithReceipt(admin: SupabaseClient, input: Omit<P
     result = await gasPost({ action: "writeCells", ...(target.spreadsheetId ? { spreadsheetId: target.spreadsheetId } : {}),
       memberName: target.sheetName, date: input.date, cells });
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "PC_BACKUP_UNAVAILABLE") {
-      throw new SheetPushReceiptError("SHEET_PUSH_BLOCKED", "送信前の保護により書き込みを保留しました。送信先を確認してください。", begin.attemptId, false, false, error);
+    // Both are rejected before anything reaches the sheet, so the reservation is released for a normal resend.
+    if (isKnownUnsent(error)) {
+      return notSent(admin, begin.attemptId, binding, error);
     }
     throw new SheetPushReceiptError("SHEET_WRITE_RESULT_UNKNOWN", "スプレッドシートへの送信結果を確認できませんでした。再送せず、送信先を確認してください。", begin.attemptId, "unknown", true, error);
   }
@@ -322,8 +349,8 @@ export async function clearIfExistingWithReceipt(admin: SupabaseClient,
   const body = { ...payload, attemptId: begin.attemptId };
   let result;
   try { result = await gasPost(body); } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "PC_BACKUP_UNAVAILABLE")
-      throw new SheetPushReceiptError("SHEET_PUSH_BLOCKED", "送信前の保護により消去を保留しました。削除予定を保持しました。", begin.attemptId, false, false, error);
+    if (isKnownUnsent(error))
+      return notSent(admin, begin.attemptId, binding, error);
     throw new SheetPushReceiptError("SHEET_WRITE_RESULT_UNKNOWN", "消去結果を確認できませんでした。再送せず、送信先を確認してください。", begin.attemptId, "unknown", true, error);
   }
   const confirmed = confirmedClear(result, body, mapping.columns);
