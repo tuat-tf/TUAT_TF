@@ -17,7 +17,11 @@
 4. dryRunObResultsPublishで変更範囲を確認後、publishObResultsで反映する。installObResultsTriggerは旧5分timerを1時間timerへ置換し、旧編集triggerを撤去する。繰り返してもtimerは1本。
 5. 保存通知用Webアプリは部活アカウント `tuattf.sys@gmail.com` として実行し、全員から通信できる入口に署名認証をかける。この公開範囲は所有者の明示承認が必要。コード/Sheet共有範囲は変更しない。通知URLはsrc/lib/ob-results-notify.tsへ設定する。
 
-## シート所有者の引き継ぎ
+## 出力先（2026-10-24 所有者指示で元シートへ戻した）
+
+出力先は元の共有シート `188DwdYDpRuk4a27whOiu5lhhNK4MDaSeYRfXTHDhBAw`（`OB_RESULTS_TARGET`）。アプリの派生鍵は部活コピー `1b1KueR6…` のIDに紐づくため、`OB_RESULTS_FEED_ID` として照合だけに使い、アプリ・鍵は変更していない。部活コピーへの出力は停止（内容は保持）。旧Vercel入口から元シートへ書いていた別プロジェクト `1FiyFxvH…` は `publishObResults` を書込みなしに置換して退役。配備 `AKfycbwY…` は v5。署名付き `dryRun` で差分を確認してから `publish` する。
+
+## シート所有者の引き継ぎ（10/22の記録）
 
 対象は部活所有の `1b1KueR6oR0v_3UKpJUpzOrYKjPJW1-Q4Dg8digEaB8M`。元の大学共有ドライブから13タブをコピーし、値・式・書式・生成範囲metadataを読み取り照合する。コピーだけで連携先は変わらない。
 

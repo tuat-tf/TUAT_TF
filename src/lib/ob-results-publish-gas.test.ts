@@ -131,7 +131,7 @@ function setup(advanced = false) {
         const width = [...column].reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0);
         return { values: state.workbook.sheets.find(sheet => sheet.properties.title === name)!.cells.slice(0, Number(count)).map(row => row.slice(0, width).map(cell => cell.userEnteredValue?.stringValue ?? cell.userEnteredValue?.numberValue ?? "")) };
       }) }) },
-      batchUpdate: (body: { requests: Request[] }, id: string) => { expect(id).toBe(OB_RESULTS_SPREADSHEET_ID); applyBatch(body.requests); } } },
+      batchUpdate: (body: { requests: Request[] }, id: string) => { expect(id).toBe("188DwdYDpRuk4a27whOiu5lhhNK4MDaSeYRfXTHDhBAw"); applyBatch(body.requests); } } },
     ContentService: { MimeType: { JSON: "json" }, createTextOutput: (text: string) => ({ text, setMimeType() { return this; } }) },
     Utilities: { computeHmacSha256Signature: (value: string, key: string) => [...createHmac("sha256", key).update(value).digest()], DigestAlgorithm: { SHA_256: "SHA_256" }, computeDigest: (_algorithm: string, value: string) => [...createHash("sha256").update(value).digest()], newBlob: blob, gzip: (value: ReturnType<typeof blob>) => blob(gzipSync(value.getBytes()), "application/gzip"), ungzip: (value: ReturnType<typeof blob>) => {
       if (!value.contentType) throw Error("Blob object must have non-null content type");

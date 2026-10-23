@@ -1,6 +1,9 @@
 // Standalone private project. Never bind this script to the link-shared workbook.
 // One-way app to workbook output. Credentials and row identities stay private.
-var OB_RESULTS_TARGET = '1b1KueR6oR0v_3UKpJUpzOrYKjPJW1-Q4Dg8digEaB8M';
+// Output goes back to the original shared workbook (owner decision 2026-10-24). The feed keeps the
+// club-copy ID as its identity because the app's derived read token is bound to it.
+var OB_RESULTS_TARGET = '188DwdYDpRuk4a27whOiu5lhhNK4MDaSeYRfXTHDhBAw';
+var OB_RESULTS_FEED_ID = '1b1KueR6oR0v_3UKpJUpzOrYKjPJW1-Q4Dg8digEaB8M';
 var OB_RESULTS_FEED_URL = 'https://app.tuat-tf.workers.dev/api/ob-results/snapshot';
 var OB_EDIT_NAME = 'エントリー編集';
 var OB_EDIT_METADATA_KEY = 'TUAT_OB_EDIT_MANAGED_V1';
@@ -24,15 +27,16 @@ function doPost(event) {
   try {
     var body = JSON.parse(event.postData.contents);
     var key = PropertiesService.getScriptProperties().getProperty('OB_RESULTS_READ_TOKEN');
-    if (!key || body.action !== 'publish' || !Number.isSafeInteger(body.timestamp)
+    if (!key || (body.action !== 'publish' && body.action !== 'dryRun') || !Number.isSafeInteger(body.timestamp)
         || Math.abs(Date.now() - body.timestamp) > 120000 || !/^[a-f0-9]{64}$/.test(body.signature || '')) throw new Error('Invalid notification');
     var expected = Utilities.computeHmacSha256Signature('ob-publish:' + body.timestamp, key).map(function(b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
     var difference = 0;
     for (var i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ body.signature.charCodeAt(i);
     if (difference) throw new Error('Invalid notification');
-    var result = publishObResults();
+    var result = body.action === 'dryRun' ? runObResultsPublish_(true) : publishObResults();
     reply = { ok: true, changed: result.changed };
-  } catch (error) { if (error.obBusy) reply.busy = true; }
+    if (body.action === 'dryRun') reply.changeCount = (result.changes || []).length;
+  } catch (error) { if (error.obBusy) reply.busy = true; else if (error.message !== 'Invalid notification') reply.error = String(error.message).slice(0, 200); }
   return ContentService.createTextOutput(JSON.stringify(reply)).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -90,7 +94,7 @@ function runObResultsPublish_(dryRun) {
 }
 
 function validateObResultsSnapshot_(snapshot) {
-  if (!snapshot || snapshot.schemaVersion !== 2 || snapshot.meetKey !== 'ob-2026' || snapshot.spreadsheetId !== OB_RESULTS_TARGET
+  if (!snapshot || snapshot.schemaVersion !== 2 || snapshot.meetKey !== 'ob-2026' || snapshot.spreadsheetId !== OB_RESULTS_FEED_ID
       || !/^[a-f0-9]{64}$/.test(snapshot.revision || '') || !Number.isSafeInteger(snapshot.entryCount) || snapshot.entryCount < 0
       || typeof snapshot.generatedAt !== 'string' || !Number.isFinite(Date.parse(snapshot.generatedAt))
       || !Array.isArray(snapshot.sheets) || (snapshot.sheets.length !== OB_RESULTS_TABS.length && snapshot.sheets.length !== OB_RESULTS_TABS.length + 1)) throw new Error('Invalid OB source; previous sheet preserved');
