@@ -76,9 +76,15 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
   function bestTrial(person:MeetPerformance) {
     return model.bestTrial(person)??person.trials.find(t=>t.status==="valid"&&t.mark==="-")??emptyTrial();
   }
+  /** The field mark being edited, exactly as typed ("26." included); the saved best only while untouched. */
+  function fieldTrial(person:MeetPerformance) {
+    const saved=base.data.participants.find(p=>p.entryId===person.entryId);
+    const untouched=!!saved&&JSON.stringify(person.trials)===JSON.stringify(saved.trials);
+    return untouched?bestTrial(person):person.trials[0]??bestTrial(person);
+  }
   function bestRecord(id:string,patch:Partial<MeetTrial>) {
     const person=data.participants.find(p=>p.entryId===id)!;
-    const next={...bestTrial(person),...patch},saved=base.data.participants.find(p=>p.entryId===id);
+    const next={...fieldTrial(person),...patch},saved=base.data.participants.find(p=>p.entryId===id);
     const original=saved&&bestTrial(saved);
     update(id,{trials:saved&&original&&next.mark===original.mark&&next.status===original.status&&next.wind===original.wind?saved.trials:[next]});
   }
@@ -133,7 +139,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
               {appearanceActions(a.id)}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">{Array.from({length:count},(_,index)=>{
-              const t=event.discipline==="track"?performance.trials[index]??emptyTrial():bestTrial(performance);
+              const t=event.discipline==="track"?performance.trials[index]??emptyTrial():fieldTrial(performance);
               const edit=(patch:Partial<MeetTrial>)=>event.discipline==="track"?trial(a.id,index,patch):bestRecord(a.id,patch);
               return <fieldset key={index} disabled={locked} className="space-y-2">
                 <label className="block text-caption">{event.discipline==="track"?"タイム（秒・分:秒・未計測は -）":"最高記録（m・未計測は -）"}

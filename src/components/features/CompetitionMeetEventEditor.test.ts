@@ -143,3 +143,13 @@ it("lists repeated appearances together and saves multiple best records in one r
  expect(capture.run).toHaveBeenCalledWith(expect.objectContaining({action:"event.save",changes:[expect.objectContaining({id:first.id,performance:expect.objectContaining({trials:[{mark:"1.15",status:"valid",wind:""}]})}),expect.objectContaining({id:second.id,performance:expect.objectContaining({trials:[{mark:"1.30",status:"valid",wind:""}]})})]}));
  expect(first.performance.trials[0].mark).toBe("1.10");
 });
+it("keeps a field mark exactly as typed, including an intermediate decimal point",()=>{
+ const data=meet();render(data);
+ for(const typed of ["1","1.","1.8","1.85"]){capture.inputs[0].onChange({target:{value:typed}});render(data);expect(capture.inputs[0].value).toBe(typed);}
+ capture.inputs[0].onBlur({target:{value:"1.85"}});render(data);expect(capture.inputs[0].value).toBe("1.85");
+});
+it("formats a digits-only field mark into metres when the field is left",()=>{
+ const data=meet();render(data);
+ capture.inputs[0].onChange({target:{value:"185"}});render(data);expect(capture.inputs[0].value).toBe("185");
+ capture.inputs[0].onBlur({target:{value:"185"}});render(data);expect(capture.inputs[0].value).toBe("1.85");
+});
