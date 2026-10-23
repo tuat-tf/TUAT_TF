@@ -161,10 +161,10 @@ it("edits only the best field attempt and keeps the other attempts for tie-break
  const change=(capture.run.mock.lastCall![0] as {changes:{performance:{trials:{mark:string}[]}}[]}).changes[0];
  expect(change.performance.trials.map(t=>t.mark)).toEqual(["1.70","1.85"]);
 });
-it("drops the heat position when a runner is marked DNF",()=>{
+it("keeps the heat position when a runner is marked DNF",()=>{
  const data=trackFamily();render(data);
  const select=[...capture.selects.entries()].find(([label])=>label.includes("出場状況"))![1];
  expect(render(data)).not.toContain("組未定");
  select.onValueChange("DNF");const html=render(data);
- expect(html).toContain("組未定");
+ expect(html).not.toContain("組未定");
 });

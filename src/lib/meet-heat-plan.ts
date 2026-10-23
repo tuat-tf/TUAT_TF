@@ -1,4 +1,4 @@
-import { releasesMeetPlacement, withoutMeetPlacement, type MeetEventData, type MeetOperationLimits } from "./meet-operations";
+import { movableMeetStatus, releasesMeetPlacement, withoutMeetPlacement, type MeetEventData, type MeetOperationLimits } from "./meet-operations";
 
 /** Checklist moves affect selected people; explicit slides reorder only editable slots. */
 export class MeetHeatPlan {
@@ -7,7 +7,7 @@ export class MeetHeatPlan {
     const participants = data.participants.map(p => releasesMeetPlacement(p.status) ? withoutMeetPlacement(p) : p);
     this.data = participants.some((p, i) => p !== data.participants[i]) ? { ...data, participants } : data;
   }
-  get active() { return this.data.participants.filter(p => this.eligibleIds.has(p.entryId) && p.status === "entered"); }
+  get active() { return this.data.participants.filter(p => this.eligibleIds.has(p.entryId) && movableMeetStatus(p.status)); }
   get unassigned() { return this.active.filter(p => p.group === null || p.order === null); }
   private selected(ids: string[]) {
     if (!ids.length || new Set(ids).size !== ids.length || ids.some(id => !this.active.some(p => p.entryId === id))) throw new Error("移す人を選んでください");

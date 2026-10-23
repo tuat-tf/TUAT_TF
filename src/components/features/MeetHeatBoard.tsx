@@ -6,7 +6,7 @@ import { FormModalFooter } from "@/components/ui/form-modal";
 import { ReorderList } from "@/components/ui/reorder-list";
 import { Select } from "@/components/ui/select";
 import { MeetHeatPlan } from "@/lib/meet-heat-plan";
-import type { MeetEventData, MeetOperationLimits, MeetPerformance } from "@/lib/meet-operations";
+import { movableMeetStatus, type MeetEventData, type MeetOperationLimits, type MeetPerformance } from "@/lib/meet-operations";
 
 export type HeatEntrant = { id: string; name: string; grade: string; mark: string; alumni: boolean; eligible: boolean; absent?: boolean; division?: "男子" | "女子"; placementLocked?: boolean };
 type HeatSlot = { id: string; order: number; person?: MeetPerformance; locked: boolean };
@@ -24,14 +24,14 @@ export function MeetHeatBoard({ data: savedData, entrants, orderLabel, capacity,
   const eligible = new Set(entrants.filter(person => person.eligible && !person.absent && !person.placementLocked).map(person => person.id));
   const model = new MeetHeatPlan(savedData, eligible, modelLimits);
   const data = model.data;
-  const present = data.participants.filter(person=>presentIds.has(person.entryId)&&person.status==="entered");
+  const present = data.participants.filter(person=>presentIds.has(person.entryId)&&movableMeetStatus(person.status));
   const savedGroups = data.participants.flatMap(person => person.group !== null ? [person.group] : []);
   const groups = [...new Set([...savedGroups, ...emptyGroups, ...(!savedGroups.length && !emptyGroups.length ? [requestedNextGroup ?? 1] : [])])].sort((a, b) => a - b);
   const groupLabel = (group: number) => labelGroup(group, groups);
   let nextGroup = requestedNextGroup === null ? groupLimit + 1 : requestedNextGroup ?? Math.max(0, ...groups) + 1;
   while (groups.includes(nextGroup) && nextGroup <= groupLimit) nextGroup++;
   const ids = selected.filter(id => model.active.some(person => person.entryId === id));
-  const unplacedInactive = data.participants.filter(person => (!presentIds.has(person.entryId) || person.status !== "entered") && (person.group === null || person.order === null));
+  const unplacedInactive = data.participants.filter(person => (!presentIds.has(person.entryId) || !movableMeetStatus(person.status)) && (person.group === null || person.order === null));
   const positions = new Map<string, number>();
   for (const person of data.participants) if (person.status !== "DNS" && person.group !== null && person.order !== null) {
     const position = `${person.group}:${person.order}`;
@@ -46,7 +46,7 @@ export function MeetHeatBoard({ data: savedData, entrants, orderLabel, capacity,
   }
   function row(person: MeetPerformance) {
     const entry = people.get(person.entryId), checked = ids.includes(person.entryId);
-    const selectable = eligible.has(person.entryId) && person.status === "entered";
+    const selectable = eligible.has(person.entryId) && movableMeetStatus(person.status);
     const duplicate = person.group !== null && person.order !== null && (positions.get(`${person.group}:${person.order}`) ?? 0) > 1;
     const reason = entry?.placementLocked ? "記録確定済み" : entry?.absent ? "DNS" : !entry?.eligible ? "DNS" : person.status === "DNS" ? "DNS" : person.status;
     const marks = person.trials.map(trial => trial.mark ? `${trial.mark}${trial.wind ? `（風速 ${trial.wind}）` : ""}` : trial.status === "foul" ? "失敗" : trial.status === "pass" ? "パス" : "").filter(Boolean);
@@ -68,7 +68,7 @@ export function MeetHeatBoard({ data: savedData, entrants, orderLabel, capacity,
     const span = capacity ?? Math.max(1, ...assigned.map(person => person.order!));
     const slots: HeatSlot[] = Array.from({ length: span }, (_, index) => {
       const order = index + 1, person = assigned.find(person => person.order === order);
-      return { id: person ? `person:${person.entryId}` : `empty:${group}:${order}`, order, person, locked: !!person && (!eligible.has(person.entryId) || person.status !== "entered") };
+      return { id: person ? `person:${person.entryId}` : `empty:${group}:${order}`, order, person, locked: !!person && (!eligible.has(person.entryId) || !movableMeetStatus(person.status)) };
     });
     const shown = new Set(slots.flatMap(slot => slot.person ? [slot.person.entryId] : []));
     const extra = assigned.filter(person => !shown.has(person.entryId));

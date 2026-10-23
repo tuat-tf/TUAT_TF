@@ -10,9 +10,15 @@ export const emptyTrial = (): MeetTrial => ({ mark: "", status: "pending", wind:
 export const emptyPerformance = (entryId: string): MeetPerformance => ({ entryId, group: null, order: null, status: "entered", trials: [] });
 
 /** Release a placement without changing the person's status or trial history. */
-/** DNS and DNF hold no heat/lane/order slot; DQ keeps the position it ran in. */
+/** Runners who started (entered, DNF, DQ) stay movable in heats/orders, so a DNF is never pinned to a slot
+ *  that leaves a gap when the others are rearranged. */
+export function movableMeetStatus(status: MeetPerformance["status"]): boolean {
+  return status === "entered" || status === "DNF" || status === "DQ";
+}
+
+/** Only DNS gives up its heat/lane/order slot; DNF and DQ keep the position they ran in. */
 export function releasesMeetPlacement(status: MeetPerformance["status"]): boolean {
-  return status === "DNS" || status === "DNF";
+  return status === "DNS";
 }
 
 export function withoutMeetPlacement(person: MeetPerformance): MeetPerformance {

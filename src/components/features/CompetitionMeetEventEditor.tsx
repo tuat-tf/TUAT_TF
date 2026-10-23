@@ -145,7 +145,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
           const placement=placementText(performance);
           return <Card key={a.id} className="space-y-3 p-3.5">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-body font-semibold">{person?.name}<span className="ml-2 text-caption font-normal">{person?.grade}・{familyEvents.find(e=>e.name===a.event_name)?.division}</span></h3><p className="text-caption">{placement}・{model.best(performance)}{ranks.has(a.id)?`・${ranks.get(a.id)}位`:""}</p></div>
-              <Select ariaLabel={`${person?.name} ${a.event_name} ${placement}の出場状況`} className="w-40" disabled={disabled||sourceConfirmed||!availableAppearance(person,a)} value={performance.status} onValueChange={status=>update(a.id,status==="DNS"||status==="DNF"?{status,group:null,order:null,heatScope:undefined}:{status:status as MeetPerformance["status"]})} options={[{value:"entered",label:"出場"},{value:"DNS",label:"DNS（欠場）"},{value:"DNF",label:"DNF（途中棄権）"},{value:"DQ",label:"DQ（失格）"}]}/>
+              <Select ariaLabel={`${person?.name} ${a.event_name} ${placement}の出場状況`} className="w-40" disabled={disabled||sourceConfirmed||!availableAppearance(person,a)} value={performance.status} onValueChange={status=>update(a.id,status==="DNS"?{status:"DNS",group:null,order:null,heatScope:undefined}:{status:status as MeetPerformance["status"]})} options={[{value:"entered",label:"出場"},{value:"DNS",label:"DNS（欠場）"},{value:"DNF",label:"DNF（途中棄権）"},{value:"DQ",label:"DQ（失格）"}]}/>
               {appearanceActions(a.id)}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">{Array.from({length:count},(_,index)=>{

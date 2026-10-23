@@ -10,10 +10,10 @@ const person: MeetParticipant={id:"person",competition_id:"meet",profile_id:null
 const event: ManagedMeetEvent={competition_id:"meet",name:"男子100m",family:"100m",division:"男子",starts_at:"10:00",sort_order:0,discipline:"track",wind:true,capacity:8,confirmed:false,revision:0};
 const appearance=(id:string,ordinal:number,state:MeetAppearance["state"]="registered"):MeetAppearance=>({id,competition_id:"meet",participant_id:person.id,event_name:event.name,ordinal,operation_key:id,qualification_mark:null,state,performance:{...emptyPerformance(id),group:1,order:ordinal,trials:[{mark:"12.34",wind:"0",status:"valid"}]},revision:0});
 describe("independent competition appearances",()=>{
- it("shows an older saved DNF without its heat slot while keeping its result",()=>{
+ it("keeps a DNF in the heat slot it ran in",()=>{
   const dnf=appearance("dnf",1);dnf.performance={...dnf.performance,group:1,order:3,status:"DNF",trials:[{mark:"",status:"pending",wind:""}]};
   const value=appearancePerformance(person,dnf);
-  expect([value.status,value.group,value.order]).toEqual(["DNF",null,null]);
+  expect([value.status,value.group,value.order]).toEqual(["DNF",1,3]);
   expect(value.trials).toEqual(dnf.performance.trials);
  });
  it("uses one 100m entrance and derives a heat's division from its actual occupants",()=>{

@@ -185,13 +185,25 @@ it("opts into 297 projected groups and order600 without changing generic limits 
  expect(new MeetHeatPlan(occupied,ids,limits).setDns(dns.entryId,false).participants[0]).toEqual({...dns,status:"entered",group:null,order:null});
 });
 
-it("releases the heat slot for DNF as for DNS, but keeps a DQ in the position it ran", () => {
+it("releases the heat slot only for DNS; DNF and DQ keep the position they ran in", () => {
   const data: MeetEventData = { confirmed: false, participants: [
     { ...emptyPerformance("dnf"), group: 1, order: 3, status: "DNF" },
     { ...emptyPerformance("dns"), group: 1, order: 4, status: "DNS" },
     { ...emptyPerformance("dq"), group: 1, order: 5, status: "DQ" },
   ] };
   const plan = new MeetHeatPlan(data, new Set(["dnf", "dns", "dq"]));
-  expect(plan.data.participants.map(p => [p.entryId, p.group, p.order])).toEqual([["dnf", null, null], ["dns", null, null], ["dq", 1, 5]]);
-  expect(new MeetEvent({ name: "男子1500m", discipline: "track", wind: false } as never, data).seed(8).participants.find(p => p.entryId === "dnf")?.group).toBe(1);
+  expect(plan.data.participants.map(p => [p.entryId, p.group, p.order])).toEqual([["dnf", 1, 3], ["dns", null, null], ["dq", 1, 5]]);
+});
+
+it("moves a DNF runner like the others so no gap is left in a distance heat", () => {
+  const data: MeetEventData = { confirmed: false, participants: [
+    { ...emptyPerformance("a"), group: 1, order: 1 },
+    { ...emptyPerformance("dnf"), group: 1, order: 2, status: "DNF" },
+    { ...emptyPerformance("b"), group: 1, order: 3 },
+  ] };
+  const plan = new MeetHeatPlan(data, new Set(["a", "dnf", "b"]));
+  expect(plan.active.map(p => p.entryId)).toEqual(["a", "dnf", "b"]);
+  // Reorder the three slots: the DNF moves to the end instead of staying pinned at 2.
+  const next = plan.reorder(1, [1, 3, 2]);
+  expect(next.participants.map(p => [p.entryId, p.order])).toEqual([["a", 1], ["dnf", 3], ["b", 2]]);
 });
