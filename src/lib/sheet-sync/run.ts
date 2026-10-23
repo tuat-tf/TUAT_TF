@@ -525,5 +525,7 @@ export async function runSheetSync(admin: SupabaseClient, options: SyncOptions =
         reason: error instanceof Error ? error.message : "シートを取得できませんでした" })));
     }
   }
+  // Receipts resolved during this run were removed from the list; newly uncertain writes set sheetWritesUncertain.
+  total.unresolvedSheetWrites = activeReceipts.length;
   return total;
 }

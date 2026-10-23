@@ -161,6 +161,16 @@ test('a safe read failure cannot release an already blocked uncertain write', as
   assert.equal(state.sheetWritesBlocked, true);
   assert.equal(state.jobs.sheets.status, 'partial');
 });
+test('writes resume only when the app reports no unresolved receipt and no new uncertainty', async () => {
+  for (const [unresolved, expected] of [[0, false], [1, true]]) {
+    const state = initialState(at - 86400000);
+    state.sheetWritesBlocked = true;
+    state.jobs.sheets = { slot: at - 86400000, status: 'partial', sheetWritesSkipped: true, sheetWritesUncertain: false };
+    await tick({ state, now: at, save: async () => {}, ready: async () => true, execute: async job =>
+      job.id === 'sheets' ? { ok: true, status: 200, value: { ok: true, failedMembers: [], sheetWritesSkipped: true, sheetWritesUncertain: false, unresolvedSheetWrites: unresolved } } : success(job) });
+    assert.equal(state.sheetWritesBlocked, expected);
+  }
+});
 test('backend/backup maintenance guard prevents dispatch and preserves catch-up slot', async () => {
   const state = initialState(at);
   await tick({ state, now: at, ready: async () => false, save: async () => { assert.fail(); }, execute: async () => { assert.fail(); } });

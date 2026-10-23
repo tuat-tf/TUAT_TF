@@ -30,4 +30,6 @@ export type SyncResult = {
   sheetWritesUncertain?: boolean;
   /** Writes whose response was lost but whose exact payload was found in the published sheet. */
   reconciledWrites?: number;
+  /** Write receipts still unresolved after this run (0 lets the scheduler resume writes). */
+  unresolvedSheetWrites?: number;
 };

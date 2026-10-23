@@ -97,6 +97,13 @@ export async function tick({ state, now, save, execute, ready, localPushEnabled 
       record.status = result.ok && successfulPayload(dispatch, result.value) ? (dispatch.skipSheetWrites ? 'partial' : 'success') : 'failed';
       record.httpStatus = result.status;
       if (job.id === 'sheets') record.sheetWritesUncertain = result.ok && result.value?.sheetWritesUncertain === false ? false : record.status !== 'success';
+      // Release the block only on the app's explicit proof: no unresolved write receipt remains and this run added no
+      // uncertain write. A plain safe read without that count never releases it.
+      if (job.id === 'sheets' && state.sheetWritesBlocked && result.ok && result.value?.sheetWritesUncertain === false
+        && result.value?.unresolvedSheetWrites === 0) {
+        state.sheetWritesBlocked = false;
+        record.sheetWritesUnblocked = true;
+      }
     } catch {
       record.status = 'uncertain';
     }
