@@ -37,7 +37,7 @@ function message(error: string) {
   if (error.includes("meet_position")) return "その組・番号は使用中です。空いている番号を選んでください";
   if (error.includes("meet_duties")) return "出場や担当と重複するか、役割が使用中です。補助担当を確認してください";
   if (error.includes("meet_profile")) return "このアカウントの参加者は登録済みです。既存の参加者を選んでください";
-  if (error.includes("meet_unavailable")) return "取消・削除・欠席中です。先に復帰操作を行ってください";
+  if (error.includes("meet_unavailable")) return "DNSになっています。先にDNSを解除してください";
   return "保存できませんでした。入力を確認してください";
 }
 export async function mutateCompetitionMeet(competitionId: string, requestId: string, command: MeetCommand): Promise<MeetMutationResult> {

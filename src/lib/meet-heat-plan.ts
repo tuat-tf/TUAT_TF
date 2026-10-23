@@ -79,7 +79,7 @@ export class MeetHeatPlan {
   }
   setDns(id: string, dns: boolean): MeetEventData {
     const person = this.data.participants.find(p => p.entryId === id);
-    if (!person || !this.eligibleIds.has(id)) throw new Error("大会の欠席・出場登録を先に確認してください");
+    if (!person || !this.eligibleIds.has(id)) throw new Error("DNSの出場は配置できません。先にDNSを解除してください");
     if (dns && person.status !== "entered") throw new Error("記録画面で出場状況を確認してください");
     if (!dns && person.status !== "DNS") return this.data;
     return { ...this.data, confirmed: false, participants: this.data.participants.map(p => p.entryId === id ? { ...withoutMeetPlacement(p), status: dns ? "DNS" : "entered" } : p) };

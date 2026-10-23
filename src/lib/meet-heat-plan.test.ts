@@ -71,7 +71,7 @@ it("removes legacy DNS placement and heat scope without affecting eligibility or
  expect(next.participants[0].trials).toBe(a.trials);
  expect(next.participants[1]).toBe(occupied.participants[1]);
  const absentPlan=new MeetHeatPlan(data,new Set(["b","c"]));
- expect(()=>absentPlan.setDns("a",true)).toThrow("欠席");
+ expect(()=>absentPlan.setDns("a",true)).toThrow("DNS");
  expect(()=>absentPlan.move(["a"],2)).toThrow();
 });
 

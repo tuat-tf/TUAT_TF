@@ -1,6 +1,6 @@
 import {relayResultRow} from "./competition-meet-relay";
 import {gradeShort} from "./constants";
-import { appearancePerformance, availableAppearance, competitionEventData, meetAppearancePositionLabel, meetEventFamilies, meetRule, type CompetitionMeet } from "./competition-meet";
+import { appearancePerformance, competitionEventData, meetAppearancePositionLabel, meetEventFamilies, meetRule, type CompetitionMeet } from "./competition-meet";
 import { MeetEvent } from "./meet-operations";
 import { obResultRanks } from "./ob-result-ranking";
 import type { ParsedProgramRow } from "./competition-program";
@@ -20,7 +20,6 @@ export function meetResultRows(meet: CompetitionMeet, date: string): ParsedProgr
         const best = aggregate.best(p), wind = aggregate.bestTrial(p)?.wind;
         // One mark per appearance; the record itself is the result, so attempts are not listed.
         const details: string[] = [];
-        if (!availableAppearance(person, a)) details.unshift(person?.absent ? "大会欠席" : "出場取消済み");
         return {
           id: a.id, name: person?.name ?? "参加者確認中", grade: gradeShort(person?.grade ?? null) ?? "",
           heat: event.discipline === "track" ? p.group : null, lane: event.discipline === "track" ? p.order : null, bib: null,
