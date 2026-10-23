@@ -88,7 +88,7 @@ describe("independent competition appearances",()=>{
   const sheet=obPublishedResultSheets(exported.entries,exported.operations).find(sheet=>sheet.name==="100m")!;
   const lines=sheet.rows.filter(line=>line.includes(person.name));
   expect(lines).toHaveLength(4);expect(lines.map(line=>line[1])).toEqual([1,2,3,4]);
-  expect(lines.map(line=>line.slice(2))).toEqual(Array(4).fill(["男子",person.name,"B1","出場","12.34",1]));
+  expect(lines.map(line=>line.slice(2))).toEqual(Array(4).fill(["男子",person.name,"B1","出場","12.34","男子1位"]));
   expect(sheet.rows.flat().join(" ")).not.toContain("件目");expect(meet).toEqual(before);
  });
 });

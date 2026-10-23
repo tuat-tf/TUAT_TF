@@ -13,8 +13,8 @@ describe("live shared OB workbook", () => {
     const sheets = obPublishedResultSheets(entries, operations);
     expect(sheets.map(sheet => sheet.name)).toEqual(["プログラム", "1500m", "ジャベリックスロー", "立ち五段跳び", "100m", "砲丸投げ", "300mH", "走り高跳び", "300m", "やり投げ", "走り幅跳び", "3000m"]);
     const track = sheets.find(sheet => sheet.name === "100m")!;
-    expect(track.rows[0]).toEqual(["組", "レーン", "区分", "氏名", "学年", "出場状況", "記録", "順位"]);
-    expect(track.rows.find(row => row.includes("合成三郎"))).toEqual(["組未定", null, "男子", "合成三郎", "B3", "DNS（欠場）", "", ""]);
+    expect(track.rows[0]).toEqual(["組", "レーン", "区分", "氏名", "学年", "出場状況", "記録", "順位（男女別）"]);
+    expect(track.rows.find(row => row.includes("合成三郎"))).toEqual(["", null, "男子", "合成三郎", "B3", "DNS（欠場）", "", ""]);
     expect(track.rows.find(row => row.includes("合成四郎"))).toEqual([null, null, "男子", "合成四郎", "B4", "DNS（欠場）", "", ""]);
     expect(track.rows.find(row => row.includes("合成五郎"))).toEqual([null, null, "男子", "合成五郎", "M1", "DNS（欠場）", "11.90", ""]);
     expect(track.rows).toContainEqual([]);
@@ -75,7 +75,7 @@ const operations = [
 
 describe("OB results workbook", () => {
   const sheets = obResultSheets(entries, operations);
-  const sheet = (name: string) => { const value = sheets.find(sheet => sheet.name === name)!; return value.rows[0].includes("順位") ? { ...value, rows: value.rows.map(row => row.length ? row.slice(0,-1) : row) } : value; };
+  const sheet = (name: string) => { const value = sheets.find(sheet => sheet.name === name)!; return value.rows[0].includes("順位（男女別）") ? { ...value, rows: value.rows.map(row => row.length ? row.slice(0,-1) : row) } : value; };
 
   it("starts with the timetable, then one sheet per event in program order", () => {
     expect(sheets.map(sheet => sheet.name)).toEqual(["プログラム", "1500m", "立ち五段跳び", "100m", "走り高跳び", "走り幅跳び"]);
@@ -94,7 +94,7 @@ describe("OB results workbook", () => {
     ]);
     expect(sheet("立ち五段跳び").rows).toEqual([
       ["試技順", "区分", "氏名", "学年"],
-      ["順番未定", "男子", "合成七郎", "B1"],
+      ["", "男子", "合成七郎", "B1"],
     ]);
   });
 
@@ -106,7 +106,7 @@ describe("OB results workbook", () => {
       [],
       ["混合1組", 4, "女子", "合成花子", "B2", "13.50"],
       [],
-      ["組未定", null, "男子", "合成五郎", "M1", "11.90"],
+      ["", null, "男子", "合成五郎", "M1", "11.90"],
       [null, null, "男子", "合成六郎", "OB・OG", ""],
     ]);
     const cells = sheets.flatMap(sheet => sheet.rows.flat());
@@ -149,8 +149,8 @@ describe("OB results workbook", () => {
 
 it("publishes automatic places separately for men and women while keeping cancelled marks without a place",()=>{
  const sheet=obPublishedResultSheets(entries,operations).find(s=>s.name==="100m")!;
- const col=sheet.rows[0].indexOf("順位");
- expect(sheet.rows.find(r=>r.includes("合成一郎"))![col]).toBe(1);
- expect(sheet.rows.find(r=>r.includes("合成花子"))![col]).toBe(1);
+ const col=sheet.rows[0].indexOf("順位（男女別）");
+ expect(sheet.rows.find(r=>r.includes("合成一郎"))![col]).toBe("男子1位");
+ expect(sheet.rows.find(r=>r.includes("合成花子"))![col]).toBe("女子1位");
  expect(sheet.rows.find(r=>r.includes("合成五郎"))![col]).toBe("");
 });

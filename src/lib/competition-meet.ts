@@ -97,9 +97,9 @@ export function meetAppearancePositionLabel(meet: Pick<CompetitionMeet,"particip
   const event=meet.events.find(e=>e.name===appearance.event_name);
   if(!event)return "種目確認中";
   const person=meet.participants.find(p=>p.id===appearance.participant_id),performance=appearancePerformance(person,appearance);
-  if(event.discipline==="track")return performance.group===null?"組未定":`${meetFamilyGroupLabel(meet,event,meetBoardGroup(performance.group,performance.heatScope??event.division))} ${performance.order??"未定"}${event.capacity?"レーン":"番"}`;
+  if(event.discipline==="track")return performance.group===null?"":`${meetFamilyGroupLabel(meet,event,meetBoardGroup(performance.group,performance.heatScope??event.division))} ${performance.order??"未定"}${event.capacity?"レーン":"番"}`;
   const number=fieldOrderRows(competitionFamilyData(meet,event)).find(row=>row.person.entryId===appearance.id)?.number;
-  return number==null?"試技順未定":`試技順 ${number}番`;
+  return number==null?"":`試技順 ${number}番`;
 }
 export function meetDutyConflict(meet:Pick<CompetitionMeet,"participants"|"appearances"|"events">, participantId:string,time:string) {
   const person=meet.participants.find(p=>p.id===participantId);

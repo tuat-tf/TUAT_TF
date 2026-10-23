@@ -23,7 +23,9 @@ function summarizeFinished(row: ParsedProgramRow): { names: string; text: string
   const out: { names: string; text: string }[] = [];
   for (const entry of row.tuatEntries) {
     if (!entry.result) continue;
-    const text = describeResult(entry, row.eventLabel);
+    // Mixed heats rank men and women separately, so a place always says which.
+    const described = describeResult(entry, row.eventLabel);
+    const text = entry.resultDivision && entry.result?.place ? `${entry.resultDivision} ${described}` : described;
     const last = out.at(-1);
     if (last && !entry.separateResult && last.text === text) last.names += `・${formatAthleteLabel(entry)}`;
     else out.push({ names: formatAthleteLabel(entry), text });
