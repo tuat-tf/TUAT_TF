@@ -18,7 +18,8 @@ export function meetResultRows(meet: CompetitionMeet, date: string): ParsedProgr
       tuatEntries: meet.appearances.filter(a => a.event_name === event.name && a.state !== "deleted" && !people.get(a.participant_id)?.deleted).map(a => {
         const person = people.get(a.participant_id), p = appearancePerformance(person, a);
         const best = aggregate.best(p), wind = aggregate.bestTrial(p)?.wind;
-        const details = a.performance.trials.flatMap((t, i) => t.status === "pending" ? [] : [`試技${i + 1}: ${t.status === "foul" ? `${t.mark ? t.mark + " " : ""}×` : t.status === "pass" ? `${t.mark ? t.mark + " " : ""}−` : t.mark}${t.wind ? `（風 ${t.wind}）` : ""}`]);
+        // One mark per appearance; the record itself is the result, so attempts are not listed.
+        const details: string[] = [];
         if (!availableAppearance(person, a)) details.unshift(person?.absent ? "大会欠席" : "出場取消済み");
         return {
           id: a.id, name: person?.name ?? "参加者確認中", grade: gradeShort(person?.grade ?? null) ?? "",

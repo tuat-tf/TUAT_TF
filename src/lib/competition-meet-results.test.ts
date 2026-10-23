@@ -36,7 +36,7 @@ it("keeps same-name repeated starts and tied records independent by appearance I
 });
 it("shows DNS and preserved trials after cancellation, keeps DNF/DQ out of rankings, and excludes deleted rows",()=>{
   const meet=fixtureMeet();meet.appearances[0].state="cancelled";meet.appearances[1].performance.status="DNF";meet.appearances[2].performance.status="DQ";
-  const rows=meetResultRows(meet,"2026-10-13");expect(rows[0].tuatEntries[0]).toMatchObject({heat:null,lane:null,positionLabel:"組未定",result:{record:"DNS",place:null},details:["出場取消済み","試技1: 11.00（風 +1.0）"]});
+  const rows=meetResultRows(meet,"2026-10-13");expect(rows[0].tuatEntries[0]).toMatchObject({heat:null,lane:null,positionLabel:"組未定",result:{record:"DNS",place:null},details:["出場取消済み"]});
   expect(rows[0].tuatEntries[1].result).toEqual({record:"DNF",place:null});expect(rows[1].tuatEntries[0].result).toEqual({record:"DQ",place:null});
   meet.appearances[0].state="deleted";expect(meetResultRows(meet,"2026-10-13")[0].tuatEntries).toHaveLength(1);
 });

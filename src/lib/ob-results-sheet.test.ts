@@ -115,19 +115,16 @@ describe("OB results workbook", () => {
     for (const header of ["番号", "出場状況", "確認状況", "備考"]) expect(sheets.slice(1).flatMap(sheet => sheet.rows[0])).not.toContain(header);
   });
 
-  it("writes every field attempt without wind columns, preserving stored results", () => {
+  it("writes one 記録 column per field athlete, without attempt columns", () => {
     expect(sheet("走り幅跳び").rows).toEqual([
-      ["試技順", "区分", "氏名", "学年", "記録", "1回目", "2回目", "3回目", "4回目", "5回目", "6回目"],
-      [1, "男子", "合成跳太", "B2", "5.60", "5.31", "×", "5.60", "−", "5.60", ""],
-      [2, "男子", "合成跳次", "B3", "記録なし", "×", "×", "×", "", "", ""],
+      ["試技順", "区分", "氏名", "学年", "記録"],
+      [1, "男子", "合成跳太", "B2", "5.60"],
+      [2, "男子", "合成跳次", "B3", "記録なし"],
     ]);
-  });
-
-  it("groups high jump attempts under each bar height", () => {
     expect(sheet("走り高跳び").rows).toEqual([
-      ["試技順", "区分", "氏名", "学年", "記録", "1.20", "1.25", "1.30", "1.40", "1.50"],
-      [1, "男子", "合成高男", "B2", "1.4", "", "", "", "○", "×××"],
-      [2, "女子", "合成高子", "B1", "1.25", "○", "×○", "−", "", ""],
+      ["試技順", "区分", "氏名", "学年", "記録"],
+      [1, "男子", "合成高男", "B2", "1.4"],
+      [2, "女子", "合成高子", "B1", "1.25"],
     ]);
   });
 

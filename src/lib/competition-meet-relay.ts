@@ -31,7 +31,11 @@ export function validateRelayResults(teams: RelayTeamResult[], confirmed=false):
 
 export function formatRelayTime(value:string) {
   const text=value.normalize("NFKC").trim();
-  return /^\d{5,7}$/.test(text)?`${Number(text.slice(0,-4))}:${text.slice(-4,-2)}.${text.slice(-2)}`:text;
+  if(/^\d{5,7}$/.test(text))return `${Number(text.slice(0,-4))}:${text.slice(-4,-2)}.${text.slice(-2)}`;
+  if(/^\d{3,4}$/.test(text))return `${Number(text.slice(0,-2))}.${text.slice(-2)}`;
+  // Phone keypads lack ":" — accept 2.45.67 / 2'45"67 / 2 45 67 as minutes, seconds and hundredths.
+  const parts=text.match(/^(\d{1,2})\s*[.:'’′\s]\s*(\d{2})\s*[.:"”″\s]\s*(\d{1,2})$/);
+  return parts?`${Number(parts[1])}:${parts[2]}.${parts[3].padEnd(2,"0")}`:text;
 }
 
 export type RelayConflict={key:string;heat:number;lane:number;field:string;label:string;own:string;current:string};

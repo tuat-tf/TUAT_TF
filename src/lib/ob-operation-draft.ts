@@ -91,5 +91,5 @@ export function reviewObOperation(base: MeetEventData, own: MeetEventData, curre
 export function operationFieldLabel(p: MeetPerformance, field: OperationField, sourceDivision?: MeetHeatScope) {
   if (field === "position") return p.group !== null && p.order !== null ? `${p.heatScope ?? sourceDivision ?? ""}${p.group}組 ${p.order}番` : "組未定";
   if (field === "status") return { entered: "出場", DNS: "DNS", DNF: "途中棄権", DQ: "失格" }[p.status];
-  return p.trials.map((t, i) => `${i + 1}回目 ${t.mark || { pending: "未記録", valid: "記録あり", foul: "失敗", pass: "パス" }[t.status]}${t.wind ? ` (${t.wind})` : ""}`).join(" / ") || "未記録";
+  return p.trials.map(t => `${t.mark || { pending: "未記録", valid: "記録あり", foul: "失敗", pass: "パス" }[t.status]}${t.wind ? ` (${t.wind})` : ""}`).join(" / ") || "未記録";
 }

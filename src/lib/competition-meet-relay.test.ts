@@ -18,6 +18,7 @@ it("keeps exactly six lanes and supports an unfinished team without accepting a 
 it("formats minute shorthand only on commit without rounding or changing lane identity",()=>{
  expect(formatRelayTime("２４５６７")).toBe("2:45.67");expect(formatRelayTime(" 2:45.67 ")).toBe("2:45.67");
  expect(formatRelayTime("2:")).toBe("2:");
+ expect(formatRelayTime("2.45.67")).toBe("2:45.67");expect(formatRelayTime("2'45\"67")).toBe("2:45.67");expect(formatRelayTime("4567")).toBe("45.67");
 });
 it("keeps disjoint lane/field changes and resolves only conflicting fields",()=>{
  const base=emptyRelayResults(),draft=structuredClone(base),latest=structuredClone(base);

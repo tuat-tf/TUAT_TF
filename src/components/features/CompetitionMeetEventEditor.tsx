@@ -138,7 +138,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
         }
       </>:<>
         {event.discipline==="track"&&groups.length>0&&<Select ariaLabel="記録する組" value={group} onValueChange={setGroup} options={[{value:"all",label:"全員"},...groups.map(value=>({value:String(value),label:groupLabel(value)}))]}/ >}
-        {event.discipline!=="track"&&<p className="text-caption">各出場の最高記録を入力してください。</p>}
+        {event.discipline!=="track"&&<p className="text-caption">各出場の記録を入力してください。</p>}
         {visible.map(performance=>{
           const a=appearances.find(a=>a.id===performance.entryId)!,person=people.get(a.participant_id),sourceConfirmed=latest.confirmed,locked=disabled||sourceConfirmed||!availableAppearance(person,a)||performance.status==="DNS";
           const count=1;
@@ -152,13 +152,13 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
               const t=event.discipline==="track"?performance.trials[index]??emptyTrial():fieldTrial(performance);
               const edit=(patch:Partial<MeetTrial>)=>event.discipline==="track"?trial(a.id,index,patch):bestRecord(a.id,patch);
               return <fieldset key={index} disabled={locked} className="space-y-2">
-                <label className="block text-caption">{event.discipline==="track"?"タイム（秒・分:秒・未計測は -）":"最高記録（m・未計測は -）"}
-                  <Input aria-label={`${person?.name} ${placement}の${event.discipline==="track"?"タイム":"最高記録"}`} inputMode="text" value={t.mark} onChange={e=>edit({mark:e.target.value,status:e.target.value?"valid":"pending",...(!e.target.value||e.target.value==="-"?{wind:""}:{})})} onBlur={e=>{const saved=base.data.participants.find(p=>p.entryId===a.id);if(e.target.value===(saved?(event.discipline==="track"?saved.trials[index]?.mark:bestTrial(saved).mark)??"":""))return;const mark=formatObRecordInput(e.target.value,event.family);edit({mark,status:mark?"valid":"pending"});}}/>
+                <label className="block text-caption">{event.discipline==="track"?"タイム（秒・分:秒・未計測は -）":"記録（m・未計測は -）"}
+                  <Input aria-label={`${person?.name} ${placement}の${event.discipline==="track"?"タイム":"記録"}`} inputMode="text" value={t.mark} onChange={e=>edit({mark:e.target.value,status:e.target.value?"valid":"pending",...(!e.target.value||e.target.value==="-"?{wind:""}:{})})} onBlur={e=>{const saved=base.data.participants.find(p=>p.entryId===a.id);if(e.target.value===(saved?(event.discipline==="track"?saved.trials[index]?.mark:bestTrial(saved).mark)??"":""))return;const mark=formatObRecordInput(e.target.value,event.family);edit({mark,status:mark?"valid":"pending"});}}/>
                 </label>
                 {event.wind&&<label className="block text-caption">風速<Input inputMode="decimal" value={t.wind} onChange={e=>edit({wind:e.target.value})}/></label>}
               </fieldset>;
             })}</div>
-            {performance.status==="DNS"&&performance.trials.length>0&&<p className="text-caption">保存記録 {model.best({...performance,status:"entered"})}。試技は保持しています。</p>}
+            {performance.status==="DNS"&&performance.trials.length>0&&<p className="text-caption">保存記録 {model.best({...performance,status:"entered"})}。記録は保持しています。</p>}
           </Card>;
         })}
         {!visible.length&&<p className="text-caption">出場登録はありません</p>}
@@ -171,9 +171,9 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
     </div>
     <FormModalFooter><Button className="w-full" disabled={mutation.locked||!dirty} onClick={()=>void save()}>{mutation.busy?"保存中…":"保存する"}</Button></FormModalFooter>
     <Sheet open={reviewing} onOpenChange={setReviewing}><SheetContent title="変更の確認"><div className="space-y-4">
-      <p className="text-caption">配置・出場状況・試技を分けて確認します。重ならない変更は両方を保持します。</p>
+      <p className="text-caption">配置・出場状況・記録を分けて確認します。重ならない変更は両方を保持します。</p>
       {blocked.map(a=><div key={a.id} className="space-y-2"><p className="text-body">{people.get(a.participant_id)?.name}（{a.event_name}・{placementText(data.participants.find(p=>p.entryId===a.id)!)}）は取消・削除・欠席中です。入力を使うには先に参加者の画面で復帰してください。</p><p className="text-caption">入力: {operationFieldLabel(data.participants.find(p=>p.entryId===a.id)!,"trials")}</p><label className="flex min-h-11 items-center gap-2 text-body"><input type="checkbox" checked={choices[`${a.id}:unavailable`]==="current"} onChange={e=>setChoices({...choices,[`${a.id}:unavailable`]:e.target.checked?"current":"own"})}/>この出場の入力を破棄し、最新の情報を使う</label></div>)}
-      {conflicts.map(conflict=>{const a=appearances.find(a=>a.id===conflict.entryId)!,person=people.get(a.participant_id);return <div key={conflict.key} className="space-y-2"><p className="text-body">{person?.name}・{a.event_name}・{placementText(conflict.current)}（{{position:"配置",status:"出場状況",trials:"試技"}[conflict.field]}）</p><Select ariaLabel={`${person?.name} ${a.event_name} ${placementText(conflict.current)}の${conflict.field}で使う情報`} value={choices[conflict.key]??""} onValueChange={value=>setChoices({...choices,[conflict.key]:value as "own"|"current"})} options={[{value:"current",label:`最新: ${operationFieldLabel(conflict.current,conflict.field)}`},{value:"own",label:`入力: ${operationFieldLabel(conflict.own,conflict.field)}`,disabled:!availableAppearance(person,a)}]}/></div>;})}
+      {conflicts.map(conflict=>{const a=appearances.find(a=>a.id===conflict.entryId)!,person=people.get(a.participant_id);return <div key={conflict.key} className="space-y-2"><p className="text-body">{person?.name}・{a.event_name}・{placementText(conflict.current)}（{{position:"配置",status:"出場状況",trials:"記録"}[conflict.field]}）</p><Select ariaLabel={`${person?.name} ${a.event_name} ${placementText(conflict.current)}の${conflict.field}で使う情報`} value={choices[conflict.key]??""} onValueChange={value=>setChoices({...choices,[conflict.key]:value as "own"|"current"})} options={[{value:"current",label:`最新: ${operationFieldLabel(conflict.current,conflict.field)}`},{value:"own",label:`入力: ${operationFieldLabel(conflict.own,conflict.field)}`,disabled:!availableAppearance(person,a)}]}/></div>;})}
       <Button className="w-full" disabled={conflicts.some(p=>!choices[p.key])||blocked.some(a=>choices[`${a.id}:unavailable`]!=="current")} onClick={applyReview}>確認した内容を使う</Button>
     </div></SheetContent></Sheet>
   </FormModal>;

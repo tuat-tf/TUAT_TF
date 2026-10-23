@@ -1,4 +1,4 @@
-import { MeetEvent, MeetMark, type MeetTrial } from "./meet-operations";
+import { MeetEvent } from "./meet-operations";
 import { compareObEvents } from "./ob-entry-edit";
 import { obAppearanceName, type ObEntry } from "./ob-entries";
 import { OB_PROGRAM, obFamilyLabel } from "./ob-meet";
@@ -9,7 +9,6 @@ import { obResultRanks } from "./ob-result-ranking";
 
 type Row = ReturnType<typeof obFamilyRows>[number];
 export type ObHeatLabels = Record<string, Record<number, string>>;
-const symbols: Record<MeetTrial["status"], string> = { valid: "○", foul: "×", pass: "−", pending: "" };
 
 /** Events in program order, from registrations and saved operations alike. */
 export function obResultFamilies(entries: ObEntry[], operations: ObEventOperation[]): string[] {
@@ -69,45 +68,17 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
     return ranked({ name, widths: [10, ...(lanes ? [7] : []), ...personWidths, ...(results ? [10] : [])], rows: lines });
   }
 
+  // OB field events record one mark per athlete, so the sheet has a single 記録 column (no attempt columns).
   const order = (row: Row): TableCell => row.number ?? "順番未定";
-  if (rule.discipline === "height") {
-    const heights = heightColumns(rows);
-    return ranked({ name, widths: [8, ...personWidths, ...(results ? [10, ...heights.map(() => 7)] : [])], rows: [
-      ["試技順", ...personHeaders, ...(results ? ["記録", ...heights.map(height => height.label)] : [])],
-      ...rows.map(row => [order(row), ...person(row), ...(results ? [best(row), ...heights.map(height => row.performance.trials.filter(trial => heightKey(trial) === height.key).map(trial => symbols[trial.status]).join(""))] : [])]),
-    ] });
-  }
-
-  const count = Math.max(6, ...rows.map(row => row.performance.trials.length));
-  const attempts = recorded ? Array.from({ length: count }, (_, i) => i) : [];
-  const trialText = (trial: MeetTrial | undefined) => !trial ? "" : trial.status === "valid" || trial.status === "pending" ? trial.mark : symbols[trial.status];
-  return ranked({ name, widths: [8, ...personWidths, ...(results ? [10] : []), ...attempts.map(() => 8)], rows: [
-    ["試技順", ...personHeaders, ...(results ? ["記録"] : []), ...attempts.map(i => `${i + 1}回目`)],
-    ...rows.map(row => [order(row), ...person(row), ...(results ? [best(row)] : []),
-      ...attempts.map(i => trialText(row.performance.trials[i]))]),
+  return ranked({ name, widths: [8, ...personWidths, ...(results ? [10] : [])], rows: [
+    ["試技順", ...personHeaders, ...(results ? ["記録"] : [])],
+    ...rows.map(row => [order(row), ...person(row), ...(results ? [best(row)] : [])]),
   ] });
 }
 
 /** Meet attendance is separate from the event declaration; saved marks never disappear. */
 function publishedParticipation(row: Row): string {
   return row.state.status === "entered" ? "出場" : row.state.status === "DNF" ? "DNF（途中棄権）" : row.state.status === "DQ" ? "DQ（失格）" : "DNS（欠場）";
-}
-
-/** High jump attempts are grouped under each bar height; unreadable heights stay as typed. */
-function heightKey(trial: MeetTrial): string | null {
-  if (trial.status === "pending" || !trial.mark) return null;
-  const value = MeetMark.parse(trial.mark, "height");
-  return value === null ? `raw:${trial.mark}` : `cm:${value}`;
-}
-function heightColumns(rows: Row[]) {
-  const keys = new Map<string, { key: string; label: string; value: number }>();
-  for (const trial of rows.flatMap(row => row.performance.trials)) {
-    const key = heightKey(trial);
-    if (key === null || keys.has(key)) continue;
-    const value = key.startsWith("cm:") ? Number(key.slice(3)) : Number.POSITIVE_INFINITY;
-    keys.set(key, { key, value, label: Number.isFinite(value) ? (value / 100).toFixed(2) : trial.mark });
-  }
-  return [...keys.values()].sort((a, b) => a.value - b.value);
 }
 
 /** JST timestamp keeps successive exports on the meet day apart. */
