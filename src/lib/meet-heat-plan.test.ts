@@ -184,3 +184,14 @@ it("opts into 297 projected groups and order600 without changing generic limits 
  const occupied={...next,participants:[dns,{...next.participants[1],order:1}]};
  expect(new MeetHeatPlan(occupied,ids,limits).setDns(dns.entryId,false).participants[0]).toEqual({...dns,status:"entered",group:null,order:null});
 });
+
+it("releases the heat slot for DNF as for DNS, but keeps a DQ in the position it ran", () => {
+  const data: MeetEventData = { confirmed: false, participants: [
+    { ...emptyPerformance("dnf"), group: 1, order: 3, status: "DNF" },
+    { ...emptyPerformance("dns"), group: 1, order: 4, status: "DNS" },
+    { ...emptyPerformance("dq"), group: 1, order: 5, status: "DQ" },
+  ] };
+  const plan = new MeetHeatPlan(data, new Set(["dnf", "dns", "dq"]));
+  expect(plan.data.participants.map(p => [p.entryId, p.group, p.order])).toEqual([["dnf", null, null], ["dns", null, null], ["dq", 1, 5]]);
+  expect(new MeetEvent({ name: "男子1500m", discipline: "track", wind: false } as never, data).seed(8).participants.find(p => p.entryId === "dnf")?.group).toBe(1);
+});

@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form-modal";
-import { MeetEvent, emptyTrial, type MeetPerformance, type MeetTrial } from "@/lib/meet-operations";
+import { MeetEvent, MeetMark, emptyTrial, type MeetPerformance, type MeetTrial } from "@/lib/meet-operations";
 import { fieldOrderRows } from "@/lib/meet-field-order";
 import { formatObRecordInput } from "@/lib/ob-record-input";
 import { obResultRanks } from "@/lib/ob-result-ranking";
@@ -31,6 +31,8 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
   const [data,setData]=useState(latest),[view,setView]=useState<"groups"|"records">("records");
   const [group,setGroup]=useState("all"),[focus,setFocus]=useState(initialAppearanceId);
   const [reviewing,setReviewing]=useState(false),[choices,setChoices]=useState<OperationChoices>({}),[error,setError]=useState("");
+  // The field record being typed per entry, kept apart from the trial list so attempts can be added/removed around it.
+  const [fieldEdits,setFieldEdits]=useState<Record<string,MeetTrial>>({});
   const people=new Map(meet.participants.map(p=>[p.id,p]));
   const dirty=obOperationHasChanges(base.data,data);
   const latestKey=JSON.stringify({data:latest,events:familyEvents.map(e=>[e.name,e.revision]),appearances:appearances.map(a=>[a.id,a.revision])});
@@ -76,17 +78,25 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
   function bestTrial(person:MeetPerformance) {
     return model.bestTrial(person)??person.trials.find(t=>t.status==="valid"&&t.mark==="-")??emptyTrial();
   }
-  /** The field mark being edited, exactly as typed ("26." included); the saved best only while untouched. */
+  /** The field mark being edited exactly as typed ("26." included); the saved best while untouched. */
   function fieldTrial(person:MeetPerformance) {
     const saved=base.data.participants.find(p=>p.entryId===person.entryId);
     const untouched=!!saved&&JSON.stringify(person.trials)===JSON.stringify(saved.trials);
-    return untouched?bestTrial(person):person.trials[0]??bestTrial(person);
+    return untouched?bestTrial(person):fieldEdits[person.entryId]??bestTrial(person);
   }
+  /** Edit the saved best attempt in place. Other attempts stay (wind-only fixes keep tie-breaks); valid ones that
+   *  would beat the newly entered best are left out so the result equals what was typed; failed attempts stay. */
   function bestRecord(id:string,patch:Partial<MeetTrial>) {
-    const person=data.participants.find(p=>p.entryId===id)!;
-    const next={...fieldTrial(person),...patch},saved=base.data.participants.find(p=>p.entryId===id);
-    const original=saved&&bestTrial(saved);
-    update(id,{trials:saved&&original&&next.mark===original.mark&&next.status===original.status&&next.wind===original.wind?saved.trials:[next]});
+    const person=data.participants.find(p=>p.entryId===id)!,saved=base.data.participants.find(p=>p.entryId===id);
+    const original=saved?.trials??[],best=saved?bestTrial(saved):emptyTrial(),index=original.indexOf(best);
+    const edited={...fieldTrial(person),...patch};
+    setFieldEdits(current=>({...current,[id]:edited}));
+    const value=edited.status==="valid"?MeetMark.parse(edited.mark,event.discipline):null;
+    const beats=(t:MeetTrial)=>{const other=t.status==="valid"?MeetMark.parse(t.mark,event.discipline):null;
+      return value!==null&&other!==null&&(event.discipline==="track"?other<value:other>value);};
+    const trials=original.flatMap((t,i)=>i===index?[edited]:beats(t)?[]:[t]);
+    if(index===-1)trials.push(edited);
+    update(id,{trials:saved&&JSON.stringify(trials)===JSON.stringify(saved.trials)?saved.trials:trials});
   }
   function appearanceActions(id:string) {
     const appearance=appearances.find(a=>a.id===id),person=people.get(appearance?.participant_id??"");
@@ -135,7 +145,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
           const placement=placementText(performance);
           return <Card key={a.id} className="space-y-3 p-3.5">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-body font-semibold">{person?.name}<span className="ml-2 text-caption font-normal">{person?.grade}・{familyEvents.find(e=>e.name===a.event_name)?.division}</span></h3><p className="text-caption">{placement}・{model.best(performance)}{ranks.has(a.id)?`・${ranks.get(a.id)}位`:""}</p></div>
-              <Select ariaLabel={`${person?.name} ${a.event_name} ${placement}の出場状況`} className="w-40" disabled={disabled||sourceConfirmed||!availableAppearance(person,a)} value={performance.status} onValueChange={status=>update(a.id,status==="DNS"?{status:"DNS",group:null,order:null,heatScope:undefined}:{status:status as MeetPerformance["status"]})} options={[{value:"entered",label:"出場"},{value:"DNS",label:"DNS（欠場）"},{value:"DNF",label:"DNF（途中棄権）"},{value:"DQ",label:"DQ（失格）"}]}/>
+              <Select ariaLabel={`${person?.name} ${a.event_name} ${placement}の出場状況`} className="w-40" disabled={disabled||sourceConfirmed||!availableAppearance(person,a)} value={performance.status} onValueChange={status=>update(a.id,status==="DNS"||status==="DNF"?{status,group:null,order:null,heatScope:undefined}:{status:status as MeetPerformance["status"]})} options={[{value:"entered",label:"出場"},{value:"DNS",label:"DNS（欠場）"},{value:"DNF",label:"DNF（途中棄権）"},{value:"DQ",label:"DQ（失格）"}]}/>
               {appearanceActions(a.id)}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">{Array.from({length:count},(_,index)=>{

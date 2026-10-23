@@ -94,7 +94,7 @@ it("shows one best-record input and retains old trials until that record is edit
  const data=meet();data.appearances[0].performance.trials=[{mark:"1.20",status:"valid",wind:""},{mark:"1.40",status:"valid",wind:""},{mark:"1.50",status:"foul",wind:""}];
  const before=structuredClone(data);const html=render(data);expect(capture.inputs).toHaveLength(1);expect(capture.inputs[0].value).toBe("1.40");expect(html).not.toContain("回目");expect(capture.guard?.dirty).toBe(false);
  capture.inputs[0].onChange({target:{value:"1.10"}});render(data);await capture.guard!.onSave();
- expect(capture.run).toHaveBeenCalledWith(expect.objectContaining({action:"event.save",changes:[expect.objectContaining({performance:expect.objectContaining({trials:[{mark:"1.10",status:"valid",wind:""}]})})]}));expect(data).toEqual(before);
+ expect(capture.run).toHaveBeenCalledWith(expect.objectContaining({action:"event.save",changes:[expect.objectContaining({performance:expect.objectContaining({trials:[{mark:"1.10",status:"valid",wind:""},{mark:"1.50",status:"foul",wind:""}]})})]}));expect(data).toEqual(before);
 });
 it("restores the original trial history when a best-record edit is undone",()=>{
  const data=meet();data.appearances[0].performance.trials=[{mark:"1.20",status:"valid",wind:""},{mark:"1.40",status:"valid",wind:""}];
@@ -152,4 +152,19 @@ it("formats a digits-only field mark into metres when the field is left",()=>{
  const data=meet();render(data);
  capture.inputs[0].onChange({target:{value:"185"}});render(data);expect(capture.inputs[0].value).toBe("185");
  capture.inputs[0].onBlur({target:{value:"185"}});render(data);expect(capture.inputs[0].value).toBe("1.85");
+});
+it("edits only the best field attempt and keeps the other attempts for tie-breaks",async()=>{
+ const data=meet();data.appearances[0]={...data.appearances[0],performance:{...data.appearances[0].performance,trials:[{mark:"1.70",status:"valid",wind:""},{mark:"1.80",status:"valid",wind:""}]}};
+ render(data);expect(capture.inputs[0].value).toBe("1.80");
+ capture.inputs[0].onChange({target:{value:"1.85"}});render(data);expect(capture.inputs[0].value).toBe("1.85");
+ await capture.buttons.get("結果を確定")!.onClick();
+ const change=(capture.run.mock.lastCall![0] as {changes:{performance:{trials:{mark:string}[]}}[]}).changes[0];
+ expect(change.performance.trials.map(t=>t.mark)).toEqual(["1.70","1.85"]);
+});
+it("drops the heat position when a runner is marked DNF",()=>{
+ const data=trackFamily();render(data);
+ const select=[...capture.selects.entries()].find(([label])=>label.includes("出場状況"))![1];
+ expect(render(data)).not.toContain("組未定");
+ select.onValueChange("DNF");const html=render(data);
+ expect(html).toContain("組未定");
 });

@@ -10,6 +10,11 @@ export const emptyTrial = (): MeetTrial => ({ mark: "", status: "pending", wind:
 export const emptyPerformance = (entryId: string): MeetPerformance => ({ entryId, group: null, order: null, status: "entered", trials: [] });
 
 /** Release a placement without changing the person's status or trial history. */
+/** DNS and DNF hold no heat/lane/order slot; DQ keeps the position it ran in. */
+export function releasesMeetPlacement(status: MeetPerformance["status"]): boolean {
+  return status === "DNS" || status === "DNF";
+}
+
 export function withoutMeetPlacement(person: MeetPerformance): MeetPerformance {
   if (person.group === null && person.order === null && person.heatScope === undefined) return person;
   const next = { ...person, group: null, order: null };
@@ -88,9 +93,9 @@ export class MeetEvent {
   /** Fill only unassigned people; do not erase deliberate placements or trial data. */
   seed(capacity: number): MeetEventData {
     if (!Number.isInteger(capacity) || capacity < 1 || capacity > 99) throw new Error("組の人数は1〜99で指定してください");
-    const used = new Set(this.data.participants.filter(p => p.group && p.order && p.status !== "DNS").map(p => `${p.group}:${p.order}`));
+    const used = new Set(this.data.participants.filter(p => p.group && p.order && !releasesMeetPlacement(p.status)).map(p => `${p.group}:${p.order}`));
     return { ...this.data, confirmed: false, participants: this.data.participants.map(p => {
-      if (p.status === "DNS" || p.group !== null || p.order !== null) return p;
+      if (releasesMeetPlacement(p.status) || p.group !== null || p.order !== null) return p;
       for (let group = 1; group <= 99; group++) for (let order = 1; order <= capacity; order++) {
         const key = `${group}:${order}`;
         if (!used.has(key)) { used.add(key); return { ...p, group, order }; }

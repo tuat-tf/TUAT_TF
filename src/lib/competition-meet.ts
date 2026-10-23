@@ -1,4 +1,4 @@
-import { withoutMeetPlacement, type MeetEventData, type MeetEventRule, type MeetPerformance } from "./meet-operations";
+import { releasesMeetPlacement, withoutMeetPlacement, type MeetEventData, type MeetEventRule, type MeetPerformance } from "./meet-operations";
 import { fieldOrderRows } from "./meet-field-order";
 
 export type MeetParticipant = { id: string; competition_id: string; profile_id: string | null; name: string; grade: string; absent: boolean; deleted: boolean; revision: number };
@@ -36,7 +36,9 @@ export function availableAppearance(person: MeetParticipant | undefined, appeara
 }
 export function appearancePerformance(person: MeetParticipant | undefined, appearance: MeetAppearance): MeetPerformance {
   const value = { ...appearance.performance, entryId: appearance.id };
-  return availableAppearance(person, appearance) && value.status !== "DNS" ? value : withoutMeetPlacement({ ...value, status: "DNS" });
+  if (!availableAppearance(person, appearance) || value.status === "DNS") return withoutMeetPlacement({ ...value, status: "DNS" });
+  // A DNF keeps its result but no heat/order slot, including older saves made before DNF released it.
+  return releasesMeetPlacement(value.status) ? withoutMeetPlacement(value) : value;
 }
 export function competitionEventData(meet: Pick<CompetitionMeet, "participants" | "appearances">, event: ManagedMeetEvent): MeetEventData {
   const people = new Map(meet.participants.map(person => [person.id, person]));

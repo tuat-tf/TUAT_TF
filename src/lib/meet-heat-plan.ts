@@ -1,10 +1,10 @@
-import { withoutMeetPlacement, type MeetEventData, type MeetOperationLimits } from "./meet-operations";
+import { releasesMeetPlacement, withoutMeetPlacement, type MeetEventData, type MeetOperationLimits } from "./meet-operations";
 
 /** Checklist moves affect selected people; explicit slides reorder only editable slots. */
 export class MeetHeatPlan {
   readonly data: MeetEventData;
   constructor(data: MeetEventData, readonly eligibleIds: ReadonlySet<string>, readonly limits: MeetOperationLimits = {}) {
-    const participants = data.participants.map(p => p.status === "DNS" ? withoutMeetPlacement(p) : p);
+    const participants = data.participants.map(p => releasesMeetPlacement(p.status) ? withoutMeetPlacement(p) : p);
     this.data = participants.some((p, i) => p !== data.participants[i]) ? { ...data, participants } : data;
   }
   get active() { return this.data.participants.filter(p => this.eligibleIds.has(p.entryId) && p.status === "entered"); }

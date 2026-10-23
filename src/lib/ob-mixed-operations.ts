@@ -1,5 +1,5 @@
 import { fieldOrderRows } from "./meet-field-order";
-import { withoutMeetPlacement, type MeetEventData, type MeetPerformance, type MeetHeatScope, type MeetOperationLimits } from "./meet-operations";
+import { releasesMeetPlacement, withoutMeetPlacement, type MeetEventData, type MeetPerformance, type MeetHeatScope, type MeetOperationLimits } from "./meet-operations";
 import { obOperationHasChanges } from "./ob-operation-draft";
 import { effectiveObParticipation, obEventParticipants, obEventRule, type ObEventOperation } from "./ob-operations";
 import { isAlumniEntry, obAppearanceEntryId, obAppearanceName, type ObEntry } from "./ob-entries";
@@ -56,7 +56,7 @@ export function projectObMixedEvent(family: string, entries: ObEntry[], operatio
     const baseData = saved?.data ?? { participants: [], confirmed: false };
     // Home summaries and immutable audit snapshots deliberately have no registration roster.
     const rows = source === "roster" ? obEventParticipants(event, entries, saved?.data) : (saved?.data.participants ?? []).map(p => {
-      const performance = source === "saved" && p.status === "DNS" ? withoutMeetPlacement(p) : p;
+      const performance = source === "saved" && releasesMeetPlacement(p.status) ? withoutMeetPlacement(p) : p;
       return { entryId: p.entryId, entry: undefined, performance, state: effectiveObParticipation(event, undefined, performance) };
     });
     originalByEvent.set(event, { event, data: { participants: rows.map(row => row.performance), confirmed: baseData.confirmed }, baseData, revision: saved?.revision ?? null });
@@ -97,7 +97,7 @@ export function splitObMixedEvent(projection: ObMixedProjection, next: MeetEvent
         }
       }
     }
-    if (restored.status === "DNS") restored = withoutMeetPlacement(restored);
+    if (releasesMeetPlacement(restored.status)) restored = withoutMeetPlacement(restored);
     if (!byEvent.has(source.event)) byEvent.set(source.event, new Map());
     byEvent.get(source.event)!.set(source.entryId, restored);
   }
