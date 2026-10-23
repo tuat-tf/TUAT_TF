@@ -124,7 +124,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
     if(await mutation.run({action:"event.save",event:anchor.name,revision:anchor.revision,expectedConfirmed:anchor.confirmed,changes,confirmed:confirmation??anchor.confirmed,...(confirmation===undefined?{}:{confirmEvents:base.events.map(({name,revision,confirmed})=>({name,revision,confirmed}))})}))onClose();
   }
   return <FormModal open autoFocus={false} title={event.family} onOpenChange={open=>!open&&onClose()}>
-    <FormDraftGuard dirty={dirty} busy={mutation.locked} onSave={save}/>
+    <FormDraftGuard dirty={dirty} busy={mutation.busy} onSave={save}/>
     <div className="space-y-4">
       <SegmentedControl items={[{key:"records",label:"記録"},{key:"groups",label:event.discipline==="track"?"組分け":"試技順"}]} value={view} onChange={setView}/>
       <Button variant="outline" disabled={dirty||mutation.locked||latest.confirmed||!(meet.permissions.register??meet.permissions.record)&&!meet.permissions.manage} onClick={onAdd}>この種目に出場を追加</Button>
@@ -167,7 +167,7 @@ export function CompetitionMeetEventEditor({event,meet,mutation,onClose,onAdd,in
       {error&&<p role="alert" className="text-body text-danger">{error}</p>}
       {mutation.message&&<p role="status" className="text-caption">{mutation.message}</p>}
       {mutation.uncertain&&<Button disabled={mutation.busy} onClick={()=>void mutation.check()}>保存結果を確認</Button>}
-      {mutation.notSaved&&<Button disabled={mutation.busy} onClick={()=>void mutation.retry()}>同じ操作を再送</Button>}
+      {mutation.notSaved&&<Button disabled={mutation.busy} onClick={()=>void mutation.retry()}>同じ操作を再送</Button>}{mutation.outdated&&<Button onClick={()=>window.location.reload()}>再読み込み</Button>}
     </div>
     <FormModalFooter><Button className="w-full" disabled={mutation.locked||!dirty} onClick={()=>void save()}>{mutation.busy?"保存中…":"保存する"}</Button></FormModalFooter>
     <Sheet open={reviewing} onOpenChange={setReviewing}><SheetContent title="変更の確認"><div className="space-y-4">

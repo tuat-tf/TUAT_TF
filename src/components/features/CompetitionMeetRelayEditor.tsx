@@ -36,7 +36,7 @@ export function CompetitionMeetRelayEditor({event,meet,mutation,onClose}:{event:
     setBase({teams:latest,revision:event.revision,confirmed:event.confirmed});setReviewing(false);setChoices({});setDiscard(false);setError("");
   }
   return <FormModal open autoFocus={false} title={event.name} onOpenChange={open=>!open&&onClose()}>
-    <FormDraftGuard dirty={dirty} busy={mutation.locked} onSave={save}/>
+    <FormDraftGuard dirty={dirty} busy={mutation.busy} onSave={save}/>
     <div className="space-y-4">
       <p className="text-caption">各組のチーム名、タイム、1走〜4走の氏名を入力してください。未計測のタイムは - を入力できます。</p>
       {changed&&dirty&&<div className="space-y-2"><p className="text-caption">ほかの操作で更新されています。入力は残っています。</p><Button variant="outline" disabled={mutation.locked} onClick={()=>setReviewing(true)}>最新の情報と入力を確認</Button></div>}
@@ -55,7 +55,7 @@ export function CompetitionMeetRelayEditor({event,meet,mutation,onClose}:{event:
       {error&&<p role="alert" className="text-body text-danger">{error}</p>}
       {mutation.message&&<p role="status" className="text-caption">{mutation.message}</p>}
       {mutation.uncertain&&<Button disabled={mutation.busy} onClick={()=>void mutation.check()}>保存結果を確認</Button>}
-      {mutation.notSaved&&<Button disabled={mutation.busy} onClick={()=>void mutation.retry()}>同じ操作を再送</Button>}
+      {mutation.notSaved&&<Button disabled={mutation.busy} onClick={()=>void mutation.retry()}>同じ操作を再送</Button>}{mutation.outdated&&<Button onClick={()=>window.location.reload()}>再読み込み</Button>}
     </div>
     <FormModalFooter><Button className="w-full" disabled={mutation.locked||!dirty||!meet.permissions.record} onClick={()=>void save()}>保存する</Button></FormModalFooter>
     <Sheet open={reviewing} onOpenChange={setReviewing}><SheetContent title="変更の確認"><div className="space-y-4">
