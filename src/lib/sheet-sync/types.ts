@@ -28,4 +28,6 @@ export type SyncResult = {
   sheetWritesSkipped?: boolean;
   /** A sheet write may have committed without a complete acknowledgement. */
   sheetWritesUncertain?: boolean;
+  /** Writes whose response was lost but whose exact payload was found in the published sheet. */
+  reconciledWrites?: number;
 };

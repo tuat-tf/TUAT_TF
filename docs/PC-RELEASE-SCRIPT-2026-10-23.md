@@ -23,4 +23,6 @@ python3 -I -B .../pc-release.py replay-check <old> <new>   # 生成器が過去�
 - 2026-10-23 20:34:48〜20:49:37 JST の約15分、アプリが停止した。原因はすべて本スクリプト初版の不備: (1) releaseのファイルモードを一律640にし、`pg_hba.conf`等の0644固定に違反、(2) build receiptをhost stateへ置いていなかった、(3) 途中で失敗したbackupの`failed`状態が起動条件に反した。自動巻戻し先の`7ae3079`も、同日の調査で実行した`git status`による`.git/index`変化で起動を拒否した。
 - 手動で3点を修正して`eeb58ad`を起動。Jobs・timer active、backup封印valid、直後の手動backup成功（113表・画像72件検証）。3点はスクリプトへ反映済み（前releaseのモード継承、receipt配置、backup failedの記録と解除、起動失敗の即時検知）。
 - 旧release 16世代（約18.9GB）をpruneし、使用量は38GB→20GB。稼働中`eeb58ad`と`7ae3079`・`dd0c1f1`、稼働設定が参照する`installation-92e8b09`（auth.env）・`build-home-da6ac6d`は保持。`7ae3079`は`.git/index`のずれで起動不可のため、実際の戻し先は`dd0c1f1`。
-- 未対応: Windowsの起動タスクがCodexアプリ内のNode（`C:\Users\rainb\.cache\codex-runtimes\...`）に依存。Codex削除・更新で再起動時に本番が起動しなくなる恐れがある。
+- 解消: Windowsの起動タスク「TUAT Local Runtime」はCodexアプリ内のNodeに依存していたため、同じv24.19.0を `C:ProgramDataTUAT-TF
+ode
+ode.exe`（管理者・SYSTEMのみ書込可、rainbは読取/実行）へ複製し、タスクの実行ファイルを変更（2026-10-23、所有者が管理者権限で実行）。引数・S4U・稼働中の本番は不変。次回起動から有効で、実際の再起動試験は未実施。

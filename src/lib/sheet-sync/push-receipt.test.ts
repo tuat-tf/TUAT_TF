@@ -89,7 +89,7 @@ describe("authoritative clear-if-existing receipt", () => {
         ? { data: { outcome: "send", attempt_id: args.p_attempt_id, marker_status: "pending" }, error: null } : { data: null, error: { message: "synthetic lost finish" } });
       else gas.mockImplementation(async body => { if (body.action === "clearIfExisting") throw new Error("synthetic lost mutation"); return { clearTarget: metadata }; });
       await expect(clear(rpc)).rejects.toMatchObject({ code: unknownFinish ? "SHEET_SENT_MARKER_UNCONFIRMED" : "SHEET_WRITE_RESULT_UNKNOWN", retryable: false });
-      const active: ActivePushReceipt[] = [{ attempt_id: rpc.mock.calls[0][1].p_attempt_id, state: "reserved", profile_id: profileId,
+      const active: ActivePushReceipt[] = [{ attempt_id: rpc.mock.calls[0][1].p_attempt_id, state: "reserved", kind: "clear", target_fingerprint: pushFingerprint("t"), payload_sha256: pushFingerprint("p"), profile_id: profileId,
         recorded_date: input.date, record_id: null, target_slot: writeCellsTargetSlot(target.sheetName, input.date, target.spreadsheetId) }];
       gas.mockClear(); rpc.mockClear();
       await expect(clearIfExistingWithReceipt(client(rpc).admin, clearInput, target, active)).rejects.toMatchObject({ code: "SHEET_PUSH_BLOCKED" });
@@ -233,7 +233,7 @@ describe("receipt binding and read-only protection", () => {
     expect(() => pushProfileSnapshot({ sheet_name: "synthetic" })).toThrow("シート設定");
   });
   it("reads beyond the 1000-row API cap and keeps receipts for deleted records", async () => {
-    const row: ActivePushReceipt = { attempt_id: heldId, state: "reserved", profile_id: profileId, recorded_date: input.date, record_id: null, target_slot: pushFingerprint("synthetic") };
+    const row: ActivePushReceipt = { attempt_id: heldId, state: "reserved", kind: "record", target_fingerprint: pushFingerprint("t"), payload_sha256: pushFingerprint("p"), profile_id: profileId, recorded_date: input.date, record_id: null, target_slot: pushFingerprint("synthetic") };
     const ranges: number[][] = [];
     const admin = { from: (table: string) => {
       expect(table).toBe("sheet_push_attempts");

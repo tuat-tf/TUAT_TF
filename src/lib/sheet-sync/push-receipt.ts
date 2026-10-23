@@ -18,11 +18,24 @@ export type PushReceiptResult = { outcome: "confirmed" | "completed"; marker_sta
 export type ActivePushReceipt = {
   attempt_id: string;
   state: "reserved" | "confirmed";
+  kind: "record" | "clear";
   profile_id: string;
   recorded_date: string;
   record_id: string | null;
   target_slot: string;
+  target_fingerprint: string;
+  payload_sha256: string;
 };
+
+/** The published row holds exactly these cells (numbers compare by value, blanks as blanks). */
+export function sheetRowMatchesCells(cells: Record<string, string | number>, row: Record<string, string>): boolean {
+  return Object.entries(cells).every(([header, value]) => {
+    const expected = String(value ?? "").trim(), actual = String(row[header] ?? "").trim();
+    if (expected === actual) return true;
+    const a = Number(expected), b = Number(actual);
+    return expected !== "" && actual !== "" && Number.isFinite(a) && Number.isFinite(b) && a === b;
+  });
+}
 
 /** Keep the selected DB values, including nulls, rather than normalized routing values. */
 export function pushProfileSnapshot(profile: Record<string, unknown>): PushProfileSnapshot {
@@ -62,7 +75,7 @@ function receiptObject(value: unknown): Record<string, unknown> | null {
 export async function listActivePushReceipts(admin: SupabaseClient): Promise<ActivePushReceipt[]> {
   const rows = await fetchAllPages<ActivePushReceipt>(async (from, to) => {
     const page = await admin.from("sheet_push_attempts")
-    .select("attempt_id,state,profile_id,recorded_date,record_id,target_slot")
+    .select("attempt_id,state,kind,profile_id,recorded_date,record_id,target_slot,target_fingerprint,payload_sha256")
     .in("state", ["reserved", "confirmed"]).order("attempt_id", { ascending: true }).range(from, to);
     if (page.error || !Array.isArray(page.data)) throw new Error("未確認の送信状態を取得できませんでした。取り込みと送信を保留しました");
     return { data: page.data as ActivePushReceipt[], error: null };
@@ -70,6 +83,7 @@ export async function listActivePushReceipts(admin: SupabaseClient): Promise<Act
   for (const row of rows) {
     if (!uuid.test(row.attempt_id) || !uuid.test(row.profile_id) || (row.record_id !== null && !uuid.test(row.record_id))
       || !/^\d{4}-\d{2}-\d{2}$/.test(row.recorded_date) || !hash.test(row.target_slot)
+      || !hash.test(row.target_fingerprint) || !hash.test(row.payload_sha256) || !["record", "clear"].includes(row.kind)
       || !["reserved", "confirmed"].includes(row.state)) {
       throw new Error("未確認の送信状態を取得できませんでした。取り込みと送信を保留しました");
     }

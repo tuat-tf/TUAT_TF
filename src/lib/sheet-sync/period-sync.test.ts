@@ -4,7 +4,7 @@ import { OCTOBER_SHEET_ID } from "@/lib/sheet-period";
 import { relevantSheetHeaderSignature } from "@/lib/sheet-field-config";
 import { fetchPublicMemberSnapshot } from "@/lib/sheet-public-csv";
 
-const state = vi.hoisted(() => ({ profiles: [] as Record<string, unknown>[], records: [] as Record<string, unknown>[], clears: [] as Record<string, unknown>[], syncStates: [] as Record<string, unknown>[], selects: [] as { table: string; columns: string }[], writes: [] as { table: string; op: string; value: unknown }[], fetch: vi.fn(), gas: vi.fn(), zeroAck: false, editBeforePullWrite: null as { id: string; patch: Record<string, unknown> } | null, editBeforeRecordsRead: null as { id: string; patch: Record<string, unknown> } | null }));
+const state = vi.hoisted(() => ({ profiles: [] as Record<string, unknown>[], records: [] as Record<string, unknown>[], clears: [] as Record<string, unknown>[], attempts: [] as Record<string, unknown>[], syncStates: [] as Record<string, unknown>[], selects: [] as { table: string; columns: string }[], writes: [] as { table: string; op: string; value: unknown }[], fetch: vi.fn(), gas: vi.fn(), zeroAck: false, editBeforePullWrite: null as { id: string; patch: Record<string, unknown> } | null, editBeforeRecordsRead: null as { id: string; patch: Record<string, unknown> } | null }));
 vi.mock("./gas-client", () => ({ fetchAllRaw: state.fetch, gasPost: state.gas }));
 import { runSheetSync } from "./run";
 import { CLEAR_CONTRACT_VERSION } from "./push-receipt";
@@ -63,7 +63,7 @@ const admin = { async rpc(name: string, args: Record<string, unknown>) {
         if (edited) Object.assign(edited, state.editBeforePullWrite.patch);
         state.editBeforePullWrite = null;
       }
-      let data = table === "profiles" ? state.profiles : table === "practice_records" ? state.records : table === "sheet_pending_clears" ? state.clears : table === "sheet_member_sync_state" ? state.syncStates : [];
+      let data = table === "profiles" ? state.profiles : table === "practice_records" ? state.records : table === "sheet_pending_clears" ? state.clears : table === "sheet_member_sync_state" ? state.syncStates : table === "sheet_push_attempts" ? state.attempts : [];
       if (table === "practice_records") data = data.map(row => ({ updated_at: "2026-10-01T00:00:00Z", pending_sheet_push: false, ...row }));
       if (table === "sheet_pending_clears") data = data.map(row => ({ created_at: "2026-10-01T00:00:00Z", ...row }));
       data = data.filter(row => filters.every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : value === null ? row[key] == null : row[key] === value)
@@ -111,7 +111,7 @@ function keepSuccessfulImports() {
 }
 beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-02T03:00:00Z"));
-  state.writes = []; state.records = []; state.profiles = []; state.clears = []; state.syncStates = []; state.selects = []; state.zeroAck = false; state.editBeforePullWrite = null; state.editBeforeRecordsRead = null;
+  state.writes = []; state.records = []; state.profiles = []; state.clears = []; state.attempts = []; state.syncStates = []; state.selects = []; state.zeroAck = false; state.editBeforePullWrite = null; state.editBeforeRecordsRead = null;
   fixtureAttempts.clear(); vi.stubEnv("SHEET_SYNC_GAS_URL", "https://gas.example.test/synthetic/exec");  state.gas.mockReset().mockImplementation(async body => gasAcknowledgement(body));  state.fetch.mockReset().mockImplementation(async (inputs: { name: string }[], spreadsheetId?: string) => ({
     members: inputs.map(input => ({ name: input.name, header: ["日付", "感想"], records: [
       { date: "2026-09-30", cells: { 感想: "旧" } }, { date: "2026-10-01", cells: { 感想: spreadsheetId ? "新" : "旧の10月" } },
@@ -506,5 +506,47 @@ describe("period-aware scheduled synchronization", () => {
     state.profiles = [profile("sheet"), { ...profile(undefined, "regular"), sheet_name: "B2 regular" }];
     expect((await runSheetSync(admin)).inserted).toBe(1);
     expect(state.fetch.mock.calls.map(call => call[0][0].name)).toEqual(["B1 test"]);
+  });
+
+  it("finishes a lost-response write whose exact payload is already in the sheet, without resending", async () => {
+    state.profiles = [profile("sheet", "6f1a2b3c-0000-4000-8000-000000000001")];
+    state.records = [{ id: "6f1a2b3c-0000-4000-8000-0000000000aa", user_id: "6f1a2b3c-0000-4000-8000-000000000001", recorded_date: "2026-10-01", memo: "新", pending_sheet_push: true }];
+    state.gas.mockImplementation(async (body: Record<string, unknown>) => {
+      if (body.action === "writeCells") throw new Error("response lost");
+      return gasAcknowledgement(body);
+    });
+    const first = await runSheetSync(admin, {});
+    expect(first.sheetWritesUncertain).toBe(true);
+    const [begin] = [...fixtureAttempts.values()];
+    state.attempts = [{ attempt_id: begin.p_attempt_id, state: "reserved", kind: "record", profile_id: "6f1a2b3c-0000-4000-8000-000000000001", recorded_date: "2026-10-01",
+      record_id: "6f1a2b3c-0000-4000-8000-0000000000aa", target_slot: begin.p_target_slot, target_fingerprint: begin.p_target_fingerprint, payload_sha256: begin.p_payload_sha256 }];
+    state.gas.mockReset().mockImplementation(async body => gasAcknowledgement(body));
+    state.writes = [];
+    const second = await runSheetSync(admin, {});
+    expect(second.reconciledWrites).toBe(1);
+    expect(second.sheetWritesUncertain).toBe(false);
+    expect(second.failedMembers).toEqual([]);
+    expect(state.gas).not.toHaveBeenCalledWith(expect.objectContaining({ action: "writeCells" }));
+    expect(state.records[0].pending_sheet_push).toBe(false);
+  });
+
+  it("keeps holding a lost-response write when the sheet does not show its exact payload", async () => {
+    state.profiles = [profile("sheet", "6f1a2b3c-0000-4000-8000-000000000001")];
+    state.records = [{ id: "6f1a2b3c-0000-4000-8000-0000000000aa", user_id: "6f1a2b3c-0000-4000-8000-000000000001", recorded_date: "2026-10-01", memo: "アプリの値", pending_sheet_push: true }];
+    state.gas.mockImplementation(async (body: Record<string, unknown>) => {
+      if (body.action === "writeCells") throw new Error("response lost");
+      return gasAcknowledgement(body);
+    });
+    await runSheetSync(admin, {});
+    const [begin] = [...fixtureAttempts.values()];
+    state.attempts = [{ attempt_id: begin.p_attempt_id, state: "reserved", kind: "record", profile_id: "6f1a2b3c-0000-4000-8000-000000000001", recorded_date: "2026-10-01",
+      record_id: "6f1a2b3c-0000-4000-8000-0000000000aa", target_slot: begin.p_target_slot, target_fingerprint: begin.p_target_fingerprint, payload_sha256: begin.p_payload_sha256 }];
+    state.gas.mockReset().mockImplementation(async body => gasAcknowledgement(body));
+    const second = await runSheetSync(admin, {});
+    expect(second.reconciledWrites).toBeUndefined();
+    expect(second.sheetWritesUncertain).toBe(true);
+    expect(second.failedMembers.some(f => f.reason.includes("前の送信結果を確認できていない"))).toBe(true);
+    expect(state.gas).not.toHaveBeenCalledWith(expect.objectContaining({ action: "writeCells" }));
+    expect(state.records[0].pending_sheet_push).toBe(true);
   });
 });

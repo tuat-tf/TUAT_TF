@@ -14,7 +14,8 @@ import { fetchAllRaw } from "./gas-client";
 import { sheetRecordsWithoutPendingPushes, computeMemberPull } from "./pull";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { type PendingClear } from "./clear";
-import { clearIfExistingWithReceipt, listActivePushReceipts, pushProfileSnapshot, resolvePendingClear, writeCellsTargetSlot, writeCellsWithReceipt,
+import { clearIfExistingWithReceipt, finishPushAttempt, listActivePushReceipts, pushProfileSnapshot, resolvePendingClear, sheetRowMatchesCells,
+  writeCellsIdentity, writeCellsTargetSlot, writeCellsWithReceipt,
   type ActivePushReceipt, type PushProfileSnapshot, type WriteCellsTarget } from "./push-receipt";
 import { unmappedRecordFields } from "./push";
 
@@ -236,6 +237,39 @@ async function runSheetSyncBatch(
     const target: WriteCellsTarget = { sheetName, fields: profileFields, spreadsheetId, columns };
     const expectedProfile = profile.expectedProfile;
     const appByDate = byUser.get(profile.id)!;
+
+    // 応答が届かなかった送信は、実際にはスプシへ書けていることが多い。公開シートの行が、
+    // その送信の指紋と同じ内容と完全に一致するときだけ送信済みとして完了させる（再送はしない）。
+    // 一致しなければ従来どおり保留する。1件の不明で全員の送信が止まり続けるのを防ぐ。
+    for (const receipt of activeReceipts.filter(r => r.profile_id === profile.id && r.state === "reserved" && r.kind === "record")) {
+      const list = appByDate.get(receipt.recorded_date);
+      const app = list?.length === 1 && list[0].id === receipt.record_id ? list[0] : undefined;
+      const rows = member.records.filter(row => row.date === receipt.recorded_date);
+      if (!app || rows.length !== 1) continue;
+      const pushFields = app.record_fields_snapshot ?? profileFields;
+      const cells = appToCellsFull(resolveFieldMap(member, pushFields, "write"), app);
+      const identity = writeCellsIdentity({ ...target, fields: pushFields }, receipt.recorded_date, cells);
+      if (identity.payloadSha256 !== receipt.payload_sha256 || identity.targetFingerprint !== receipt.target_fingerprint
+        || !sheetRowMatchesCells(cells, rows[0].cells)) continue;
+      if (dryRun) {
+        result.reconciledWrites = (result.reconciledWrites ?? 0) + 1;
+        continue;
+      }
+      let finished;
+      try {
+        finished = await finishPushAttempt(admin, receipt.attempt_id, { kind: "record", recordId: app.id, profileId: profile.id,
+          date: receipt.recorded_date, expectedVersion: app.updated_at ?? "", expectedProfile, ...identity }, true);
+      } catch {
+        continue; // Keep holding; the receipt stays unresolved and nothing is resent.
+      }
+      if (finished.outcome !== "completed") continue;
+      activeReceipts.splice(activeReceipts.indexOf(receipt), 1);
+      activeSlots.delete(receipt.target_slot);
+      activeRecordIds.delete(app.id);
+      // Applied: the sheet already has this version. Superseded: the record changed since; send the new version normally.
+      if (finished.marker_status === "applied") app.pending_sheet_push = false;
+      result.reconciledWrites = (result.reconciledWrites ?? 0) + 1;
+    }
 
     // 取り込みから外す日。アプリ側の変更をまだスプシへ送れていない日と、アプリで消してスプシを空にする予定の日。
     // ここを取り込むと、古いスプシの値で巻き戻したり、消した記録を復活させたりしてしまう。
@@ -483,6 +517,7 @@ export async function runSheetSync(admin: SupabaseClient, options: SyncOptions =
       const result = await runSheetSyncBatch(admin, { dryRun: options.dryRun, skipSheetWrites: options.skipSheetWrites, includeToday: options.includeToday, backfillAtRecordDate: options.backfillAtRecordDate }, groups[period], period, sheetWriteState, activeReceipts);
       if (result.sheetWritesUncertain) total.sheetWritesUncertain = true;
       for (const key of ["inserted", "updated", "pushed"] as const) total[key] += result[key];
+      if (result.reconciledWrites) total.reconciledWrites = (total.reconciledWrites ?? 0) + result.reconciledWrites;
       for (const key of ["conflicts", "skippedMembers", "unchangedMembers", "failedMembers"] as const) total[key].push(...result[key] as never[]);
     } catch (error) {
       if (sheetWriteState.attempted) total.sheetWritesUncertain = true;
