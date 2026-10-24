@@ -1,3 +1,4 @@
+import { lookup } from "node:dns/promises";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,7 +29,12 @@ export const maxDuration = 180;
 async function fetchSource(url: URL): Promise<Response> {
   for (let attempt = 1; ; attempt++) {
     try {
-      const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(20000) });
+      // The PC's resolver stalls ~15s on this host's AAAA query; an IPv4-only lookup answers at once.
+      // Plain HTTP only (the site has no working TLS), so connecting to the address with a Host header is exact.
+      const target = url.protocol === "http:" ? new URL(url) : url;
+      if (url.protocol === "http:") target.hostname = (await lookup(url.hostname, { family: 4 })).address;
+      const response = await fetch(target, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(20000),
+        ...(target !== url ? { headers: { host: url.host } } : {}) });
       if (!response.ok) throw Object.assign(new Error(`取得に失敗しました（${response.status}）`), { final: true });
       return response;
     } catch (error) {

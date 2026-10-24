@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const fixture = vi.hoisted(() => ({ competition: { id: "test-meet", starts_on: "2026-10-25", ends_on: null as string | null, archive_at: null, program_source_url: "https://sairiku.net/result/test/shtml/TimeTable.html" } }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: vi.fn() }));
+vi.mock("node:dns/promises", () => ({ lookup: async () => ({ address: "192.0.2.1", family: 4 }) }));
 vi.mock("@/lib/pc-cron-forward", () => ({ forwardPcCron: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
   from: () => {
