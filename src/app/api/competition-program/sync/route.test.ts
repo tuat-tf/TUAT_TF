@@ -17,7 +17,7 @@ beforeEach(() => {
   vi.useFakeTimers(); vi.stubEnv("SHEET_SYNC_SECRET", "synthetic-cron-secret");
   fixture.competition.ends_on = null;
   // Observe whether the route attempts a fetch, without importing or writing any records.
-  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("synthetic source probe")));
+  vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(null, { status: 503 })));
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 

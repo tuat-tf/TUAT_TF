@@ -13,7 +13,7 @@ import { isCompetitionArchived } from "@/lib/competition-lifecycle";
 
 export async function GET(request: Request) { return forwardPcCron(request, POST); }
 
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /**
  * 大会プログラム（速報サイトのタイムテーブル）を取り込む。
@@ -21,10 +21,25 @@ export const maxDuration = 60;
  * competitions.program_source_url を設定した大会だけが対象。完全なページだけを検証し、DB関数の単一トランザクションで入れ替える。
  * 1件が取得・解析に失敗しても他の大会の取込は止めない。
  */
+/**
+ * The results host sometimes takes over 10s to accept a connection (Node's connect timeout), then answers
+ * at once. Connection-level failures are retried; HTTP errors are not.
+ */
+async function fetchSource(url: URL): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(20000) });
+      if (!response.ok) throw Object.assign(new Error(`取得に失敗しました（${response.status}）`), { final: true });
+      return response;
+    } catch (error) {
+      if ((error as { final?: boolean }).final || attempt >= 3) throw error;
+      await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+    }
+  }
+}
+
 async function fetchJson(url: URL): Promise<unknown> {
-  const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error(`取得に失敗しました（${response.status}）`);
-  return JSON.parse((await response.text()).replace(/^﻿/, ""));
+  return JSON.parse((await (await fetchSource(url)).text()).replace(/^﻿/, ""));
 }
 
 /** New-format (JSON) source: the timetable plus one page per round, a few at a time. Any failure keeps the previous program. */
@@ -32,8 +47,8 @@ async function readNansProgram(url: URL, startsOn: string, endsOn: string | null
   const timetable = await fetchJson(new URL("TimeTable.json", url));
   const links = nansRounds(timetable).map(round => round.link);
   const pages = new Map<string, unknown>();
-  for (let i = 0; i < links.length; i += 6) {
-    const batch = links.slice(i, i + 6);
+  for (let i = 0; i < links.length; i += 8) {
+    const batch = links.slice(i, i + 8);
     const values = await Promise.all(batch.map(link => fetchJson(nansRoundUrl(url, link))));
     batch.forEach((link, index) => pages.set(link, values[index]));
   }
@@ -88,8 +103,7 @@ export async function POST(request: Request) {
       if (!onlyCompetitionId && (start > now + 86400000 || end < now - 86400000)) continue;
       const url = new URL(sourceUrl);
       if (url.hostname !== "sairiku.net" || !/^https?:$/.test(url.protocol) || !url.pathname.startsWith("/result/") || url.username || url.password || url.port) throw new Error("対応していない取得元URLです");
-      const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
-      if (!response.ok) throw new Error(`取得に失敗しました（${response.status}）`);
+      const response = await fetchSource(url);
       const bytes = await response.arrayBuffer();
       const { data: previous, error: readError } = await admin.from("competition_program_entries").select("*").eq("competition_id", competition.id);
       if (readError) throw readError;

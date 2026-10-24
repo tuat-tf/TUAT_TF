@@ -1,7 +1,7 @@
 // UTC schedules copied from vercel.json. No network or production config on import.
 export const JOBS = [
   { id: 'sheets', path: '/api/sheets/sync', method: 'POST', period: 86400000, offset: 15 * 3600000, timeout: 300000 },
-  { id: 'program', path: '/api/competition-program/sync', method: 'POST', period: 300000, offset: 0, timeout: 60000 },
+  { id: 'program', path: '/api/competition-program/sync', method: 'POST', period: 300000, offset: 0, timeout: 170000 },
   { id: 'cleanup', path: '/api/cron/cleanup-stories', method: 'GET', period: 86400000, offset: 3 * 3600000 + 17 * 60000, timeout: 60000 },
   { id: 'push', path: '/api/push/deliver', method: 'POST', period: 60000, offset: 0, timeout: 300000 },
 ];
