@@ -2,7 +2,7 @@
 """Repeatable PC release switch. Run as root inside WSL.
 
   pc-release.py replay-check <old-short> <new-short>   generator must reproduce a past installation exactly
-  pc-release.py build <commit>                          new release dir (git clone + npm ci + isolated next build)
+  pc-release.py build <commit> [--node-modules DIR]     new release dir (git clone + dependencies + isolated next build)
   pc-release.py prepare <commit>                        new installation dir from the running one (no service change)
   pc-release.py switch <commit> [--execute]            drain jobs/timer, stop app once, swap units+runtime, start, verify;
                                                         rolls back to the previous units/runtime if the new app does not come up
@@ -291,7 +291,26 @@ def give_to_builder(path):
             os.lchown(os.path.join(directory, name), APP_UID, APP_GID)
 
 
-def build(commit):
+def verify_node_modules(directory, lockfile):
+    """A prepared Linux tree must hold exactly the lockfile's versions; platform-only optional packages may be absent."""
+    packages = json.loads(lockfile.read_text())['packages']
+    for key, entry in packages.items():
+        if not key.startswith('node_modules/'):
+            continue
+        manifest = directory / key[len('node_modules/'):] / 'package.json'
+        if not manifest.is_file():
+            foreign = entry.get('optional') or entry.get('os') and 'linux' not in entry['os'] or entry.get('cpu') and 'x64' not in entry['cpu']
+            need(foreign or entry.get('dev'), f'prepared node_modules lacks {key}')
+            continue
+        version = json.loads(manifest.read_text()).get('version')
+        need(version == entry.get('version'), f'prepared node_modules has {key} {version}, lockfile wants {entry.get("version")}')
+    for top in directory.iterdir():
+        names = [f'{top.name}/{scoped.name}' for scoped in top.iterdir()] if top.name.startswith('@') else [top.name]
+        for name in names:
+            need(name.startswith('.') or f'node_modules/{name}' in packages, f'prepared node_modules has unlisted {name}')
+
+
+def build(commit, node_modules=None):
     s = short(commit)
     release, records, home = RELEASES / s, PRIVATE / f'build-{s}', ROOT / f'build-home-{s}'
     need(not (release / '.next/BUILD_ID').exists(), f'release {s} already built; refusing to overwrite')
@@ -316,10 +335,18 @@ def build(commit):
     run(git + ['-C', str(release), 'remote', 'remove', 'origin'])
     env = {'PATH': str(Path(NODE).parent) + ':/usr/sbin:/usr/bin:/sbin:/bin'}
     # The PC has no npm. Linux dependencies are reused from the running release when the lockfile is identical.
-    for name in ('package-lock.json', 'package.json'):
-        need((release / name).read_bytes() == (previous / name).read_bytes(),
-             f'{name} changed since {previous.name}; dependencies must be rebuilt with npm, not reused')
-    subprocess.run(['cp', '-a', str(previous / 'node_modules'), str(release / 'node_modules')], check=True)
+    if node_modules:
+        # Dependencies changed: a Linux tree prepared elsewhere (e.g. the running tree with integrity-checked
+        # registry tarballs swapped in) is accepted only when it matches this commit's lockfile exactly.
+        prepared = Path(node_modules)
+        need(prepared.is_dir() and prepared.name == 'node_modules', f'{prepared} is not a node_modules directory')
+        verify_node_modules(prepared, release / 'package-lock.json')
+        subprocess.run(['cp', '-a', str(prepared), str(release / 'node_modules')], check=True)
+    else:
+        for name in ('package-lock.json', 'package.json'):
+            need((release / name).read_bytes() == (previous / name).read_bytes(),
+                 f'{name} changed since {previous.name}; pass --node-modules with a tree prepared for this lockfile')
+        subprocess.run(['cp', '-a', str(previous / 'node_modules'), str(release / 'node_modules')], check=True)
 
     records.mkdir(mode=0o700)
     app_env = (inst / 'application.env').read_text()
@@ -551,8 +578,9 @@ def main(argv):
     need(os.geteuid() == 0, 'run as root inside WSL')
     if command == 'replay-check':
         return 0 if replay_check(argv[2], argv[3]) else 1
+    node_modules = argv[argv.index('--node-modules') + 1] if '--node-modules' in argv else None
     if command == 'build':
-        build(argv[2])
+        build(argv[2], node_modules)
         return 0
     if command == 'prepare':
         prepare(argv[2])
@@ -561,7 +589,7 @@ def main(argv):
         return switch(argv[2], '--execute' in argv)
     if command == 'release':
         # build + prepare + switch in one go; each step refuses instead of guessing.
-        build(argv[2])
+        build(argv[2], node_modules)
         prepare(argv[2])
         return switch(argv[2], True)
     if command == 'prune':
