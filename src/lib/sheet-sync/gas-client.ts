@@ -28,7 +28,8 @@ export class GasWriteNotSentError extends Error {
   readonly status = 503;
   readonly resultUnknown = false;
   readonly retryable = true;
-  constructor() { super("スプレッドシート側が書き込み前に処理を断りました。次回の同期で送り直します。"); }
+  /** GAS's own refusal reason (fixed script messages such as a missing tab or a busy lock), kept for diagnosis. */
+  constructor(readonly reason?: string) { super(`スプレッドシート側が書き込み前に処理を断りました${reason ? `（${reason}）` : ""}。次回の同期で送り直します。`); }
 }
 
 export async function gasPost<T>(body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
@@ -47,7 +48,9 @@ export async function gasPost<T>(body: Record<string, unknown>, signal?: AbortSi
   }
   return result;
   } catch (error) {
-    if (mutation) throw (error as { notWritten?: boolean })?.notWritten === true ? new GasWriteNotSentError() : new GasWriteResultUnknownError();
+    if (mutation) throw (error as { notWritten?: boolean })?.notWritten === true
+      ? new GasWriteNotSentError(String((error as Error).message ?? "").replace(/^GASエラー:\s*/, "").slice(0, 120) || undefined)
+      : new GasWriteResultUnknownError();
     throw error;
   }
 }

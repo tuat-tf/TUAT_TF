@@ -15,7 +15,7 @@ describe("gasPost write outcome", () => {
 
   it("treats an explicit written:false as not sent", async () => {
     respond.body = { error: "Error: 別の保存処理中です", written: false };
-    await expect(gasPost({ action: "writeCells" })).rejects.toMatchObject({ code: "SHEET_WRITE_NOT_SENT", resultUnknown: false });
+    await expect(gasPost({ action: "writeCells" })).rejects.toMatchObject({ code: "SHEET_WRITE_NOT_SENT", resultUnknown: false, reason: "Error: 別の保存処理中です" });
   });
 
   it("keeps any other GAS error an unknown result", async () => {

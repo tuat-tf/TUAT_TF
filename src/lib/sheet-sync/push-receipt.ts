@@ -162,8 +162,9 @@ function isKnownUnsent(error: unknown): boolean {
 /** A known-unsent request frees its reservation; if that cannot be confirmed it stays held like an unknown result. */
 async function notSent(admin: SupabaseClient, attemptId: string, input: Pick<PushAttemptInput, "targetFingerprint" | "payloadSha256">, cause: unknown): Promise<never> {
   const released = await releasePushAttempt(admin, attemptId, input);
+  const reason = typeof cause === "object" && cause !== null && typeof (cause as { reason?: unknown }).reason === "string" ? (cause as { reason: string }).reason : "";
   throw new SheetPushReceiptError("SHEET_PUSH_NOT_SENT", released
-    ? "スプレッドシート側が書き込み前に処理を断りました。次回の同期で送り直します。"
+    ? `スプレッドシート側が書き込み前に処理を断りました${reason ? `（${reason}）` : ""}。次回の同期で送り直します。`
     : "書き込み前に断られましたが、送信予約を解除できませんでした。再送せず、送信先を確認してください。",
     attemptId, false, !released, cause);
 }
