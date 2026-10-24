@@ -9,15 +9,9 @@ const option = (id: string, text: string, voted: boolean): PollOption => ({ id, 
 const render = (options: PollOption[]) => renderToStaticMarkup(createElement(PollView, {
   api, userId: "me", userName: "合成", userAvatarUrl: null, userBlocks: [], userGrade: null, options, multiple: false, anonymous: true, allowOptions: false }));
 
-it("marks the chosen option and names it under the poll", () => {
+it("marks only the chosen option, with a check and no extra text", () => {
   const html = render([option("a", "朝練", true), option("b", "夕練", false)]);
-  expect(html).toContain("投票済み");
-  expect(html).toContain("あなたの投票：朝練");
-  expect(html.match(/投票済み/g)).toHaveLength(1);
-});
-
-it("says plainly when I have not voted yet", () => {
-  const html = render([option("a", "朝練", false), option("b", "夕練", false)]);
-  expect(html).not.toContain("投票済み");
-  expect(html).toContain("まだ投票していません");
+  expect(html.match(/aria-label="投票済み"/g)).toHaveLength(1);
+  expect(html).not.toContain("あなたの投票");
+  expect(render([option("a", "朝練", false), option("b", "夕練", false)])).not.toContain("投票済み");
 });

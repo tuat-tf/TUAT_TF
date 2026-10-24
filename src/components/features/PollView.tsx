@@ -277,7 +277,7 @@ export function PollView({
           >
             <span className={cn("absolute inset-y-0 left-0", option.voted_by_me ? "bg-accent/20" : "bg-accent/10")} style={{ width: `${percent}%` }} />
             <span className="relative min-w-0 flex-1 whitespace-pre-wrap break-words py-2 text-[14px] font-medium">{option.text}</span>
-            {option.voted_by_me && <span className="relative ml-2 inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-white"><Check size={12} aria-hidden="true" />投票済み</span>}
+            {option.voted_by_me && <span className="relative ml-2 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Check size={13} strokeWidth={3} aria-label="投票済み" /></span>}
             <span className="relative ml-3 text-[12px] tabular-nums">{percent}%</span>
           </button>
           </div>
@@ -294,7 +294,7 @@ export function PollView({
           <Button variant="ghost" disabled={saving} onClick={() => setAdding(true)}><Plus size={16} />選択肢を追加</Button>
         )
       )}
-      <p className="text-micro">{totalVotes}票 ・ {multiple ? "複数選択可" : "1つ選択"} ・ {anonymous ? "匿名" : "記名"}{options.some(o => o.voted_by_me) ? ` ・ あなたの投票：${options.filter(o => o.voted_by_me).map(o => o.text).join("、")}` : " ・ まだ投票していません"}</p>
+      <p className="text-micro">{totalVotes}票 ・ {multiple ? "複数選択可" : "1つ選択"} ・ {anonymous ? "匿名" : "記名"}</p>
       {!anonymous && <Button variant="ghost" onClick={() => setDetailOptionId(options[0]?.id ?? null)}>投票者を確認</Button>}
       {!anonymous && detailOptionId && detailOption && (
         <Sheet open onOpenChange={(open) => !open && setDetailOptionId(null)}>
