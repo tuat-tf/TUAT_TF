@@ -46,8 +46,11 @@ export function dueJobs(state, now, localPushEnabled = false) {
   return JOBS.filter(job => {
     if (job.id === 'push' && !localPushEnabled) return false;
     const slot = slotAt(job, now), last = state.jobs[job.id];
+    // The program import only reads the official site and replaces the imported rows as a whole, so a failed or
+    // uncertain run is simply tried again next slot (one slow fetch at midnight used to stop it for good).
     const canContinue = last && (job.id === 'sheets' && ['partial', 'failed', 'uncertain'].includes(last.status)
-      || job.id === 'push' && ['failed', 'uncertain'].includes(last.status));
+      || job.id === 'push' && ['failed', 'uncertain'].includes(last.status)
+      || job.id === 'program' && ['failed', 'uncertain'].includes(last.status));
     if (slot < state.activateAt || (last && last.status !== 'success' && !canContinue)) return false;
     if (job.id === 'push' && canContinue && slot < last.slot + (last.pendingBackoffMinutes ?? 1) * job.period) return false;
     return !last || slot > last.slot;

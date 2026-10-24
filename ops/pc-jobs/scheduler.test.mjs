@@ -98,13 +98,18 @@ test('journal commit precedes execution; persistence failure dispatches nothing'
     save: async () => { throw Error('disk full'); }, execute: async () => { calls++; } }));
   assert.equal(calls, 0);
 });
-test('crashed in-flight and ambiguous failures block later automatic dispatch', async () => {
+test('ambiguous failures block later dispatch except the idempotent program import', async () => {
   const state = initialState(at);
   state.jobs.program = { slot: at, status: 'running' };
   recoverState(state); assert.equal(state.jobs.program.status, 'uncertain');
   await tick({ state, now: at, ready: async () => true, save: async () => {}, execute: async () => { throw Error('lost after commit'); } });
   assert.equal(state.jobs.program.status, 'uncertain');
-  assert.deepEqual(dueJobs(state, at + 3600000), []);
+  // The program import is a whole-table refresh from a read-only source: it is retried next slot.
+  assert.deepEqual(dueJobs(state, at + 3600000).map(j => j.id), ['program']);
+  // Other ambiguous jobs still wait for review instead of being replayed.
+  const cleanupSlot = slotAt(JOBS[2], at);
+  state.jobs.cleanup = { slot: cleanupSlot, status: 'uncertain' };
+  assert.ok(!dueJobs(state, cleanupSlot + 86400000).some(j => j.id === 'cleanup'));
 });
 test('HTTP 200 partial failures and malformed payloads are not success', async () => {
   assert.equal(successfulPayload(JOBS[0], { ok: true, failedMembers: ['synthetic'] }), false);
