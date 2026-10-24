@@ -200,39 +200,28 @@ export function PollView({
     return () => { alive = false; };
   }, [optionIdsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function removeLocalVotes(ids: string[]) {
-    setOptions((items) => items.map((item) => ids.includes(item.id) ? {
-      ...item, voted_by_me: false, vote_count: Math.max(0, item.vote_count - 1),
-      voters: item.voters.filter((voter) => voter.profile_id !== userId),
-    } : item));
-  }
-
   async function vote(optionId: string) {
     if (pending.current) return;
     const target = options.find((option) => option.id === optionId);
     if (!target) return;
     pending.current = true;
-    setSaving(true);
+    // One choice: clear my vote on every other option, not only the ones this screen believes I chose.
+    const removedIds = target.voted_by_me ? [optionId] : !multiple ? options.filter((option) => option.id !== optionId).map((option) => option.id) : [];
+    const cleared = new Set(options.filter(option => removedIds.includes(option.id) && option.voted_by_me).map(option => option.id));
+    // Show the result at once, in one render; the database answer only corrects it if the save failed.
+    setOptions(items => items.map(item => cleared.has(item.id) ? {
+      ...item, voted_by_me: false, vote_count: Math.max(0, item.vote_count - 1), voters: item.voters.filter(v => v.profile_id !== userId),
+    } : item.id === optionId && !target.voted_by_me ? {
+      ...item, voted_by_me: true, vote_count: item.vote_count + 1,
+      voters: anonymous ? item.voters : [...item.voters.filter(v => v.profile_id !== userId), me],
+    } : item));
     try {
-      // One choice: clear my vote on every other option, not only the ones this screen believes I chose.
-      const removedIds = target.voted_by_me ? [optionId] : !multiple ? options.filter((option) => option.id !== optionId).map((option) => option.id) : [];
-      if (removedIds.length) {
-        if (!await api.removeVotes(removedIds)) throw new Error("remove failed");
-        removeLocalVotes(options.filter(option => removedIds.includes(option.id) && option.voted_by_me).map(option => option.id));
-      }
-      if (!target.voted_by_me) {
-        if (!await api.addVote(optionId)) throw new Error("add failed");
-        setOptions((items) => items.map((item) => item.id === optionId ? {
-          ...item, voted_by_me: true, vote_count: item.vote_count + 1,
-          voters: anonymous ? item.voters : [...item.voters.filter((voter) => voter.profile_id !== userId), me],
-        } : item));
-      }
+      if (removedIds.length && !await api.removeVotes(removedIds)) throw new Error("remove failed");
+      if (!target.voted_by_me && !await api.addVote(optionId)) throw new Error("add failed");
     } catch {
-      showToast("投票を保存できませんでした。通信状態を確認して、もう一度お試しください");
-    } finally {
       await reconcile(options.map(option => option.id));
-      pending.current = false; setSaving(false);
-    }
+      showToast("投票を保存できませんでした。通信状態を確認して、もう一度お試しください");
+    } finally { pending.current = false; }
   }
 
   async function addOption() {
@@ -259,7 +248,6 @@ export function PollView({
             data-ui-poll-option
             aria-pressed={option.voted_by_me}
             type="button"
-            disabled={saving}
             onClick={() => handleOptionClick(option.id)}
             onPointerDown={(event) => { if (event.button !== 0) return; window.getSelection()?.removeAllRanges(); startLongPress(option.id); }}
             onPointerUp={cancelLongPress}
@@ -271,14 +259,16 @@ export function PollView({
               setDetailOptionId(option.id);
             }}
             className={cn(
-              "relative flex disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-11 w-full select-none touch-manipulation items-center overflow-hidden rounded-xl border px-3 text-left [-webkit-touch-callout:none]",
-              option.voted_by_me ? "border-2 border-accent bg-card font-semibold text-accent" : "border-separator bg-card",
+              "relative flex focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 min-h-11 w-full select-none touch-manipulation items-center overflow-hidden rounded-xl border px-3 text-left [-webkit-touch-callout:none]",
+              // Same border width and weight either way: only colour changes, so nothing shifts.
+              option.voted_by_me ? "border-accent bg-card text-accent ring-1 ring-inset ring-accent" : "border-separator bg-card",
             )}
           >
-            <span className={cn("absolute inset-y-0 left-0", option.voted_by_me ? "bg-accent/20" : "bg-accent/10")} style={{ width: `${percent}%` }} />
+            <span className={cn("absolute inset-y-0 left-0 transition-[width] duration-300 motion-reduce:transition-none", option.voted_by_me ? "bg-accent/20" : "bg-accent/10")} style={{ width: `${percent}%` }} />
             <span className="relative min-w-0 flex-1 whitespace-pre-wrap break-words py-2 text-[14px] font-medium">{option.text}</span>
-            {option.voted_by_me && <span className="relative ml-2 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-white"><Check size={13} strokeWidth={3} aria-label="投票済み" /></span>}
-            <span className="relative ml-3 text-[12px] tabular-nums">{percent}%</span>
+            {/* The check keeps its space when hidden, so the text never re-wraps on vote/unvote. */}
+            <span className={cn("relative ml-2 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-white", !option.voted_by_me && "invisible")}>{option.voted_by_me && <Check size={13} strokeWidth={3} aria-label="投票済み" />}</span>
+            <span className="relative ml-3 w-9 text-right text-[12px] tabular-nums">{percent}%</span>
           </button>
           </div>
         );
