@@ -5,7 +5,8 @@ import { fetchRolesByProfileIds } from "@/lib/supabase/auth";
 import { permissionsOf } from "@/lib/permissions";
 import { timingSafeEqualString } from "@/lib/timing-safe";
 import { forwardPcCron } from "@/lib/pc-cron-forward";
-import { decodeShiftJisHtml, parseCompetitionProgram, reconcileProgramEntries, validateProgramImport, fromStoredProgramRow } from "@/lib/competition-program";
+import { decodeShiftJisHtml, parseCompetitionProgram, reconcileProgramEntries, validateProgramImport, fromStoredProgramRow, type ParsedProgramRow } from "@/lib/competition-program";
+import { isNansProgramPage, nansRounds, nansRoundUrl, parseNansProgram } from "@/lib/competition-program-nans";
 import type { CompetitionProgramEntryRow } from "@/types";
 import type { Json } from "@/types/database";
 import { isCompetitionArchived } from "@/lib/competition-lifecycle";
@@ -20,6 +21,28 @@ export const maxDuration = 60;
  * competitions.program_source_url を設定した大会だけが対象。完全なページだけを検証し、DB関数の単一トランザクションで入れ替える。
  * 1件が取得・解析に失敗しても他の大会の取込は止めない。
  */
+async function fetchJson(url: URL): Promise<unknown> {
+  const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error(`取得に失敗しました（${response.status}）`);
+  return JSON.parse((await response.text()).replace(/^﻿/, ""));
+}
+
+/** New-format (JSON) source: the timetable plus one page per round, a few at a time. Any failure keeps the previous program. */
+async function readNansProgram(url: URL, startsOn: string, endsOn: string | null, previousCount: number): Promise<ParsedProgramRow[]> {
+  const timetable = await fetchJson(new URL("TimeTable.json", url));
+  const links = nansRounds(timetable).map(round => round.link);
+  const pages = new Map<string, unknown>();
+  for (let i = 0; i < links.length; i += 6) {
+    const batch = links.slice(i, i + 6);
+    const values = await Promise.all(batch.map(link => fetchJson(nansRoundUrl(url, link))));
+    batch.forEach((link, index) => pages.set(link, values[index]));
+  }
+  const rows = parseNansProgram(timetable, pages, startsOn, endsOn);
+  if (rows.length < previousCount * 0.8) throw new Error("取得ページが不完全なため、前回のプログラムを保持しました");
+  if (new Set(rows.map(r => `${r.eventDate}/${r.block}/${r.roundKey}`)).size !== rows.length) throw new Error("プログラムの種目が重複しています");
+  return rows;
+}
+
 export async function POST(request: Request) {
   const secret = process.env.SHEET_SYNC_SECRET;
   const authHeader = request.headers.get("authorization") ?? "";
@@ -67,11 +90,17 @@ export async function POST(request: Request) {
       if (url.hostname !== "sairiku.net" || !/^https?:$/.test(url.protocol) || !url.pathname.startsWith("/result/") || url.username || url.password || url.port) throw new Error("対応していない取得元URLです");
       const response = await fetch(url, { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15000) });
       if (!response.ok) throw new Error(`取得に失敗しました（${response.status}）`);
-      const html = decodeShiftJisHtml(await response.arrayBuffer());
+      const bytes = await response.arrayBuffer();
       const { data: previous, error: readError } = await admin.from("competition_program_entries").select("*").eq("competition_id", competition.id);
       if (readError) throw readError;
-      const parsed = parseCompetitionProgram(html, new Date(competition.starts_on).getFullYear());
-      validateProgramImport(html, parsed, previous?.length ?? 0);
+      let parsed: ParsedProgramRow[];
+      if (isNansProgramPage(new TextDecoder().decode(bytes))) {
+        parsed = await readNansProgram(url, competition.starts_on, competition.ends_on, previous?.length ?? 0);
+      } else {
+        const html = decodeShiftJisHtml(bytes);
+        parsed = parseCompetitionProgram(html, new Date(competition.starts_on).getFullYear());
+        validateProgramImport(html, parsed, previous?.length ?? 0);
+      }
       const rows = reconcileProgramEntries(parsed, ((previous ?? []) as unknown as CompetitionProgramEntryRow[]).map(fromStoredProgramRow));
       const stored = rows.map(row => ({ event_date: row.eventDate, block: row.block, sort_order: row.sortOrder,
         time_label: row.timeLabel, round_key: row.roundKey, event_label: row.eventLabel, status: row.status,
