@@ -26,3 +26,8 @@ python3 -I -B .../pc-release.py replay-check <old> <new>   # 生成器が過去�
 - 解消: Windowsの起動タスク「TUAT Local Runtime」はCodexアプリ内のNodeに依存していたため、同じv24.19.0を `C:ProgramDataTUAT-TF
 ode
 ode.exe`（管理者・SYSTEMのみ書込可、rainbは読取/実行）へ複製し、タスクの実行ファイルを変更（2026-10-23、所有者が管理者権限で実行）。引数・S4U・稼働中の本番は不変。次回起動から有効で、実際の再起動試験は未実施。
+
+
+## 依存関係が変わる版（2026-10-24追記）
+
+PCにnpmがないため、lockfileが変わった版は `release <commit> --node-modules <dir>` で、別途用意したLinux用node_modulesを渡す。スクリプトはlockfileの全パッケージの版と一致しない限り拒否する（他OS専用の任意パッケージだけ欠けてよい）。Next 16.4.3更新では、稼働中releaseのnode_modulesを暗号化領域へ複製し、変更5パッケージだけをlockfileのintegrityと一致したregistryのtarballで差し替え、入れ子のnode_modulesは元から引き継いだ。WindowsのnpmはLinux用のSWCを入れないため使わない。
