@@ -30,10 +30,19 @@ export function TweetPoll({
 }) {
   const api: PollApi = {
     async addVote(optionId) {
+      // Already voted (another tab, an older screen) is success, not an error.
       const { error } = await createClient()
         .from("tweet_poll_votes")
-        .insert({ option_id: optionId, user_id: userId });
+        .upsert({ option_id: optionId, user_id: userId }, { onConflict: "option_id,user_id", ignoreDuplicates: true });
       return !error;
+    },
+    async myVotes(optionIds) {
+      const { data, error } = await createClient()
+        .from("tweet_poll_votes")
+        .select("option_id")
+        .in("option_id", optionIds)
+        .eq("user_id", userId);
+      return error || !data ? null : new Set(data.map(row => row.option_id));
     },
     async removeVotes(optionIds) {
       const { error } = await createClient()
