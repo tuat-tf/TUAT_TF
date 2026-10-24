@@ -373,10 +373,15 @@ function clearIfExistingLocked(data, progress) {
       const raw = values[i][dateColumn];
       if (raw === '' || raw === null || raw === undefined) continue;
       const parsed = parseSheetDate(raw);
-      // A malformed date must not become an authoritative missing ACK. Only
-      // recognized summary labels can be skipped without understanding a date.
-      if (!validClearDate(parsed) && !/^(?:(?:月間|週間|週|月|日)?合計|小計|総計|平均)$/.test(raw.toString().trim()))
+      // A malformed date must not become an authoritative missing ACK. Summary labels and
+      // headings with no digits at all (a member's own "テーマ"/"目標"/"日付" notes below the
+      // table) cannot be a mistyped date and are skipped; anything date-like still refuses.
+      if (!validClearDate(parsed)) {
+        const text = raw.toString().trim();
+        if (/^(?:(?:月間|週間|週|月|日)?合計|小計|総計|平均)$/.test(text)) continue;
+        if (Object.prototype.toString.call(raw) !== '[object Date]' && !/[0-9０-９]/.test(text)) continue;
         throw new Error('Unrecognized clear date');
+      }
       if (parsed === data.date) rows.push(i);
     }
     if (rows.length > 1) throw new Error('Ambiguous clear date row');

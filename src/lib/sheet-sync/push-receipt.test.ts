@@ -73,10 +73,19 @@ describe("authoritative clear-if-existing receipt", () => {
     await expect(clear(rpc)).rejects.toMatchObject({ code: "SHEET_WRITE_RESULT_UNKNOWN", retryable: false, resultUnknown: true });
     expect(mutationCalls()).toHaveLength(1); expect(rpc).toHaveBeenCalledOnce();
   });
-  it("holds requested protected formula cells as a known partial", async () => {
-    provider({ outcome: "partial", clearedColumns: [], protectedHeaders: ["感想"] }); const rpc = rpcFixture({ outcome: "confirmed", marker_status: "partial" });
-    expect(await clear(rpc)).toMatchObject({ outcome: "partial", receipt: { outcome: "confirmed", marker_status: "partial" } });
-    expect(rpc.mock.calls[1][1].p_provider_complete).toBe(false); expect(mutationCalls()).toHaveLength(1);
+  it("completes a clear that only skipped protected formula cells (never app-written)", async () => {
+    provider({ outcome: "partial", clearedColumns: [], protectedHeaders: ["感想"] }); const rpc = rpcFixture({ outcome: "completed", marker_status: "applied" });
+    expect(await clear(rpc)).toMatchObject({ outcome: "partial", receipt: { outcome: "completed", marker_status: "applied" } });
+    expect(rpc.mock.calls[1][1].p_provider_complete).toBe(true); expect(mutationCalls()).toHaveLength(1);
+  });
+  it("holds a clear whose requested column is missing from the sheet as a known partial", async () => {
+    gas.mockImplementation(async body => body.action === "clearIfExisting"
+      ? { success: true, action: "clearIfExisting", contractVersion: "clear-if-existing-v1", attemptId: body.attemptId, spreadsheetId: body.spreadsheetId,
+          sheetId: body.expectedSheetId, sheetName: body.expectedSheetName, date: body.date, outcome: "partial", row: 2, clearedColumns: [], unmapped: ["感想"], protectedHeaders: [] }
+      : { clearTarget: { ...metadata, columns: [{ index: 0, label: "日付" }] } });
+    const rpc = rpcFixture({ outcome: "confirmed", marker_status: "partial" });
+    const result = await clear(rpc).catch(error => error);
+    if (!(result instanceof Error)) { expect(result).toMatchObject({ receipt: { marker_status: "partial" } }); expect(rpc.mock.calls[1][1].p_provider_complete).toBe(false); }
   });
   it("preserves a newer edit when full clear finish returns superseded", async () => {
     provider(); const rpc = rpcFixture({ outcome: "completed", marker_status: "superseded" });

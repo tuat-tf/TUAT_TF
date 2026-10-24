@@ -292,7 +292,7 @@ function clearColumnMapping(metadata: ClearMetadata, target: ClearTarget, input:
   return { fields, columns };
 }
 
-function confirmedClear(value: unknown, body: Record<string, unknown>, requested: ClearColumn[]): { outcome: "cleared" | "missing" | "partial"; skipped: string[] } | null {
+function confirmedClear(value: unknown, body: Record<string, unknown>, requested: ClearColumn[]): { outcome: "cleared" | "missing" | "partial"; skipped: string[]; unmapped: number } | null {
   const result = receiptObject(value);
   if (!result || result.success !== true || result.action !== "clearIfExisting" || result.contractVersion !== CLEAR_CONTRACT_VERSION
     || result.attemptId !== body.attemptId || result.spreadsheetId !== body.spreadsheetId || result.sheetId !== body.expectedSheetId
@@ -304,7 +304,7 @@ function confirmedClear(value: unknown, body: Record<string, unknown>, requested
   const unmapped = [...result.unmapped];
   const protectedHeaders = [...result.protectedHeaders];
   if (result.outcome === "missing") return result.row === null && !cleared.length && !unmapped.length && !protectedHeaders.length
-    ? { outcome: "missing", skipped: [] } : null;
+    ? { outcome: "missing", skipped: [], unmapped: 0 } : null;
   if (!Number.isSafeInteger(result.row) || Number(result.row) <= Number(body.expectedHeaderRow)) return null;
   for (const column of requested) {
     const list = column.index === null ? unmapped : cleared.includes(column.index) ? cleared : protectedHeaders;
@@ -315,7 +315,7 @@ function confirmedClear(value: unknown, body: Record<string, unknown>, requested
   if (cleared.length || unmapped.length || protectedHeaders.length) return null;
   const skipped = [...result.unmapped, ...result.protectedHeaders] as string[];
   if (result.outcome !== (skipped.length ? "partial" : "cleared")) return null;
-  return { outcome: result.outcome as "cleared" | "partial", skipped };
+  return { outcome: result.outcome as "cleared" | "partial", skipped, unmapped: result.unmapped.length };
 }
 
 /** One metadata read and, only after a fresh reservation, one clear mutation.
@@ -356,7 +356,9 @@ export async function clearIfExistingWithReceipt(admin: SupabaseClient,
   }
   const confirmed = confirmedClear(result, body, mapping.columns);
   if (!confirmed) throw new SheetPushReceiptError("SHEET_WRITE_RESULT_UNKNOWN", "消去結果を確認できませんでした。再送せず、送信先を確認してください。", begin.attemptId, "unknown", true);
-  const receipt = await finishPushAttempt(admin, begin.attemptId, binding, confirmed.outcome !== "partial");
+  // Formula/calculated columns (実際の距離 etc.) are never app-written and are kept on purpose; skipping only
+  // those still removes everything the app put there. A column missing from the sheet is a real partial.
+  const receipt = await finishPushAttempt(admin, begin.attemptId, binding, confirmed.outcome !== "partial" || confirmed.unmapped === 0);
   return { outcome: confirmed.outcome, receipt };
 }
 

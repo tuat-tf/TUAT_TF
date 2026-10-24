@@ -69,10 +69,17 @@ test('authoritative missing date never inserts a row or clears another date', ()
 });
 
 test('duplicate target dates and unrecognized numeric dates refuse clear before any write', () => {
-  for (const dates of [['2026-10-10', '10/10'], ['2026-10-10', '2026-02-30'], ['2026-10-10', '10.10'], ['１０/１０'], ['unrecognized date text']]) {
+  for (const dates of [['2026-10-10', '10/10'], ['2026-10-10', '2026-02-30'], ['2026-10-10', '10.10'], ['１０/１０'], ['10月10日'], ['date 10']]) {
     const f = fixture({ rows: [['日付', '曜日', '感想'], ...dates.map(date => [date, '土', 'retained'])] });
     assert.ok(f.clear().error); assert.deepEqual(f.writes, []); assert.equal(f.inserted(), 0); assert.equal(f.events.at(-1), 'release');
   }
+});
+
+test('headings with no digits below the table do not block clearing the target date', () => {
+  const f = fixture({ rows: [['日付', '曜日', '感想'], ['2026-10-10', '土', 'deleted in app'], ['', '', ''], ['テーマ', '', 'free note'], ['目標', '', ''], ['日付', '', ''], ['レース', '', '']] });
+  const result = f.clear();
+  assert.equal(result.outcome, 'cleared'); assert.deepEqual(f.writes, [{ row: 2, column: 3, value: '' }]);
+  assert.equal(f.values[3][2], 'free note');
 });
 
 test('known summary rows are skipped without protecting a manually entered daily total', () => {
