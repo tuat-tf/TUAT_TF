@@ -44,6 +44,9 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
     ...(published ? [publishedParticipation(row)] : [])];
   const best = (row: Row) => row.state.recorded ? new MeetEvent(obEventRule(row.eventName), { participants: [row.performance], confirmed: false }).best(row.performance.status === "DNS" ? { ...row.performance, status: "entered" } : row.performance) : "";
   const name = obFamilyLabel(family);
+  // Tab names do not print; the frozen header row repeats on every printed page, so its first cell names the event.
+  const titled = (label: string) => `【${name}】${label}`;
+  const titleWidth = (base: number, label: string) => Math.max(base, titled(label).length * 2);
   const ranks = new Map(["男子", "女子"].flatMap(division => [...obResultRanks(rule,
     rows.filter(row => row.division === division && row.state.canParticipate).map(row => row.performance))]));
   // Ranks are per division even in mixed heats, so the cell says which (男子1位 / 女子1位).
@@ -58,7 +61,7 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
   if (rule.discipline === "track") {
     const lanes = !["1500m", "3000m"].includes(family);
     const result = (row: Row): TableCell[] => results ? [best(row)] : [];
-    const lines: TableCell[][] = [["組", ...(lanes ? ["レーン"] : []), ...personHeaders, ...(results ? ["記録"] : [])]];
+    const lines: TableCell[][] = [[titled("組"), ...(lanes ? ["レーン"] : []), ...personHeaders, ...(results ? ["記録"] : [])]];
     let heat: string | undefined;
     for (const row of rows) {
       const label = row.group === null ? "" : heatLabels?.[row.group] ?? obMixedGroupLabel(row.group);
@@ -67,13 +70,13 @@ export function obResultSheet(family: string, entries: ObEntry[], operations: Ob
       lines.push([label === heat ? null : label, ...(lanes ? [row.group === null ? null : row.performance.order] : []), ...person(row), ...result(row)]);
       heat = label;
     }
-    return ranked({ name, widths: [10, ...(lanes ? [7] : []), ...personWidths, ...(results ? [10] : [])], rows: lines });
+    return ranked({ name, widths: [titleWidth(10, "組"), ...(lanes ? [7] : []), ...personWidths, ...(results ? [10] : [])], rows: lines });
   }
 
   // OB field events record one mark per athlete, so the sheet has a single 記録 column (no attempt columns).
   const order = (row: Row): TableCell => row.number ?? "";
-  return ranked({ name, widths: [8, ...personWidths, ...(results ? [10] : [])], rows: [
-    ["試技順", ...personHeaders, ...(results ? ["記録"] : [])],
+  return ranked({ name, widths: [titleWidth(8, "試技順"), ...personWidths, ...(results ? [10] : [])], rows: [
+    [titled("試技順"), ...personHeaders, ...(results ? ["記録"] : [])],
     ...rows.map(row => [order(row), ...person(row), ...(results ? [best(row)] : [])]),
   ] });
 }

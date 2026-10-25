@@ -13,7 +13,7 @@ describe("live shared OB workbook", () => {
     const sheets = obPublishedResultSheets(entries, operations);
     expect(sheets.map(sheet => sheet.name)).toEqual(["プログラム", "1500m", "ジャベリックスロー", "立ち五段跳び", "100m", "砲丸投げ", "300mH", "走り高跳び", "300m", "やり投げ", "走り幅跳び", "3000m"]);
     const track = sheets.find(sheet => sheet.name === "100m")!;
-    expect(track.rows[0]).toEqual(["組", "レーン", "区分", "氏名", "学年", "出場状況", "記録", "順位（男女別）"]);
+    expect(track.rows[0]).toEqual(["【100m】組", "レーン", "区分", "氏名", "学年", "出場状況", "記録", "順位（男女別）"]);
     expect(track.rows.find(row => row.includes("合成三郎"))).toEqual(["", null, "男子", "合成三郎", "B3", "DNS（欠場）", "", ""]);
     expect(track.rows.find(row => row.includes("合成四郎"))).toEqual([null, null, "男子", "合成四郎", "B4", "DNS（欠場）", "", ""]);
     expect(track.rows.find(row => row.includes("合成五郎"))).toEqual([null, null, "男子", "合成五郎", "M1", "DNS（欠場）", "11.90", ""]);
@@ -86,21 +86,21 @@ describe("OB results workbook", () => {
 
   it("writes a pre-meet start list: each heat named once, a blank line between heats, no numbers or status", () => {
     expect(sheet("1500m").rows).toEqual([
-      ["組", "区分", "氏名", "学年"],
+      ["【1500m】組", "区分", "氏名", "学年"],
       ["男子1組", "男子", "合成長一", "B1"],
       [null, "男子", "合成長二", "OB・OG"],
       [],
       ["男子2組", "男子", "合成長三", "M2"],
     ]);
     expect(sheet("立ち五段跳び").rows).toEqual([
-      ["試技順", "区分", "氏名", "学年"],
+      ["【立ち五段跳び】試技順", "区分", "氏名", "学年"],
       ["", "男子", "合成七郎", "B1"],
     ]);
   });
 
   it("keeps lanes and adds results once recorded, leaving out people who do not compete", () => {
     expect(sheet("100m").rows).toEqual([
-      ["組", "レーン", "区分", "氏名", "学年", "記録"],
+      ["【100m】組", "レーン", "区分", "氏名", "学年", "記録"],
       ["男子1組", 3, "男子", "合成一郎", "B1", "12.34"],
       [null, 4, "男子", "合成八郎", "B2", ""],
       [],
@@ -117,12 +117,12 @@ describe("OB results workbook", () => {
 
   it("writes one 記録 column per field athlete, without attempt columns", () => {
     expect(sheet("走り幅跳び").rows).toEqual([
-      ["試技順", "区分", "氏名", "学年", "記録"],
+      ["【走り幅跳び】試技順", "区分", "氏名", "学年", "記録"],
       [1, "男子", "合成跳太", "B2", "5.60"],
       [2, "男子", "合成跳次", "B3", "記録なし"],
     ]);
     expect(sheet("走り高跳び").rows).toEqual([
-      ["試技順", "区分", "氏名", "学年", "記録"],
+      ["【走り高跳び】試技順", "区分", "氏名", "学年", "記録"],
       [1, "男子", "合成高男", "B2", "1.4"],
       [2, "女子", "合成高子", "B1", "1.25"],
     ]);
