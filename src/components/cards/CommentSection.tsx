@@ -45,7 +45,7 @@ export function CommentSection({
       const supabase = createClient();
       const commentsResult = await supabase
         .from("comments")
-        .select("*, author:profiles(id, display_name, avatar_url)")
+        .select("*, author:profiles!user_id(id, display_name, avatar_url)")
         .eq("target_type", targetType)
         .eq("target_id", targetId)
         .order("created_at", { ascending: true });
