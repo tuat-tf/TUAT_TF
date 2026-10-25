@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/common/Avatar";
 import { CommentLikeButton } from "@/components/cards/CommentLikeButton";
-import { Linkify } from "@/components/common/Linkify";
+import { MentionText } from "@/components/common/MentionText";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -34,6 +34,11 @@ export function CommentSection({
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  // @mentions: members are read once, the first time "@" is typed in the reply box.
+  const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }> | null>(null);
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const mentionQuery = text.match(/@([^\s@\n]*)$/)?.[1]?.toLocaleLowerCase("ja") ?? null;
+  const membersRequested = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
   const countChange = useRef(onCountChange);
   useEffect(() => { countChange.current = onCountChange; }, [onCountChange]);
@@ -45,7 +50,7 @@ export function CommentSection({
       const supabase = createClient();
       const commentsResult = await supabase
         .from("comments")
-        .select("*, author:profiles!user_id(id, display_name, avatar_url)")
+        .select("*, author:profiles!user_id(id, display_name, avatar_url), comment_mentions(profile_id, profile:profiles(display_name))")
         .eq("target_type", targetType)
         .eq("target_id", targetId)
         .order("created_at", { ascending: true });
@@ -59,9 +64,11 @@ export function CommentSection({
 
       const rows: CommentWithAuthor[] = (commentsResult.data ?? []).flatMap((row) => {
         if (row.target_type !== "record" && row.target_type !== "tweet") return [];
+        const { comment_mentions: mentionRows, ...rest } = row as typeof row & { comment_mentions?: { profile_id: string; profile: { display_name: string } | null }[] };
         return [{
-          ...row,
+          ...rest,
           target_type: row.target_type as TargetType,
+          mentions: (mentionRows ?? []).map(m => ({ profile_id: m.profile_id, display_name: m.profile?.display_name ?? "" })),
         }];
       });
       setComments(rows);
@@ -90,6 +97,20 @@ export function CommentSection({
     };
   }, [targetId, targetType]);
 
+  useEffect(() => {
+    if (mentionQuery === null || membersRequested.current) return;
+    membersRequested.current = true;
+    void Promise.resolve(createClient().from("profiles").select("id, display_name, mention_reading").eq("status", "active").order("display_name"))
+      .then(({ data, error: readError }) => { if (!readError) setMembers(data ?? []); else membersRequested.current = false; })
+      .catch(() => { membersRequested.current = false; });
+  }, [mentionQuery]);
+  const suggestions = mentionQuery === null || !members ? [] : members.filter(member => member.id !== currentUser.id && (
+    member.display_name.toLocaleLowerCase("ja").includes(mentionQuery) || (member.mention_reading ?? "").toLocaleLowerCase("ja").includes(mentionQuery))).slice(0, 6);
+  function selectMention(member: { id: string; display_name: string }) {
+    setText(value => value.replace(/@([^\s@\n]*)$/, `@${member.display_name} `));
+    setMentionIds(ids => ids.includes(member.id) ? ids : [...ids, member.id]);
+  }
+
   async function add() {
     const content = text.trim();
     if (!content || saving) return;
@@ -97,16 +118,11 @@ export function CommentSection({
     setSaving(true);
     setError("");
     const supabase = createClient();
-    const { data, error: insertError } = await supabase
-      .from("comments")
-      .insert({
-        user_id: currentUser.id,
-        target_type: targetType,
-        target_id: targetId,
-        content,
-      })
-      .select("id, user_id, target_type, target_id, content, created_at, updated_at")
-      .single();
+    // Only names still present in the text count as mentions (a removed "@name" is not notified).
+    const mentioned = (members ?? []).filter(member => mentionIds.includes(member.id) && content.includes(`@${member.display_name}`));
+    const { data, error: insertError } = await supabase.rpc("add_comment", {
+      p_target_type: targetType, p_target_id: targetId, p_content: content, p_mention_ids: mentioned.map(member => member.id),
+    });
 
     if (insertError || !data) {
       setError("コメントを送信できませんでした");
@@ -118,6 +134,7 @@ export function CommentSection({
       ...data,
       target_type: targetType,
       author: currentUser,
+      mentions: mentioned.map(member => ({ profile_id: member.id, display_name: member.display_name })),
     };
     setComments((items) => {
       const next = [...items, added];
@@ -125,6 +142,7 @@ export function CommentSection({
       return next;
     });
     setText("");
+    setMentionIds([]);
     setSaving(false);
     requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" }));
   }
@@ -270,7 +288,7 @@ export function CommentSection({
                   ) : (
                     <>
                       <p className="text-[14px] whitespace-pre-wrap break-words">
-                        <Linkify text={comment.content} />
+                        <MentionText text={comment.content} mentions={comment.mentions} />
                       </p>
                       {edited && <p className="text-micro mt-0.5">編集済み</p>}
                       <CommentLikeButton
@@ -292,6 +310,18 @@ export function CommentSection({
       </div>
 
       {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
+
+      {suggestions.length > 0 && (
+        <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-separator bg-bg p-1" role="listbox" aria-label="メンションする人">
+          {suggestions.map(member => (
+            <button data-ui-action key={member.id} type="button" role="option" aria-selected={false}
+              className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-[14px] active:bg-card"
+              onClick={() => selectMention(member)}>
+              <span className="min-w-0 flex-1 truncate">@{member.display_name}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-3 flex min-w-0 items-end gap-2">
         <Textarea

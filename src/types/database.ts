@@ -2077,6 +2077,12 @@ export type Database = {
           },
         ]
       }
+      comment_mentions: {
+        Row: { comment_id: string; profile_id: string; created_at: string }
+        Insert: { comment_id: string; profile_id: string; created_at?: string }
+        Update: { comment_id?: string; profile_id?: string; created_at?: string }
+        Relationships: []
+      }
       tweet_mentions: {
         Row: { tweet_id: string; profile_id: string; created_at: string }
         Insert: { tweet_id: string; profile_id: string; created_at?: string }
@@ -2298,6 +2304,10 @@ export type Database = {
       get_poll_voters: {
         Args: { tweet_ids: string[] }
         Returns: { option_id: string; profile_id: string; display_name: string; avatar_url: string | null; blocks: string[]; grade: string | null }[]
+      }
+      add_comment: {
+        Args: { p_target_type: string; p_target_id: string; p_content: string; p_mention_ids: string[] }
+        Returns: { id: string; user_id: string; target_type: string; target_id: string; content: string; created_at: string; updated_at: string; sheet_reply_index: number | null }
       }
       get_comment_like_state: {
         Args: { comment_ids: string[] }

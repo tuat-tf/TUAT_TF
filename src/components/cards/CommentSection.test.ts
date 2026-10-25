@@ -46,7 +46,10 @@ function render(moderator = false, onCountChange = state.count) {
 }
 beforeEach(() => {
   hooks.values = []; hooks.effects = []; hooks.dependencies = []; selectors.length = 0; inserted = null;
-  state.count.mockReset(); state.rpc.mockReset().mockResolvedValue({ data: [], error: null });
+  state.count.mockReset(); state.rpc.mockReset().mockImplementation(async (name: string, args: unknown) => {
+    if (name !== "add_comment") return { data: [], error: null };
+    inserted = args; return { data: { ...row, id: "new-comment" }, error: null };
+  });
   state.fetch.mockReset().mockResolvedValue(new Response('{"ok":true}'));
   vi.stubGlobal("fetch", state.fetch); vi.stubGlobal("requestAnimationFrame", (callback: () => void) => callback());
   state.from.mockReset().mockImplementation((table: string) => {
@@ -73,7 +76,8 @@ it("shows and counts app comments without loading sheet history or using old col
 it("creates a record comment only in the app", async () => {
   await load(); render(); state.input!({ target: { value: "新しい返信" } }); render();
   await state.send!();
-  expect(inserted).toEqual({ user_id: me.id, target_type: "record", target_id: "record", content: "新しい返信" });
+  // Saved with its mentions in one call; the author is the logged-in member (server side).
+  expect(inserted).toEqual({ p_target_type: "record", p_target_id: "record", p_content: "新しい返信", p_mention_ids: [] });
   expect(selectors.at(-1)).not.toContain("sheet_reply_index");
   expect(state.count).toHaveBeenLastCalledWith(3);
   expect(state.fetch).not.toHaveBeenCalled();
@@ -106,6 +110,6 @@ it("keeps the loaded comments and draft when only the parent's count callback ch
   expect(state.from).toHaveBeenCalledOnce();
   expect(state.rpc).toHaveBeenCalledOnce();
   await state.send!();
-  expect(inserted).toMatchObject({ content: "書きかけの返信" });
+  expect(inserted).toMatchObject({ p_content: "書きかけの返信" });
   expect(latestCount).toHaveBeenLastCalledWith(3);
 });

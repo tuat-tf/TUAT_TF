@@ -290,6 +290,8 @@ export type CommentAuthor = Pick<Profile, "id" | "display_name" | "avatar_url"> 
 
 export interface CommentWithAuthor extends Comment {
   author: CommentAuthor;
+  /** Members @mentioned in this reply (rendered as links). */
+  mentions?: TweetMention[];
 }
 
 export interface VenueRow {
