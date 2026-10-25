@@ -50,7 +50,7 @@ export function CommentSection({
       const supabase = createClient();
       const commentsResult = await supabase
         .from("comments")
-        .select("*, author:profiles!user_id(id, display_name, avatar_url), comment_mentions(profile_id, profile:profiles(display_name))")
+        .select("*, author:profiles!user_id(id, display_name, avatar_url), comment_mentions(profile_id, label, profile:profiles(display_name))")
         .eq("target_type", targetType)
         .eq("target_id", targetId)
         .order("created_at", { ascending: true });
@@ -64,11 +64,12 @@ export function CommentSection({
 
       const rows: CommentWithAuthor[] = (commentsResult.data ?? []).flatMap((row) => {
         if (row.target_type !== "record" && row.target_type !== "tweet") return [];
-        const { comment_mentions: mentionRows, ...rest } = row as typeof row & { comment_mentions?: { profile_id: string; profile: { display_name: string } | null }[] };
+        const { comment_mentions: mentionRows, ...rest } = row as typeof row & { comment_mentions?: { profile_id: string; label: string | null; profile: { display_name: string } | null }[] };
         return [{
           ...rest,
           target_type: row.target_type as TargetType,
-          mentions: (mentionRows ?? []).map(m => ({ profile_id: m.profile_id, display_name: m.profile?.display_name ?? "" })),
+          // The name as written links, so a later rename keeps the link.
+          mentions: (mentionRows ?? []).map(m => ({ profile_id: m.profile_id, display_name: m.label ?? m.profile?.display_name ?? "" })),
         }];
       });
       setComments(rows);

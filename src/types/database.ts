@@ -2078,14 +2078,14 @@ export type Database = {
         ]
       }
       comment_mentions: {
-        Row: { comment_id: string; profile_id: string; created_at: string }
-        Insert: { comment_id: string; profile_id: string; created_at?: string }
+        Row: { comment_id: string; profile_id: string; created_at: string; label: string | null }
+        Insert: { comment_id: string; profile_id: string; created_at?: string; label?: string | null }
         Update: { comment_id?: string; profile_id?: string; created_at?: string }
         Relationships: []
       }
       tweet_mentions: {
-        Row: { tweet_id: string; profile_id: string; created_at: string }
-        Insert: { tweet_id: string; profile_id: string; created_at?: string }
+        Row: { tweet_id: string; profile_id: string; created_at: string; label: string | null }
+        Insert: { tweet_id: string; profile_id: string; created_at?: string; label?: string | null }
         Update: { tweet_id?: string; profile_id?: string; created_at?: string }
         Relationships: []
       }
