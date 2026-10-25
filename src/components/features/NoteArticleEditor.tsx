@@ -190,8 +190,8 @@ export function NoteArticleEditor({
       return;
     }
     const texts = pollEnabled ? newOptions.map((option) => option.trim()).filter(Boolean) : [];
-    if (pollEnabled && keptOptions.length + texts.length < 2) {
-      setError("投票の選択肢は2つ以上入力してください");
+    if (pollEnabled && keptOptions.length + texts.length < 1) {
+      setError("投票の選択肢を入力してください");
       return;
     }
 

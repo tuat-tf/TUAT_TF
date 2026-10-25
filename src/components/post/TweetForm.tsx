@@ -135,8 +135,8 @@ export const TweetForm = forwardRef<
       setError(`本文は${TWEET_MAX_LENGTH.toLocaleString()}文字以内にしてください`);
       return;
     }
-    if (!editing && pollEnabled && cleanPollOptions.length < 2) {
-      setError("投票の選択肢を2つ以上入力してください");
+    if (!editing && pollEnabled && cleanPollOptions.length < 1) {
+      setError("投票の選択肢を入力してください");
       return;
     }
     setSaving(true);
@@ -371,7 +371,7 @@ export const TweetForm = forwardRef<
                       className="flex-1"
                       onChange={(event) => setPollOptions((options) => options.map((value, optionIndex) => optionIndex === index ? event.target.value : value))}
                     />
-                    <Button variant="ghost" size="icon" aria-label={`選択肢${index + 1}を削除`} disabled={pollOptions.length <= 2} onClick={() => setPollOptions((options) => options.filter((_, optionIndex) => optionIndex !== index))}>
+                    <Button variant="ghost" size="icon" aria-label={`選択肢${index + 1}を削除`} disabled={pollOptions.length <= 1} onClick={() => setPollOptions((options) => options.filter((_, optionIndex) => optionIndex !== index))}>
                       <X size={17} />
                     </Button>
                   </div>
