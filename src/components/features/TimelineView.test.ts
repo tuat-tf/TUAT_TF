@@ -17,6 +17,8 @@ vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ getQueryState: () => ({ dataUpdatedAt: 10 }), setQueryData: vi.fn() }),
 }));
 vi.mock("@/app/(app)/timeline/actions", () => ({ loadFeed: vi.fn() }));
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
+vi.mock("@/components/features/TimelineSearch", () => ({ RecentHashtags: () => null, TimelineSearchBar: () => null, TimelineSearchResults: () => null }));
 vi.mock("@/components/cards/RecordCard", () => ({ RecordCard: () => null }));
 vi.mock("@/components/cards/TweetCard", () => ({ TweetCard: () => null }));
 vi.mock("@/hooks/use-last-seen-feed", () => ({ useLastSeenFeed: () => null }));
@@ -34,6 +36,7 @@ function render() {
   return nodes(tree);
 }
 beforeEach(() => {
+  vi.stubGlobal("window", { location: { pathname: "/timeline", search: "" }, history: { replaceState: vi.fn() }, setTimeout, clearTimeout });
   state.effects = [];
   Object.assign(state.query, { hasNextPage: true, isFetching: false, isError: false, isFetchNextPageError: false });
 });

@@ -43,7 +43,7 @@ export function extractHashtags(text: string): string[] {
 }
 
 export function hashtagSearchHref(tag: string): string {
-  return `/timeline/search?q=${encodeURIComponent(`#${tag}`)}`;
+  return `/timeline?q=${encodeURIComponent(`#${tag}`)}`;
 }
 
 /** カーソル位置で書きかけのタグ（"#" だけなら ""）。書いていなければ null。 */

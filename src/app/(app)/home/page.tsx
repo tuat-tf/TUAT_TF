@@ -79,7 +79,7 @@ async function HomeContent({ nowJst }: { nowJst: Date }) {
 
 /**
  * 終了した大会は、OB戦も速報を取り込んだ大会も「大会名 終了 結果を見る」の1行だけを残す。
- * 大会の管理でアーカイブするとホームから消える。
+ * 最終日から2週間たつか、大会の管理でアーカイブするとホームから消える。
  */
 function FinishedCompetitions({ competitions }: { competitions: CompetitionRow[] }) {
   if (competitions.length === 0) return null;

@@ -1,8 +1,6 @@
 import { canModerateComments } from "@/lib/permissions";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
-import Link from "next/link";
-import { Search } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { TimelineView } from "@/components/features/TimelineView";
 import { FeedSkeleton } from "@/components/ui/page-skeletons";
@@ -14,15 +12,7 @@ import { RECORD_SOURCE_COOKIE, showRecordSourceFor } from "@/lib/record-source-d
 export default function TimelinePage() {
   return (
     <>
-      <Header
-        title="タイムライン"
-        large
-        right={
-          <Link data-ui-link href="/timeline/search" prefetch={false} aria-label="タイムラインを検索" title="検索" className="flex h-9 w-9 items-center justify-center text-accent pressable">
-            <Search size={21} />
-          </Link>
-        }
-      />
+      <Header title="タイムライン" large />
       <Suspense fallback={<FeedSkeleton withHeader={false} />}>
         <TimelineContent />
       </Suspense>

@@ -13,15 +13,24 @@ export function isCompetitionFinished(
   return Boolean(competition.program_closed_at) || (competition.ends_on ?? competition.starts_on) < today;
 }
 
+const FINISHED_HOME_DAYS = 14;
+
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
 /**
- * ホームに「終了・結果を見る」の1行で残す大会（終了済みでアーカイブ前のもの、新しい順）。
- * OB戦も速報を取り込んだ大会も同じ扱い。アーカイブするとホームから消える。
+ * ホームに「終了・結果を見る」の1行で残す大会（終了済み・最終日から2週間以内・アーカイブ前、新しい順）。
+ * OB戦も速報を取り込んだ大会も同じ扱い。2週間を過ぎるか、アーカイブするとホームから消える。
  */
 export function finishedHomeCompetitions<T extends Lifecycle & { program_closed_at?: string | null; starts_on: string; ends_on: string | null }>(
   competitions: T[], today: string, now = Date.now(),
 ): T[] {
   return competitions
-    .filter((c) => !isCompetitionArchived(c, now) && isCompetitionFinished(c, today))
+    .filter((c) => !isCompetitionArchived(c, now) && isCompetitionFinished(c, today)
+      && addDays(c.ends_on ?? c.starts_on, FINISHED_HOME_DAYS) >= today)
     .sort((a, b) => (b.ends_on ?? b.starts_on).localeCompare(a.ends_on ?? a.starts_on));
 }
 

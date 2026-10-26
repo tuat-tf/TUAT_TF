@@ -35,7 +35,10 @@ describe("finished competitions on home", () => {
     expect(isCompetitionFinished({ ...upcoming, program_closed_at: "2026-10-26T00:00:00Z" }, "2026-10-26")).toBe(true);
   });
 
-  it("lists finished, not archived competitions newest first", () => {
-    expect(finishedHomeCompetitions([ob, old, upcoming, riko], "2026-10-26", now).map((c) => c.id)).toEqual(["riko", "ob"]);
+  it("lists finished, not archived competitions newest first for two weeks after the last day", () => {
+    expect(finishedHomeCompetitions([ob, old, upcoming, riko], "2026-10-25", now).map((c) => c.id)).toEqual(["ob"]);
+    expect(finishedHomeCompetitions([ob, old, upcoming, riko], "2026-10-26", now).map((c) => c.id)).toEqual(["riko"]);
+    expect(finishedHomeCompetitions([riko], "2026-11-08", now).map((c) => c.id)).toEqual(["riko"]);
+    expect(finishedHomeCompetitions([riko], "2026-11-09", now)).toEqual([]);
   });
 });

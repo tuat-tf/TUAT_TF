@@ -2,12 +2,14 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { List } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { List, Search } from "lucide-react";
 import { RecordCard } from "@/components/cards/RecordCard";
 import { TweetCard } from "@/components/cards/TweetCard";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { CompactFeedRow } from "@/components/features/CompactFeedRow";
+import { RecentHashtags, TimelineSearchBar, TimelineSearchResults } from "@/components/features/TimelineSearch";
 import { SeenDivider, UnreadHeading } from "@/components/features/NewPostMarkers";
 import { nextFeedCursor, type FeedCursor } from "@/lib/feed-pagination";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,6 +55,8 @@ function isInteractiveFeedTarget(target: EventTarget | null, row: HTMLElement) {
  * ブロックの絞り込みはサーバー往復せず
  * 読み込み済みアイテムをクライアント側でフィルタするため、タブ切替が即時。
  * 絞り込み結果が足りない場合と「もっと見る」で続きのページを取得する。
+ * 検索も別画面にせず、上部の欄を検索欄に切り替えて同じ場所に結果を出す（閉じるとすぐ元の一覧に戻る）。
+ * 検索語は ?q= に置き、#タグのリンク・戻る操作・共有でも同じ検索を開ける。
  */
 export function TimelineView({
   initialItems,
@@ -106,6 +110,45 @@ export function TimelineView({
     initialCompact,
     cookieName: "timeline-compact",
   });
+
+  const urlQuery = (useSearchParams().get("q") ?? "").trim();
+  const [searchOpen, setSearchOpen] = useState(urlQuery !== "");
+  const [searchText, setSearchText] = useState(urlQuery);
+  const [query, setQuery] = useState(urlQuery);
+  const [composing, setComposing] = useState(false);
+  const [seenUrlQuery, setSeenUrlQuery] = useState(urlQuery);
+  // A #tag link or back/forward changed ?q= from outside: follow it.
+  if (urlQuery !== seenUrlQuery) {
+    setSeenUrlQuery(urlQuery);
+    if (urlQuery !== query) {
+      setSearchText(urlQuery);
+      setQuery(urlQuery);
+      setSearchOpen(urlQuery !== "");
+    }
+  }
+  // Search once typing pauses, never in the middle of Japanese conversion.
+  useEffect(() => {
+    if (composing) return;
+    const next = searchText.trim();
+    if (next === query) return;
+    const timer = window.setTimeout(() => setQuery(next), 350);
+    return () => window.clearTimeout(timer);
+  }, [searchText, composing, query]);
+  // Keep ?q= in step without a server round trip or one history entry per keystroke.
+  useEffect(() => {
+    const url = query ? `/timeline?q=${encodeURIComponent(query)}` : "/timeline";
+    if (`${window.location.pathname}${window.location.search}` !== url) window.history.replaceState(null, "", url);
+  }, [query]);
+
+  function searchNow(value: string) {
+    setSearchText(value);
+    setQuery(value.trim());
+  }
+
+  function toggleSearch() {
+    if (searchOpen) searchNow("");
+    setSearchOpen(!searchOpen);
+  }
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -184,8 +227,26 @@ export function TimelineView({
     <>
       <div className="w-full px-4 pt-1 pb-3 md:mx-auto md:max-w-[1120px] md:px-6 lg:pb-2">
         <div data-ui-toolbar="timeline" className="flex min-h-9 items-center gap-2 lg:min-h-8">
-          <div className="min-w-0 flex-1"><SegmentedControl items={SIMPLE_BLOCK_ITEMS} value={block} onChange={setBlock} /></div>
+          {searchOpen ? (
+            <TimelineSearchBar value={searchText} onChange={setSearchText} onComposingChange={setComposing} onSubmit={() => searchNow(searchText)} />
+          ) : (
+            <div className="min-w-0 flex-1"><SegmentedControl items={SIMPLE_BLOCK_ITEMS} value={block} onChange={setBlock} /></div>
+          )}
           <button
+            data-ui-action
+            type="button"
+            onClick={toggleSearch}
+            aria-pressed={searchOpen}
+            aria-label={searchOpen ? "検索を閉じる" : "検索"}
+            title={searchOpen ? "検索を閉じる" : "検索"}
+            className={cn(
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border pressable",
+              searchOpen ? "border-accent bg-accent text-white" : "border-separator bg-card text-muted2",
+            )}
+          >
+            <Search size={14} />
+          </button>
+          {!searchOpen && <button
             data-ui-action
             type="button"
             onClick={toggleCompact}
@@ -199,12 +260,16 @@ export function TimelineView({
           >
             <List size={14} />
             <span>一覧</span>
-          </button>
+          </button>}
         </div>
       </div>
 
 
       <div className="w-full px-4 pt-1 md:mx-auto md:max-w-[1120px] md:px-6">
+        {searchOpen && !query && <RecentHashtags onPick={searchNow} />}
+        {searchOpen && query ? (
+          <TimelineSearchResults query={query} viewerId={currentUser.id} renderItem={(item) => renderItem(item)} />
+        ) : <>
         {filtered.length === 0 ? (
           feedQuery.isError ? <EmptyState title="投稿を取得できませんでした" description="もう一度お試しください。" /> : feedQuery.hasNextPage ? (
             <EmptyState title={feedQuery.isFetching ? "条件に合う投稿を探しています" : "続きの投稿を確認できます"} />
@@ -292,6 +357,7 @@ export function TimelineView({
             </Button>
           </div>
         )}
+        </>}
       </div>
     </>
   );
