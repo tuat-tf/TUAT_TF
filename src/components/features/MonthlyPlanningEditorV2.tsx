@@ -5,9 +5,9 @@ import { MENU_DRAFT_VISIBILITY_DESCRIPTION } from "@/lib/menu-copy";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, LoaderCircle, Save } from "lucide-react";
 import { PersonPicker } from "@/components/features/PersonPicker";
+import { MeetingTimeField, VenueField, venueDetails } from "@/components/post/ScheduleFields";
 import { Button } from "@/components/ui/button";
 import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
-import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,8 +67,6 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedDates, setExpandedDates] = useState<string[]>([]);
-  const [customTimeDates, setCustomTimeDates] = useState<string[]>([]);
-  const [customVenueDates, setCustomVenueDates] = useState<string[]>([]);
 
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
   const activeScheduleScope: ScheduleScope = tab === "menu" ? (block === "short" ? "short" : "middle_long") : scheduleScope;
@@ -231,7 +229,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
         return null;
       }
     }
-    const payload = { schedule_date: date, schedule_type: "practice", meeting_time: draft.time || null, venue_name: draft.venue || null, note: draft.note || null, target_blocks: blocksOf(scope) };
+    const payload = { schedule_date: date, schedule_type: "practice", meeting_time: draft.time || null, venue_name: draft.venue || null, ...venueDetails(venues, draft.venue || null), note: draft.note || null, target_blocks: blocksOf(scope) };
     const result = draft.id ? await supabase.from("practice_schedules").update(payload).eq("id", draft.id).select("*").single() : await supabase.from("practice_schedules").insert({ ...payload, created_by: userId }).select("*").single();
     if ((result.error && !result.error.code) || (!result.error && !result.data)) throw new Error("Schedule save result unknown");
     if (result.error) { setRowStates((current) => ({ ...current, [stateKey("schedule", date)]: "error" })); return null; }
@@ -391,16 +389,8 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       {tab === "schedule" ? (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="section-label mb-1.5">集合時間</p>
-              <Select ariaLabel="集合時間" value={customTimeDates.includes(date) || (!!scheduleDrafts[date]?.time && !["09:00", "17:00"].includes(scheduleDrafts[date]?.time ?? "")) ? "other" : scheduleDrafts[date]?.time ?? ""} onValueChange={(value) => { setCustomTimeDates((current) => value === "other" ? [...new Set([...current, date])] : current.filter((item) => item !== date)); updateSchedule(date, { time: value === "other" ? (["09:00", "17:00"].includes(scheduleDrafts[date]?.time ?? "") ? "" : scheduleDrafts[date]?.time ?? "") : value }); }} placeholder="時間を選択" options={[{ value: "09:00", label: "9:00" }, { value: "17:00", label: "17:00" }, { value: "other", label: "その他" }]} />
-              {(customTimeDates.includes(date) || (!!scheduleDrafts[date]?.time && !["09:00", "17:00"].includes(scheduleDrafts[date]?.time ?? ""))) && <Input className="mt-2" type="time" value={scheduleDrafts[date]?.time ?? ""} onChange={(event) => updateSchedule(date, { time: event.target.value })} />}
-            </div>
-            <div>
-              <p className="section-label mb-1.5">練習場所</p>
-              <Select ariaLabel="練習場所" value={customVenueDates.includes(date) || (!!scheduleDrafts[date]?.venue && !venues.some((venue) => venue.name === scheduleDrafts[date]?.venue)) ? "other" : scheduleDrafts[date]?.venue ?? ""} onValueChange={(value) => { setCustomVenueDates((current) => value === "other" ? [...new Set([...current, date])] : current.filter((item) => item !== date)); updateSchedule(date, { venue: value === "other" ? (venues.some((venue) => venue.name === scheduleDrafts[date]?.venue) ? "" : scheduleDrafts[date]?.venue ?? "") : value }); }} placeholder="場所を選択" options={[...venues.map((venue) => ({ value: venue.name, label: venue.name })), { value: "other", label: "その他" }]} />
-              {(customVenueDates.includes(date) || (!!scheduleDrafts[date]?.venue && !venues.some((venue) => venue.name === scheduleDrafts[date]?.venue))) && <Input className="mt-2" placeholder="場所名を入力" value={scheduleDrafts[date]?.venue ?? ""} onChange={(event) => updateSchedule(date, { venue: event.target.value })} />}
-            </div>
+            <MeetingTimeField value={scheduleDrafts[date]?.time ?? ""} onChange={(time) => updateSchedule(date, { time })} />
+            <VenueField label="練習場所" venues={venues} value={scheduleDrafts[date]?.venue ?? ""} onChange={(venue) => updateSchedule(date, { venue })} />
           </div>
           {isScheduleSavable(scheduleDrafts[date]) && (
             <div>

@@ -53,6 +53,15 @@ vi.mock("@/components/ui/textarea", () => ({ Textarea: (props: InputProps) => {
   mocks.inputs.set("詳細情報", props);
   return createElement("textarea", { value: props.value, onChange: props.onChange, disabled: props.disabled });
 } }));
+// The shared time/place fields have their own selects; here they are plain inputs so the save flow stays in focus.
+vi.mock("@/components/post/ScheduleFields", async original => ({
+  ...await original<typeof import("@/components/post/ScheduleFields")>(),
+  MeetingTimeField: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
+    mocks.inputs.set("集合時間", { value, onChange: (event: { target: { value: string } }) => onChange(event.target.value) });
+    return createElement("input", { type: "time", "aria-label": "集合時間", value, readOnly: true });
+  },
+  VenueField: () => null,
+}));
 vi.mock("@/components/ui/button", () => ({ Button: (props: ButtonProps) => {
   if (typeof props.children === "string") mocks.buttons.set(props.children, props);
   return createElement("button", { onClick: props.onClick, disabled: props.disabled }, props.children);
@@ -94,10 +103,9 @@ beforeEach(() => {
 });
 
 describe("予定の集合時間入力", () => {
-  it.each<ScheduleType>(["practice", "meet", "time_trial"])("新規の%sでも時刻を入力・クリアできる", (type) => {
+  it.each<ScheduleType>(["practice", "meet", "time_trial"])("新規の%sでも同じ集合時間の欄を出す", (type) => {
     const html = renderToStaticMarkup(createElement(ScheduleForm, { initialType: type, onDone: () => {} }));
     expect(html).toMatch(/type="time"[^>]*aria-label="集合時間"[^>]*value=""/);
-    expect(html).toContain('aria-label="集合時間をクリア"');
   });
 
   it.each<ScheduleType>(["meet", "time_trial"])("%sの保存済み集合時間を再編集できる", (type) => {

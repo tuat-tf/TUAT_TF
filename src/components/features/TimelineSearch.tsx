@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,7 +12,7 @@ import { useRecentHashtags } from "@/hooks/use-hashtag-suggestions";
 import type { SearchCursor } from "@/lib/queries/search";
 import type { FeedItem } from "@/types";
 
-/** タイムライン上部の検索欄（タイムラインの絞り込み欄と入れ替わる）。 */
+/** タイムライン上部の検索欄（絞り込み欄と入れ替わる）。閉じる×は右端の検索ボタンが兼ねる。 */
 export function TimelineSearchBar({
   value,
   onChange,
@@ -45,18 +45,8 @@ export function TimelineSearchBar({
         placeholder="本文・名前・#タグで検索"
         aria-label="タイムラインを検索"
         maxLength={100}
-        className="h-9 rounded-full py-0 pl-8 pr-9 [&::-webkit-search-cancel-button]:hidden"
+        className="h-9 rounded-full py-0 pl-8 pr-3 [&::-webkit-search-cancel-button]:hidden"
       />
-      {value && (
-        <button data-ui-action
-          type="button"
-          aria-label="検索語を消す"
-          onClick={() => onChange("")}
-          className="absolute right-0.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-muted pressable"
-        >
-          <X size={15} />
-        </button>
-      )}
     </form>
   );
 }

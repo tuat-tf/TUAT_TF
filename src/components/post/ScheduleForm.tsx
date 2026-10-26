@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LoaderCircle, X } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
 import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
@@ -15,9 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ScheduleSheetsManager } from "@/components/features/ScheduleSheetsManager";
+import { MeetingTimeField, VenueField, venueDetails } from "@/components/post/ScheduleFields";
 import {
   BLOCKS,
   ENTRY_PERIOD_TYPES,
@@ -25,8 +25,6 @@ import {
   normalizeProfileBlocks,
 } from "@/lib/constants";
 import type { Block, PracticeSchedule, ScheduleType, VenueRow } from "@/types";
-
-const OTHER = "__other__";
 
 export function ScheduleCreatePanel({ onDone }: { onDone: () => void }) {
   const searchParams = useSearchParams();
@@ -99,8 +97,7 @@ export function ScheduleForm({
   const [date, setDate] = useState(schedule?.schedule_date ?? "");
   const [meetingTime, setMeetingTime] = useState(schedule?.meeting_time?.slice(0, 5) ?? "");
   const [initialMeetingTime, setInitialMeetingTime] = useState(schedule?.meeting_time?.slice(0, 5) ?? "");
-  const [venueKey, setVenueKey] = useState<string>(schedule?.venue_name ? OTHER : "");
-  const [otherVenue, setOtherVenue] = useState(schedule?.venue_name ?? "");
+  const [venueName, setVenueName] = useState(schedule?.venue_name ?? "");
   const [title, setTitle] = useState(schedule?.title ?? "");
   const [useEndDate, setUseEndDate] = useState(!!schedule?.end_date);
   const [endDate, setEndDate] = useState(schedule?.end_date ?? "");
@@ -130,10 +127,11 @@ export function ScheduleForm({
       const supabase = createClient();
       const userId = await getCurrentUserId(supabase);
       const [venueResult, previousTimeResult] = await Promise.all([
+        // まとめて入力と同じ並び（よく使う場所が先）。
         supabase
           .from("venues")
           .select("*")
-          .eq("pinned", true)
+          .order("pinned", { ascending: false })
           .order("sort", { ascending: true })
           .order("name", { ascending: true }),
         !schedule && isPractice && userId
@@ -155,13 +153,6 @@ export function ScheduleForm({
       if (!schedule && previousTime && !meetingTimeTouched.current) {
         setMeetingTime(previousTime.slice(0, 5));
         setInitialMeetingTime(previousTime.slice(0, 5));
-      }
-      if (schedule?.venue_name) {
-        const match = list.find((v) => v.name === schedule.venue_name);
-        if (match) {
-          setVenueKey(match.id);
-          setOtherVenue("");
-        }
       }
     })();
     return () => {
@@ -196,16 +187,13 @@ export function ScheduleForm({
         return;
       }
       const supabase = createClient();
-      const venue = venueKey && venueKey !== OTHER ? venues.find((item) => item.id === venueKey) : undefined;
-      const venueName = venue ? venue.name : venueKey === OTHER ? otherVenue.trim() || null : null;
+      const venue = venueName.trim() || null;
       const payload = {
         schedule_date: date,
         schedule_type: type,
         meeting_time: meetingTime || null,
-        venue_name: venueName,
-        venue_access: venue ? venue.access : null,
-        venue_fee: venue ? venue.fee : null,
-        venue_url: venue ? venue.url : null,
+        venue_name: venue,
+        ...venueDetails(venues, venue),
         title: !isPractice ? title.trim() || null : null,
         end_date: !isPractice && useEndDate && endDate ? endDate : null,
         entry_start: canEntry && useEntry && entryStart ? entryStart : null,
@@ -251,12 +239,11 @@ export function ScheduleForm({
       submissionLocked.current = false;
       setSaving(false);
     }
-  }, [pendingCreate, date, isPractice, title, venueKey, venues, otherVenue, type, meetingTime, useEndDate, endDate, canEntry, useEntry, entryStart, entryEnd, note, targetBlocks, editing, schedule, router, onDone]);
+  }, [pendingCreate, date, isPractice, title, venueName, venues, type, meetingTime, useEndDate, endDate, canEntry, useEntry, entryStart, entryEnd, note, targetBlocks, editing, schedule, router, onDone]);
 
-  const selectedVenueName = venueKey === OTHER ? otherVenue : venues.find((venue) => venue.id === venueKey)?.name ?? "";
   const draftDirty = type !== (schedule?.schedule_type ?? initialType ?? "practice") ||
     date !== (schedule?.schedule_date ?? "") || meetingTime !== initialMeetingTime ||
-    selectedVenueName !== (schedule?.venue_name ?? "") || title !== (schedule?.title ?? "") ||
+    venueName !== (schedule?.venue_name ?? "") || title !== (schedule?.title ?? "") ||
     useEndDate !== !!schedule?.end_date || endDate !== (schedule?.end_date ?? "") ||
     useEntry !== !!(schedule?.entry_start || schedule?.entry_end) ||
     entryStart !== (schedule?.entry_start ?? "") || entryEnd !== (schedule?.entry_end ?? "") ||
@@ -282,8 +269,9 @@ export function ScheduleForm({
         />
       )}
 
+      {/* 並びと部品は「1か月まとめて入力」と同じ（対象 → 日付 → 集合時間・場所 → 詳細）。 */}
       <div>
-        <p className="section-label mb-1.5">対象ブロック</p>
+        <p className="section-label mb-1.5">対象</p>
         <SegmentedControl
           items={[
             { key: "all", label: "全体" },
@@ -292,156 +280,105 @@ export function ScheduleForm({
           value={targetBlocks[0] ?? "all"}
           onChange={(value) => setTargetBlocks(value === "all" ? [] : [value as Block])}
         />
-        <p className="text-micro mt-1.5">
-          全体は中長距離・短距離の両方に表示されます。
-        </p>
       </div>
 
-      {/* 日付（選ぶだけで設定。追加ボタン不要） */}
       <div>
         <label htmlFor={`${formId}-date`} className="section-label mb-1.5 block">日付</label>
         <Input ref={dateInput} id={`${formId}-date`} type="date" value={date} aria-invalid={errorField === "date" || undefined} aria-describedby={errorField === "date" ? `${formId}-date-error` : undefined} onChange={(e) => { setDate(e.target.value); if (errorField === "date") { setErrorField(null); setError(null); } }} />
         {errorField === "date" && <p id={`${formId}-date-error`} role="alert" className="mt-1 text-caption text-danger">{error}</p>}
       </div>
 
-      {/* 場所（選択式） */}
-      <div>
-        <p className="section-label mb-1.5">場所</p>
-        <Select
-          disabled={saving || !!pendingCreate}
-          value={venueKey}
-          onValueChange={setVenueKey}
-          ariaLabel="場所"
-          options={[
-            { value: "", label: "選択しない" },
-            ...venues.map((venue) => ({
-              value: venue.id,
-              label: venue.short ? `${venue.short}：${venue.name}` : venue.name,
-            })),
-            { value: OTHER, label: "その他（手入力）" },
-          ]}
-        />
-        {venueKey === OTHER && (
+      {/* 練習は場所がタイトル代わりなので、タイトルは大会・記録会だけ */}
+      {!isPractice && (
+        <div>
+          <label htmlFor={`${formId}-title`} className="section-label mb-1.5 block">タイトル</label>
           <Input
-            className="mt-2"
-            placeholder="場所名を入力"
-            value={otherVenue}
-            onChange={(e) => setOtherVenue(e.target.value)}
+            ref={titleInput}
+            id={`${formId}-title`}
+            aria-invalid={errorField === "title" || undefined}
+            aria-describedby={errorField === "title" ? `${formId}-title-error` : undefined}
+            placeholder={type === "meet" ? "例: 県選手権 / 合宿" : "例: 記録会"}
+            value={title}
+            onChange={(e) => { setTitle(e.target.value); if (errorField === "title") { setErrorField(null); setError(null); } }}
           />
-        )}
-        {venueKey && venueKey !== OTHER && (
-          <p className="text-caption mt-1.5">アクセス・参加費は自動で登録されます</p>
-        )}
+          {errorField === "title" && <p id={`${formId}-title-error`} role="alert" className="mt-1 text-caption text-danger">{error}</p>}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <MeetingTimeField
+          allowEmpty
+          value={meetingTime}
+          onChange={(value) => {
+            meetingTimeTouched.current = true;
+            setMeetingTime(value);
+          }}
+        />
+        <VenueField allowEmpty label={isPractice ? "練習場所" : "場所"} venues={venues} value={venueName} onChange={setVenueName} />
       </div>
 
-      {/* 種別ごとの項目（全画面モーダルなので高さが変わってもガクつかない） */}
-      <div key={type} className="space-y-4 fade-in">
-          <div>
-            <p className="section-label mb-1.5">集合時間</p>
-            <div className="flex items-center gap-2">
-              <Input
-                type="time"
-                aria-label="集合時間"
-                value={meetingTime}
-                onChange={(event) => {
-                  meetingTimeTouched.current = true;
-                  setMeetingTime(event.target.value);
-                }}
-              />
-              <button data-ui-action="icon" data-ui-variant="ghost"
-                type="button"
-                onClick={() => {
-                  meetingTimeTouched.current = true;
-                  setMeetingTime("");
-                }}
-                disabled={!meetingTime}
-                aria-label="集合時間をクリア"
-                title="集合時間をクリア"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-separator bg-card text-muted active:bg-bg disabled:opacity-30"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
-        {!isPractice && (
-          <>
-            <div>
-              <label htmlFor={`${formId}-title`} className="section-label mb-1.5 block">タイトル</label>
-              <Input
-                ref={titleInput}
-                id={`${formId}-title`}
-                aria-invalid={errorField === "title" || undefined}
-                aria-describedby={errorField === "title" ? `${formId}-title-error` : undefined}
-                placeholder={type === "meet" ? "例: 県選手権 / 合宿" : "例: 記録会"}
-                value={title}
-                onChange={(e) => { setTitle(e.target.value); if (errorField === "title") { setErrorField(null); setError(null); } }}
-              />
-              {errorField === "title" && <p id={`${formId}-title-error`} role="alert" className="mt-1 text-caption text-danger">{error}</p>}
-            </div>
-
-            {/* 終了日：複数日開催のときだけオン */}
-            <div>
-              <Toggle
-                label="複数日開催（終了日を設定）"
-                checked={useEndDate}
-                onChange={() =>
-                  setUseEndDate((v) => {
-                    const next = !v;
-                    if (next && !endDate && date) setEndDate(date);
-                    return next;
-                  })
-                }
-              />
-              {useEndDate && (
-                <div className="mt-2">
-                  <p className="text-micro mb-1">終了日</p>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    min={date || undefined}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* エントリー期間（大会・記録会） */}
-        {canEntry && (
-          <div>
-            <Toggle
-              label="エントリー期間を設定する"
-              checked={useEntry}
-              onChange={() => setUseEntry((v) => !v)}
-            />
-            {useEntry && (
-              <div className="space-y-2 mt-2">
-                <div>
-                  <p className="text-micro mb-1">エントリー開始</p>
-                  <Input type="date" value={entryStart} onChange={(e) => setEntryStart(e.target.value)} />
-                </div>
-                <div>
-                  <p className="text-micro mb-1">エントリー締切</p>
-                  <Input type="date" value={entryEnd} onChange={(e) => setEntryEnd(e.target.value)} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 詳細情報：集合方法・持ち物・連絡事項など。予定カードに「詳細情報」として表示される */}
       <div>
-        <p className="section-label mb-1.5">詳細情報</p>
+        <p className="section-label mb-1.5">詳細</p>
         <Textarea
           autoGrow
-          rows={3}
-          placeholder="例: 集合方法・持ち物・連絡事項"
+          rows={2}
+          className="min-h-16"
+          placeholder="例: 集合方法、持ち物"
           value={note}
           onChange={(e) => setNote(e.target.value)}
         />
       </div>
+
+      {/* 複数日開催（大会・記録会） */}
+      {!isPractice && (
+        <div>
+          <Toggle
+            label="複数日開催（終了日を設定）"
+            checked={useEndDate}
+            onChange={() =>
+              setUseEndDate((v) => {
+                const next = !v;
+                if (next && !endDate && date) setEndDate(date);
+                return next;
+              })
+            }
+          />
+          {useEndDate && (
+            <div className="mt-2">
+              <p className="text-micro mb-1">終了日</p>
+              <Input
+                type="date"
+                value={endDate}
+                min={date || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* エントリー期間（大会・記録会） */}
+      {canEntry && (
+        <div>
+          <Toggle
+            label="エントリー期間を設定する"
+            checked={useEntry}
+            onChange={() => setUseEntry((v) => !v)}
+          />
+          {useEntry && (
+            <div className="space-y-2 mt-2">
+              <div>
+                <p className="text-micro mb-1">エントリー開始</p>
+                <Input type="date" value={entryStart} onChange={(e) => setEntryStart(e.target.value)} />
+              </div>
+              <div>
+                <p className="text-micro mb-1">エントリー締切</p>
+                <Input type="date" value={entryEnd} onChange={(e) => setEntryEnd(e.target.value)} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
     </fieldset>
       {error && !errorField && <p role="alert" className="text-caption text-danger text-center">{error}</p>}

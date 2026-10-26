@@ -72,9 +72,13 @@ export function ScheduleView({
     ...SCHEDULE_TYPE_OPTIONS.map((o) => ({ key: o.key, label: o.label })),
   ];
 
+  // 自分のブロックの予定しか届かない人には、ブロックの切り替えは意味がないので出さない。
+  const showBlockFilter = useMemo(() => ["middle_long", "short"].every((target) =>
+    schedules.some((schedule) => schedule.target_blocks.length === 1 && schedule.target_blocks[0] === target)), [schedules]);
+  const effectiveBlock = showBlockFilter ? block : "all";
   const filtered = useMemo(
-    () => filterSchedules(schedules, type, block),
-    [block, schedules, type],
+    () => filterSchedules(schedules, type, effectiveBlock),
+    [effectiveBlock, schedules, type],
   );
 
   return (
@@ -83,14 +87,16 @@ export function ScheduleView({
         <div className="flex min-h-9 items-center lg:min-h-8">
           <SegmentedControl items={items} value={type} onChange={setType} className="w-full" />
         </div>
-        <div className="mt-2">
-          <SegmentedControl
-            items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]}
-            value={block}
-            onChange={(value) => setBlock(value as typeof block)}
-            className="w-full"
-          />
-        </div>
+        {showBlockFilter && (
+          <div className="mt-2">
+            <SegmentedControl
+              items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]}
+              value={block}
+              onChange={(value) => setBlock(value as typeof block)}
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
 
       <div data-schedule-grid className="px-4 pt-1 md:px-6 lg:grid lg:grid-cols-2 lg:gap-x-6">

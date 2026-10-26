@@ -113,6 +113,8 @@ export function ScheduleCard({
   }, [defaultOpen]);
   const meta = SCHEDULE_TYPES[schedule.schedule_type];
   const date = new Date(schedule.schedule_date + "T00:00:00");
+  // 直近の予定は曜日の代わりに「今日」「明日」と出す。
+  const dayLabel = schedule.schedule_date === jstToday() ? "今日" : schedule.schedule_date === jstToday(1) ? "明日" : null;
   const [menusState, setMenusState] = useState<PracticeMenu[]>(schedule.menus ?? []);
   // 一覧のCSV取得やrouter.refreshで届いたメニューを反映する。
   // 同じ入力の再描画ではローカル編集を保持する。
@@ -194,8 +196,8 @@ export function ScheduleCard({
         className="w-full p-4 flex items-center gap-3 text-left transition-colors duration-100 enabled:active:bg-bg disabled:cursor-default motion-reduce:transition-none lg:gap-2.5 lg:p-3"
       >
         <div className="flex flex-col items-center w-12 shrink-0 lg:w-10">
-          <span className="text-[11px]" style={{ color: meta.color }}>
-            {format(date, "EEE", { locale: ja })}
+          <span className={cn("text-[11px]", dayLabel && "font-bold")} style={{ color: meta.color }}>
+            {dayLabel ?? format(date, "EEE", { locale: ja })}
           </span>
           <span className="text-2xl font-bold leading-tight tabular-nums lg:text-xl">{format(date, "d")}</span>
           <span className="text-micro">{format(date, "M月", { locale: ja })}</span>
@@ -228,13 +230,10 @@ export function ScheduleCard({
               </span>
             )}
           </div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {schedule.target_blocks.length === 0 ? (
-              <span className="text-micro rounded-full bg-separator/70 px-2 py-0.5 text-muted2">
-                全体
-              </span>
-            ) : (
-              schedule.target_blocks.map((block) => (
+          {/* 全体向けは印を付けない。特定ブロック向けだけ「中長」「短」と出す。 */}
+          {schedule.target_blocks.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {schedule.target_blocks.map((block) => (
                 <span
                   key={block}
                   className="text-micro rounded-full px-2 py-0.5"
@@ -242,9 +241,9 @@ export function ScheduleCard({
                 >
                   {BLOCKS[block].short}
                 </span>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {hasDetail && (

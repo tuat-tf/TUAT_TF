@@ -29,7 +29,9 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
         <Textarea
           ref={ref}
           value={value}
-          className={cn(className, "relative bg-transparent! text-transparent! caret-ink")}
+          // block: an inline-block textarea leaves a baseline gap below it, so the colored layer (inset-0)
+          // would be taller than the field and show a second border.
+          className={cn(className, "relative block bg-transparent! text-transparent! caret-ink")}
           onScroll={(event) => {
             if (mirror.current) mirror.current.scrollTop = event.currentTarget.scrollTop;
             onScroll?.(event);

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
-import { List, Search } from "lucide-react";
+import { List, Search, X } from "lucide-react";
 import { RecordCard } from "@/components/cards/RecordCard";
 import { TweetCard } from "@/components/cards/TweetCard";
 import { Button } from "@/components/ui/button";
@@ -232,20 +232,6 @@ export function TimelineView({
           ) : (
             <div className="min-w-0 flex-1"><SegmentedControl items={SIMPLE_BLOCK_ITEMS} value={block} onChange={setBlock} /></div>
           )}
-          <button
-            data-ui-action
-            type="button"
-            onClick={toggleSearch}
-            aria-pressed={searchOpen}
-            aria-label={searchOpen ? "検索を閉じる" : "検索"}
-            title={searchOpen ? "検索を閉じる" : "検索"}
-            className={cn(
-              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border pressable",
-              searchOpen ? "border-accent bg-accent text-white" : "border-separator bg-card text-muted2",
-            )}
-          >
-            <Search size={14} />
-          </button>
           {!searchOpen && <button
             data-ui-action
             type="button"
@@ -261,6 +247,17 @@ export function TimelineView({
             <List size={14} />
             <span>一覧</span>
           </button>}
+          {/* Always the rightmost control, so it stays put; it turns into × while searching. */}
+          <button
+            data-ui-action
+            type="button"
+            onClick={toggleSearch}
+            aria-label={searchOpen ? "検索を閉じる" : "検索"}
+            title={searchOpen ? "検索を閉じる" : "検索"}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center text-muted2 pressable"
+          >
+            {searchOpen ? <X size={18} /> : <Search size={18} />}
+          </button>
         </div>
       </div>
 
