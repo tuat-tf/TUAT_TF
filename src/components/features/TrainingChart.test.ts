@@ -51,8 +51,10 @@ describe("training chart display controls", () => {
     expect(text).toContain("10/16〜10/22");
     expect(text).toContain("10kmその前の7日間比 -2km走行3日");
     expect(text).toContain("低強度3km中強度2km高強度2km解糖系1kmその他2km");
-    expect(html).toContain('aria-label="直近7日間の強度別走行距離、合計10km"');
-    expect([...html.matchAll(/stroke-dasharray="([^"]+)"/g)].map((match) => match[1])).toEqual(["30 70", "20 80", "20 80", "10 90", "20 80"]);
+    expect(html).toContain('aria-label="直近7日間の日別走行距離、合計10km（10/16 5km、10/17 0km、10/18 0km、10/19 0km、10/20 2km、10/21 0km、10/22 3km）"');
+    // One bar per day, scaled to the busiest day (5km → full height).
+    expect([...html.matchAll(/flex-col-reverse[^"]*" style="height:([\d.]+)px"/g)].map((match) => Math.round(Number(match[1]) * 10) / 10)).toEqual([76, 30.4, 45.6]);
+    expect(text).toContain("今日");
     expect(html).not.toContain("data-ui-chart-bar");
     expect(html).not.toContain("直近7日間の合計に戻る");
     expect(html).not.toContain("99km");
@@ -67,15 +69,17 @@ describe("training chart display controls", () => {
     vi.mocked(jstToday).mockReturnValue(today);
     const html = render();
     expect(html).toContain(label);
-    expect(html).toContain("data-training-donut");
+    expect(html).toContain("data-training-week");
+    expect(html.match(/<span class="mt-1 text-\[11px\]/g)).toHaveLength(7);
     expect(html).not.toContain("data-ui-chart-bar");
     expect(html).not.toContain("data-training-axis");
   });
 
-  it("keeps a neutral donut and all five intensity amounts when there is no running distance", () => {
+  it("keeps seven empty days and all five intensity amounts when there is no running distance", () => {
     const html = renderToStaticMarkup(createElement(TrainingChart, { records: [] }));
     expect(html).toContain('aria-label="直近7日間の走行距離は0kmです"');
-    expect(html).not.toContain("stroke-dasharray");
+    expect(html).not.toContain("flex-col-reverse");
+    expect(html.match(/rounded-t-\[3px\] bg-separator/g)).toHaveLength(7);
     expect(html).not.toContain("NaN");
     expect(html.replace(/<[^>]*>/g, "")).toContain("低強度0km中強度0km高強度0km解糖系0kmその他0km");
   });

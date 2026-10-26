@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/client-auth";
 import { createClient } from "@/lib/supabase/client";
@@ -9,14 +9,12 @@ import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
 import { saveNewSchedule, scheduleCreateMessage, type PendingScheduleCreate } from "@/lib/schedule-create";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { FormModal, FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
-import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { useToast } from "@/components/ui/toast";
-import { ScheduleSheetsManager } from "@/components/features/ScheduleSheetsManager";
 import { MeetingTimeField, VenueField, venueDetails } from "@/components/post/ScheduleFields";
 import {
   BLOCKS,
@@ -25,54 +23,6 @@ import {
   normalizeProfileBlocks,
 } from "@/lib/constants";
 import type { Block, PracticeSchedule, ScheduleType, VenueRow } from "@/types";
-
-export function ScheduleCreatePanel({ onDone }: { onDone: () => void }) {
-  const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"normal" | "sheets">(
-    searchParams.get("sheets") === "1" ? "sheets" : "normal",
-  );
-  const [pendingMode, setPendingMode] = useState<typeof mode | null>(null);
-  const importDraft = useRef<Parameters<typeof useFormDraft>[0] | null>(null);
-  const [draftFlags, setDraftFlags] = useState({ dirty: false, busy: false });
-  const onDraftChange = useCallback((draft: Parameters<typeof useFormDraft>[0] | null) => {
-    importDraft.current = draft;
-    const next = { dirty: !!draft?.dirty, busy: !!draft?.busy };
-    setDraftFlags((current) => current.dirty === next.dirty && current.busy === next.busy ? current : next);
-  }, []);
-
-  return (
-    <div className="space-y-5">
-      <fieldset disabled={draftFlags.busy}>
-        <SegmentedControl
-          items={[
-            { key: "normal", label: "通常入力" },
-            { key: "sheets", label: "スプレッドシートから入力" },
-          ]}
-          value={mode}
-          onChange={(next) => {
-            if (next === mode || draftFlags.busy) return;
-            if (draftFlags.dirty) setPendingMode(next);
-            else setMode(next);
-          }}
-        />
-      </fieldset>
-      {mode === "normal" ? <ScheduleForm onDone={onDone} onDraftChange={onDraftChange} /> : <ScheduleSheetsManager onDraftChange={onDraftChange} />}
-      <UnsavedChangesDialog
-        open={pendingMode !== null}
-        busy={draftFlags.busy}
-        onContinue={() => setPendingMode(null)}
-        onDiscard={() => {
-          if (draftFlags.busy || pendingMode === null) return;
-          setMode(pendingMode); setPendingMode(null);
-        }}
-        onSave={() => {
-          if (draftFlags.busy) return;
-          setPendingMode(null); void importDraft.current?.onSave();
-        }}
-      />
-    </div>
-  );
-}
 
 export function ScheduleForm({
   schedule,

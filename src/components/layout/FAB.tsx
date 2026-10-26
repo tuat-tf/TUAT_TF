@@ -70,10 +70,6 @@ const ScheduleForm = withIntentPreload(
   dynamic(() => import("@/components/post/ScheduleForm").then(m => m.ScheduleForm), { loading: FormSkeleton }),
   () => import("@/components/post/ScheduleForm").then(m => m.ScheduleForm),
 );
-const ScheduleCreatePanel = withIntentPreload(
-  dynamic(() => import("@/components/post/ScheduleForm").then(m => m.ScheduleCreatePanel), { loading: FormSkeleton }),
-  () => import("@/components/post/ScheduleForm").then(m => m.ScheduleCreatePanel),
-);
 
 const formPreloads = {
   record: RecordForm.preload,
@@ -94,7 +90,7 @@ export type FabPermissions = {
   manageMembers: boolean;
 };
 
-type DirectForm = "schedule" | "planning" | "notice" | "article" | "folder" | "subfolder" | "thread" | null;
+type DirectForm = "planning" | "notice" | "article" | "folder" | "subfolder" | "thread" | null;
 
 type FabProps = {
   userId: string;
@@ -418,15 +414,6 @@ function ContextualFAB({
           setPendingScheduleType(null); void planningDraft.current?.onSave();
         }}
       />
-
-      <FormModal
-        open={directForm === "schedule"}
-        autoFocus={false}
-        onOpenChange={(open) => !open && closeDirectForm()}
-        title="予定"
-      >
-        <ScheduleCreatePanel onDone={closeDirectForm} />
-      </FormModal>
 
       <FormModal
         open={directForm === "notice"}

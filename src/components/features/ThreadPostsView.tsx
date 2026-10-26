@@ -48,15 +48,28 @@ export function ThreadPostsView({
     if (!thread || !composer) return;
     const viewport = window.visualViewport;
     let frame = 0;
+    // Same baseline as viewport-sync: resizes-content (Android) shrinks innerHeight with the keyboard,
+    // so compare against the tallest height seen at this width.
+    let unobscuredHeight = Math.max(window.innerHeight, viewport?.height ?? 0);
+    let layoutWidth = window.innerWidth;
     const measure = () => {
       frame = 0;
       thread.style.setProperty("--ui-composer-height", `${composer.offsetHeight}px`);
+      if (layoutWidth !== window.innerWidth) {
+        layoutWidth = window.innerWidth;
+        unobscuredHeight = Math.max(window.innerHeight, viewport?.height ?? 0);
+      } else {
+        unobscuredHeight = Math.max(unobscuredHeight, window.innerHeight, viewport?.height ?? 0);
+      }
       // The floating composer stays above the software keyboard without
       // rerendering the message list on every visual viewport event.
-      const inset = viewport && composer.contains(document.activeElement)
-        ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-        : 0;
+      // The bottom tabs hide while the keyboard is up, so the composer then sits on the
+      // keyboard instead of keeping the tabs' space (which left it floating mid-screen).
+      const keyboard = !!viewport && composer.contains(document.activeElement) &&
+        unobscuredHeight - viewport.height > 150;
+      const inset = keyboard ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop) : 0;
       thread.style.setProperty("--ui-composer-inset", `${inset}px`);
+      composer.toggleAttribute("data-keyboard", keyboard);
     };
     const scheduleMeasure = () => {
       if (!frame) frame = requestAnimationFrame(measure);

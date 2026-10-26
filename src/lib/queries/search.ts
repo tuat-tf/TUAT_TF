@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { normalizeRecordWithAuthor, normalizeTweetWithAuthor } from "@/lib/profile-normalize";
-import { rankHashtags, type HashtagUse, type RankedHashtag } from "@/lib/hashtags";
+import { RECORD_HASHTAG_COLUMNS, rankHashtags, type HashtagUse, type RankedHashtag } from "@/lib/hashtags";
 import type { FeedItem } from "@/types";
 import { RECORD_LIST_SELECT, RECORD_LIST_AUTHOR_SELECT, TWEET_AUTHOR_SELECT } from "./internal";
 import { hydrateFeedRows } from "./feed";
@@ -43,12 +43,12 @@ export async function searchFeed(query: string, cursor: SearchCursor = null): Pr
   return { items, next: hits.length === SEARCH_PAGE ? { createdAt: last.created_at, id: last.id } : null };
 }
 
-/** 直近1週間のつぶやき・返信に書かれた #タグ を、よく・最近使われた順に返す。 */
+/** 直近1週間のつぶやき・返信・練習記録に書かれた #タグ を、よく・最近使われた順に返す。 */
 export async function getRecentHashtags(currentUserId: string): Promise<RankedHashtag[]> {
   const supabase = await createClient();
   const now = new Date();
   const since = new Date(now.getTime() - 7 * 86_400_000).toISOString();
-  const [tweets, comments] = await Promise.all([
+  const [tweets, comments, records] = await Promise.all([
     supabase.from("tweets").select("content, user_id, created_at")
       .gte("created_at", since)
       .or("content.like.*#*,content.like.*＃*")
@@ -60,11 +60,23 @@ export async function getRecentHashtags(currentUserId: string): Promise<RankedHa
       .or("content.like.*#*,content.like.*＃*")
       .order("created_at", { ascending: false })
       .limit(500),
+    supabase.from("practice_records").select("memo, menu_text, focus_text, result_text, strength_text, user_id, created_at")
+      .gte("created_at", since)
+      .or(RECORD_HASHTAG_COLUMNS.flatMap((column) => [`${column}.like.*#*`, `${column}.like.*＃*`]).join(","))
+      .order("created_at", { ascending: false })
+      .limit(500),
   ]);
   if (tweets.error) throw new Error(`Failed to load hashtags: ${tweets.error.message}`);
   if (comments.error) throw new Error(`Failed to load hashtags: ${comments.error.message}`);
-  const uses: HashtagUse[] = [...(tweets.data ?? []), ...(comments.data ?? [])].map((row) => ({
-    text: row.content ?? "", createdAt: row.created_at, mine: row.user_id === currentUserId,
-  }));
+  if (records.error) throw new Error(`Failed to load hashtags: ${records.error.message}`);
+  const uses: HashtagUse[] = [
+    ...[...(tweets.data ?? []), ...(comments.data ?? [])].map((row) => ({
+      text: row.content ?? "", createdAt: row.created_at, mine: row.user_id === currentUserId,
+    })),
+    ...(records.data ?? []).map((row) => ({
+      text: RECORD_HASHTAG_COLUMNS.map((column) => row[column] ?? "").join(" "),
+      createdAt: row.created_at, mine: row.user_id === currentUserId,
+    })),
+  ];
   return rankHashtags(uses, now.getTime());
 }

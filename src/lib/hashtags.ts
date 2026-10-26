@@ -42,6 +42,12 @@ export function extractHashtags(text: string): string[] {
   return [...seen.values()];
 }
 
+/** 練習記録で #タグ として検索される欄（search_feed が探す欄と同じ。独自項目は対象外）。 */
+export const RECORD_HASHTAG_COLUMNS = ["memo", "menu_text", "focus_text", "result_text", "strength_text"] as const;
+export function isRecordHashtagField(key: string): boolean {
+  return (RECORD_HASHTAG_COLUMNS as readonly string[]).includes(key);
+}
+
 export function hashtagSearchHref(tag: string): string {
   return `/timeline?q=${encodeURIComponent(`#${tag}`)}`;
 }

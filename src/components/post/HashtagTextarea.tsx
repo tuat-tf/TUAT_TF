@@ -2,6 +2,7 @@
 
 import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type SyntheticEvent } from "react";
 import { Textarea, TEXTAREA_CLASS, type TextareaProps } from "@/components/ui/textarea";
+import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { useHashtagSuggestions } from "@/hooks/use-hashtag-suggestions";
 import { completeHashtag, hashtagQueryAt, splitHashtags } from "@/lib/hashtags";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
         <div
           ref={mirror}
           aria-hidden="true"
+          data-ui-field-mirror
           className={cn(TEXTAREA_CLASS, className, "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words")}
         >
           {splitHashtags(value).map((part, index) => typeof part === "string"
@@ -42,6 +44,30 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
     );
   },
 );
+
+/** 色付けと候補を1つにまとめた入力欄（練習記録の自由記述欄など）。 */
+export function HashtagField({
+  value,
+  onValueChange,
+  ...props
+}: Omit<TextareaProps, "value" | "onChange" | "onSelect"> & { value: string; onValueChange: (value: string) => void }) {
+  const { ref, ...hashtag } = useHashtagCompletion(value, onValueChange);
+  return (
+    <>
+      <HashtagTextarea
+        ref={ref}
+        value={value}
+        onChange={(event) => {
+          onValueChange(event.target.value);
+          hashtag.track(event);
+        }}
+        onSelect={hashtag.track}
+        {...props}
+      />
+      <HashtagSuggestions items={hashtag.suggestions} onSelect={hashtag.select} className="mt-2" />
+    </>
+  );
+}
 
 /**
  * カーソル位置の書きかけの #タグ に候補を出し、選んだら置き換える。

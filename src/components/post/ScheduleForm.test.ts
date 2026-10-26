@@ -37,7 +37,6 @@ vi.mock("react", async original => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
-vi.mock("@/components/features/ScheduleSheetsManager", () => ({ ScheduleSheetsManager: () => null }));
 vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth: { getClaims: mocks.claims } }) }));
 vi.mock("@/lib/schedule-create", async original => ({ ...await original<typeof import("@/lib/schedule-create")>(), saveNewSchedule: mocks.save }));
 vi.mock("@/components/ui/form-modal", () => ({

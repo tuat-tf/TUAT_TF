@@ -22,6 +22,7 @@ import { SegmentedControl } from "@/components/ui/segmented";
 import { INTENSITY_ORDER, INTENSITY_LABELS } from "@/lib/constants";
 import { cn, formatKm, roundKm } from "@/lib/utils";
 import { displayedDistance, unclassifiedDistance } from "@/lib/record-distance";
+import { isRecordHashtagField } from "@/lib/hashtags";
 import { useBooleanPreference } from "@/hooks/use-boolean-preference";
 import { useTrainingReviewSelection } from "@/hooks/use-training-review-selection";
 import { recentTrainingRecords, trainingReviewFields, trainingReviewPreferenceKey } from "@/lib/training-review-display";
@@ -169,7 +170,7 @@ export function TrainingChart({
       </div>
 
       <IntensitySummary summary={sel} period={period} label={recent ? `${format(sel.start, "M/d")}〜${format(new Date(today+"T00:00:00"), "M/d")}` : bucketLabel(sel, true)} previousTotal={previousTotal}>
-      {recent ? <IntensityDonut summary={sel} /> : (
+      {recent ? <RecentWeekBars buckets={buckets} total={sel.total} today={today} /> : (
 
       <div ref={scrollRef} className="h-full overflow-x-auto overflow-y-hidden -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="relative w-max">
@@ -212,28 +213,14 @@ export function TrainingChart({
                       >
                         {formatDistance(b.total)}
                       </span>
-                      <div
+                      <BarStack
+                        bucket={b}
+                        height={barH}
                         className={cn(
-                          "absolute bottom-0 left-1/2 flex w-full -translate-x-1/2 flex-col-reverse overflow-hidden rounded-t-[4px] border shadow-sm transition-all",
+                          "w-full transition-all",
                           isSel ? "border-accent ring-2 ring-inset ring-accent/60" : "border-separator/70 opacity-95",
                         )}
-                        style={{ height: `${barH}px` }}
-                      >
-                        {INTENSITY_ORDER.map((k) =>
-                          b.by[k] > 0 ? (
-                            <div
-                              key={k}
-                              style={{
-                                height: `${(b.by[k] / b.total) * 100}%`,
-                                backgroundColor: INTENSITY_LABELS[k].color,
-                              }}
-                            />
-                          ) : null,
-                        )}
-                        {b.unclassified > 0 && (
-                          <div aria-label={`その他 ${formatDistance(b.unclassified)}km`} className="bg-muted/35" style={{ height: `${(b.unclassified / b.total) * 100}%` }} />
-                        )}
-                      </div>
+                      />
                     </>
                   ) : (
                     <div className="absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded-t-[3px] bg-separator/60" />
@@ -309,7 +296,7 @@ export function TrainingChart({
                       <span>{format(new Date(r.recorded_date + "T00:00:00"), "M/d(E)", { locale: ja })}</span>
                     </p>
                     <dl>
-                      {fields.map((field) => <KeyValue key={field.key} label={field.label} value={field.value} className="[&>dt]:[overflow-wrap:anywhere]" collapsible />)}
+                      {fields.map((field) => <KeyValue key={field.key} label={field.label} value={field.value} className="[&>dt]:[overflow-wrap:anywhere]" collapsible hashtags={isRecordHashtagField(field.key)} />)}
                     </dl>
                     {fields.length === 0 && (
                       <p className="text-caption">表示する内容はありません</p>
@@ -388,25 +375,65 @@ function IntensitySummary({
   );
 }
 
-function IntensityDonut({ summary }: { summary: Bucket }) {
-  const segments = [
-    ...INTENSITY_ORDER.map((intensity) => ({ key: intensity, value: summary.by[intensity], color: INTENSITY_LABELS[intensity].color })),
-    { key: "unclassified", value: summary.unclassified, color: "color-mix(in srgb, var(--color-muted) 35%, transparent)" },
-  ];
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-  let offset = 0;
-
+/** 強度別に色を積み上げた1本の棒（下から低強度→…→その他）。 */
+function BarStack({ bucket, height, className }: { bucket: Bucket; height: number; className?: string }) {
   return (
-    <div className="flex h-full items-center justify-center">
-      <svg data-training-donut viewBox="0 0 112 112" className="h-28 w-28" role="img" aria-label={total > 0 ? `直近7日間の強度別走行距離、合計${formatDistance(summary.total)}km` : "直近7日間の走行距離は0kmです"}>
-        <circle cx="56" cy="56" r="44" fill="none" strokeWidth="16" className="stroke-separator/60" />
-        {total > 0 && segments.map((segment) => {
-          const share = segment.value / total * 100;
-          const start = offset;
-          offset += share;
-          return share > 0 ? <circle key={segment.key} cx="56" cy="56" r="44" fill="none" stroke={segment.color} strokeWidth="16" pathLength="100" strokeDasharray={`${share} ${100 - share}`} strokeDashoffset={-start} transform="rotate(-90 56 56)" /> : null;
-        })}
-      </svg>
+    <div
+      className={cn("absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col-reverse overflow-hidden rounded-t-[4px] border shadow-sm", className)}
+      style={{ height: `${height}px` }}
+    >
+      {INTENSITY_ORDER.map((k) =>
+        bucket.by[k] > 0 ? (
+          <div key={k} style={{ height: `${(bucket.by[k] / bucket.total) * 100}%`, backgroundColor: INTENSITY_LABELS[k].color }} />
+        ) : null,
+      )}
+      {bucket.unclassified > 0 && (
+        <div aria-label={`その他 ${formatDistance(bucket.unclassified)}km`} className="bg-muted/35" style={{ height: `${(bucket.unclassified / bucket.total) * 100}%` }} />
+      )}
+    </div>
+  );
+}
+
+const WEEK_BAR_AREA = 76;
+
+/** 直近7日を1日1本で並べる。横スクロールなしで幅いっぱいに収め、今日を強調する。 */
+function RecentWeekBars({ buckets, total, today }: { buckets: Bucket[]; total: number; today: string }) {
+  const max = Math.max(...buckets.map((b) => b.total), 1);
+  const days = buckets.map((b) => `${format(b.start, "M/d")} ${formatDistance(b.total)}km`).join("、");
+  return (
+    <div
+      data-training-week
+      role="img"
+      aria-label={total > 0 ? `直近7日間の日別走行距離、合計${formatDistance(total)}km（${days}）` : "直近7日間の走行距離は0kmです"}
+      className="grid h-full grid-cols-7 gap-1.5"
+    >
+      {buckets.map((b) => {
+        const barH = b.total > 0 ? Math.max((b.total / max) * WEEK_BAR_AREA, 6) : 0;
+        const isToday = format(b.start, "yyyy-MM-dd") === today;
+        return (
+          <div key={b.start.getTime()} className="flex min-w-0 flex-col items-center">
+            <div className="relative w-full flex-1">
+              {barH > 0 ? (
+                <>
+                  <span
+                    className={cn("absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold tabular-nums", isToday ? "text-accent" : "text-muted2")}
+                    style={{ bottom: `${barH + 2}px` }}
+                  >
+                    {formatDistance(b.total)}
+                  </span>
+                  <BarStack bucket={b} height={barH} className={cn("w-full max-w-7", isToday ? "border-accent" : "border-separator/70")} />
+                </>
+              ) : (
+                <div className="absolute bottom-0 left-1/2 h-1 w-full max-w-7 -translate-x-1/2 rounded-t-[3px] bg-separator/60" />
+              )}
+            </div>
+            <span className={cn("mt-1 text-[11px] leading-[14px]", isToday ? "font-bold text-accent" : "text-muted2")}>
+              {isToday ? "今日" : format(b.start, "E", { locale: ja })}
+            </span>
+            <span className="text-[9px] leading-3 tabular-nums text-muted2">{format(b.start, "M/d")}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -13,6 +13,8 @@ import { hasCustomRecordContent } from "@/lib/record-content";
 import { IntensityInput, type IntensityValues } from "@/components/features/IntensityInput";
 import { recordFieldsFromJson } from "@/lib/profile-normalize";
 import { Textarea } from "@/components/ui/textarea";
+import { HashtagField } from "@/components/post/HashtagTextarea";
+import { isRecordHashtagField } from "@/lib/hashtags";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
@@ -189,6 +191,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
     memo.trim() !== "" ||
     condition !== null ||
     Object.values(customValues).some((value) => value.trim() !== "");
+  // 非同期の読み込みが、入力中の内容を上書きしないための参照
+  const snapshotRef = useRef(currentSnapshot);
+  const baselineRef = useRef(baselineSnapshot);
+  const appliedDateRef = useRef<string | null>(null);
+  useEffect(() => { snapshotRef.current = currentSnapshot; baselineRef.current = baselineSnapshot; });
   const dirty = hasMeaningfulContent || record || hasExistingSameDay ? currentSnapshot !== baselineSnapshot : false;
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   useFormDraft({ dirty: false, busy: saving, onSave: submit });
@@ -214,6 +221,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
   useEffect(() => {
     if (editing) return; // 記録カードからの編集は渡された record をそのまま使う（対象外）
     let active = true;
+    const requestSnapshot = snapshotRef.current;
     const supabase = createClient();
     supabase
       .from("practice_records")
@@ -227,6 +235,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
         if (!active) return;
         const found = data as PracticeRecord | null;
         setHasExistingSameDay(!!found);
+        // 読み込み中、または同じ日の再取得中に入力が進んでいたら、打っている内容を消さない。
+        const edited = snapshotRef.current !== requestSnapshot ||
+          (appliedDateRef.current === date && snapshotRef.current !== baselineRef.current);
+        if (edited) return;
+        appliedDateRef.current = date;
         const nextDraft = recordDraftValues(found, date);
         setDist(nextDraft.dist);
         setActualDistance(nextDraft.actualDistance);
@@ -474,18 +487,20 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
         };
         return <div key={field.key} data-ui-record-field>
           <label htmlFor={`${formId}-${field.key}`} className="section-label mb-1.5 block">{field.label}</label>
-          {field.type === "number" ? <Input id={`${formId}-${field.key}`} type="number" inputMode="decimal" placeholder="0" value={value} onChange={(event) => setValue(event.target.value)} /> : <Textarea id={`${formId}-${field.key}`} autoGrow={true} rows={field.key === "memo" ? 3 : 2} value={value} onChange={(event) => setValue(event.target.value)} />}
+          {field.type === "number" ? <Input id={`${formId}-${field.key}`} type="number" inputMode="decimal" placeholder="0" value={value} onChange={(event) => setValue(event.target.value)} /> : isRecordHashtagField(field.key)
+            ? <HashtagField id={`${formId}-${field.key}`} autoGrow={true} rows={field.key === "memo" ? 3 : 2} value={value} onValueChange={setValue} />
+            : <Textarea id={`${formId}-${field.key}`} autoGrow={true} rows={2} value={value} onChange={(event) => setValue(event.target.value)} />}
         </div>;
       })}
       {/* メニュー（短距離・跳躍・投擲） */}
       {!systemRecordForm && !isMiddleLong && fieldEnabled("menu_text") && (
         <div data-ui-record-field>
           <label htmlFor={`${formId}-menu_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "menu_text", "メニュー")}</label>
-          <Textarea id={`${formId}-menu_text`} autoGrow={true}
+          <HashtagField id={`${formId}-menu_text`} autoGrow={true}
             rows={2}
             placeholder="メニューを入力"
             value={menuText}
-            onChange={(e) => setMenuText(e.target.value)}
+            onValueChange={setMenuText}
           />
         </div>
       )}
@@ -494,11 +509,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {!systemRecordForm && !isMiddleLong && fieldEnabled("focus_text") && (
         <div data-ui-record-field>
           <label htmlFor={`${formId}-focus_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "focus_text", "目的・意識すること")}</label>
-          <Textarea id={`${formId}-focus_text`} autoGrow={true}
+          <HashtagField id={`${formId}-focus_text`} autoGrow={true}
             rows={2}
             placeholder="例: このメニューの狙い、意識したポイント"
             value={focusText}
-            onChange={(e) => setFocusText(e.target.value)}
+            onValueChange={setFocusText}
           />
         </div>
       )}
@@ -506,11 +521,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {/* 結果 */}
       {!systemRecordForm && fieldEnabled("result_text") && <div data-ui-record-field>
         <label htmlFor={`${formId}-result_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "result_text", isMiddleLong ? "結果" : "タイム")}</label>
-        <Textarea id={`${formId}-result_text`} autoGrow={true}
+        <HashtagField id={`${formId}-result_text`} autoGrow={true}
           rows={2}
           placeholder={isMiddleLong ? "例: 5000m 16'20\"" : "例: 100m 11.2 (+1.5)"}
           value={resultText}
-          onChange={(e) => setResultText(e.target.value)}
+          onValueChange={setResultText}
         />
       </div>}
 
@@ -518,11 +533,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {!systemRecordForm && isMiddleLong && fieldEnabled("strength_text") && (
         <div data-ui-record-field>
           <label htmlFor={`${formId}-strength_text`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "strength_text", "補強")}</label>
-          <Textarea id={`${formId}-strength_text`} autoGrow={true}
+          <HashtagField id={`${formId}-strength_text`} autoGrow={true}
             rows={2}
             placeholder="例: 腹筋・背筋・体幹"
             value={strengthText}
-            onChange={(e) => setStrengthText(e.target.value)}
+            onValueChange={setStrengthText}
           />
         </div>
       )}
@@ -530,11 +545,11 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       {/* 感想 */}
       {!systemRecordForm && fieldEnabled("memo") && <div data-ui-record-field>
         <label htmlFor={`${formId}-memo`} className="section-label mb-1.5 block">{recordFieldLabel(configuredFields, "memo", "感想・振り返り")}</label>
-        <Textarea id={`${formId}-memo`} autoGrow={true}
+        <HashtagField id={`${formId}-memo`} autoGrow={true}
           rows={3}
           placeholder="今日の練習を記録"
           value={memo}
-          onChange={(e) => setMemo(e.target.value)}
+          onValueChange={setMemo}
         />
       </div>}
 

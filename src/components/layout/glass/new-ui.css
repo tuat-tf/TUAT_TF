@@ -235,6 +235,13 @@
   box-shadow: none;
 }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-record-field] textarea[data-ui-field] { min-height: 96px; line-height: 1.6; }
+/* The #tag coloring layer under a transparent record textarea takes the field's look. */
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-record-field] [data-ui-field-mirror] {
+  border-radius: 12px;
+  background: #f5f7fa;
+  border-color: transparent;
+  line-height: 1.6;
+}
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-intensity-grid] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-intensity] [data-ui-panel] { border-radius: 12px; background: #f5f7fa; box-shadow: none; }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-field="metric"] {
@@ -359,6 +366,9 @@
     inset-inline: 12px;
     width: calc(100% - 24px);
     max-width: 424px;
+  }
+  :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-composer][data-keyboard] {
+    bottom: calc(var(--ui-composer-inset, 0px) + 8px);
   }
   :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) :is(input, textarea, select)[data-ui-field]:not([data-ui-field="metric"]) { min-height: 44px; font-size: 16px; }
 }

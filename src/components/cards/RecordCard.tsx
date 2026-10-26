@@ -15,6 +15,7 @@ import { CONDITIONS, gradeShort } from "@/lib/constants";
 import { recordFieldHidden, recordFieldLabel } from "@/lib/record-fields";
 import { displayedDistance } from "@/lib/record-distance";
 import { recordSummaryText } from "@/lib/post-summary";
+import { isRecordHashtagField } from "@/lib/hashtags";
 import type { CommentAuthor, RecordFieldDef, RecordWithAuthor } from "@/types";
 
 const NON_DETAIL_KEYS = new Set(["dist_low", "dist_mid", "dist_high", "dist_speed", "dist_actual", "strides", "condition"]);
@@ -97,7 +98,7 @@ export function RecordCard({
 
       {details.length > 0 && (
         <ExpandableSection maxHeight={150} forceExpanded={embedded}>
-          <dl>{details.map((field) => <KeyValue key={field.key} label={field.label} value={recordValue(record, field.key)} />)}</dl>
+          <dl>{details.map((field) => <KeyValue key={field.key} label={field.label} value={recordValue(record, field.key)} hashtags={isRecordHashtagField(field.key)} />)}</dl>
         </ExpandableSection>
       )}
 

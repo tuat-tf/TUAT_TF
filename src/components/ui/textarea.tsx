@@ -24,8 +24,13 @@ export const Textarea = React.forwardRef<
   const resizeToContent = React.useCallback(() => {
     const element = localRef.current;
     if (!autoGrow || !element) return;
+    // 測るために高さを auto へ戻すと、外側のスクロール領域が一瞬縮んで位置が上へ飛ぶ（入力中のガタつき）。
+    // 測る前の位置へ戻してから描画させる。
+    const scroller = scrollParent(element);
+    const top = scroller?.scrollTop ?? 0;
     element.style.height = "auto";
     element.style.height = `${element.scrollHeight + element.offsetHeight - element.clientHeight}px`;
+    if (scroller && scroller.scrollTop !== top) scroller.scrollTop = top;
   }, [autoGrow]);
 
   React.useLayoutEffect(() => {
@@ -61,7 +66,8 @@ export const Textarea = React.forwardRef<
       style={style}
       value={value}
       onInput={(event) => {
-        resizeToContent();
+        // 値を渡している入力欄は、値の反映後の useLayoutEffect で1回だけ測る。
+        if (value === undefined) resizeToContent();
         onInput?.(event);
       }}
       {...props}
@@ -69,3 +75,11 @@ export const Textarea = React.forwardRef<
   );
 });
 Textarea.displayName = "Textarea";
+
+function scrollParent(node: HTMLElement): HTMLElement | null {
+  for (let element = node.parentElement; element; element = element.parentElement) {
+    const { overflowY } = getComputedStyle(element);
+    if (overflowY === "auto" || overflowY === "scroll") return element;
+  }
+  return document.scrollingElement as HTMLElement | null;
+}

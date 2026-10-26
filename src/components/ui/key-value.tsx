@@ -9,11 +9,14 @@ export function KeyValue({
   value,
   className,
   collapsible = false,
+  hashtags = false,
 }: {
   label: ReactNode;
   value: ReactNode;
   className?: string;
   collapsible?: boolean;
+  /** #タグを青文字にして検索へつなげる（練習記録） */
+  hashtags?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (value === null || value === undefined || value === "") return null;
@@ -23,7 +26,7 @@ export function KeyValue({
       <dt className="text-[13px] text-muted">{label}</dt>
       <dd className="min-w-0 break-words text-[13px]">
         <div className={cn("whitespace-pre-wrap", collapsible && !expanded && "line-clamp-3")}>
-          {typeof value === "string" ? <Linkify text={value} /> : value}
+          {typeof value === "string" ? <Linkify text={value} hashtags={hashtags} /> : value}
         </div>
         {collapsible && typeof value === "string" && value.length > 90 && <button data-ui-disclosure type="button" onClick={() => setExpanded((current) => !current)} className="mt-1 text-caption font-semibold text-accent">{expanded ? "閉じる" : "続きを読む"}</button>}
       </dd>
