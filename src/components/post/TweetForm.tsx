@@ -23,6 +23,9 @@ import { FormModalFooter, useFormDraft } from "@/components/ui/form-modal";
 import { cn } from "@/lib/utils";
 import { prepareTweetImage, validateTweetImage } from "@/lib/tweet-image";
 import { QuotedPostCard } from "@/components/cards/QuotedPostCard";
+import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
+import { useHashtagSuggestions } from "@/hooks/use-hashtag-suggestions";
+import { completeHashtag, trailingHashtagQuery } from "@/lib/hashtags";
 import type { QuotedPost } from "@/types";
 import type { Database } from "@/types/database";
 
@@ -75,6 +78,7 @@ export const TweetForm = forwardRef<
   const [pollAllowOptions, setPollAllowOptions] = useState(false);
   const mentionMatch = content.match(/@([^\s@\n]*)$/);
   const mentionQuery = mentionMatch?.[1]?.toLocaleLowerCase("ja") ?? null;
+  const hashtagSuggestions = useHashtagSuggestions(trailingHashtagQuery(content));
   const selectedMentions = members.filter(
     (member) =>
       selectedMentionIds.includes(member.id) &&
@@ -262,6 +266,11 @@ export const TweetForm = forwardRef<
           }}
           className="min-h-[180px] rounded-none border-0 bg-transparent px-4 py-4 text-[16px] leading-7 placeholder:text-muted/75 focus:border-transparent"
         />
+        {hashtagSuggestions.length > 0 && (
+          <div className="border-t border-separator bg-bg px-3 py-2">
+            <HashtagSuggestions items={hashtagSuggestions} onSelect={(tag) => setContent((value) => completeHashtag(value, tag))} />
+          </div>
+        )}
         {(mentionQuery !== null || (membersFailed && selectedMentionIds.length > 0)) && (
           <div className="border-t border-separator bg-bg p-2">
             <p className="px-2 pb-1 text-micro">メンションする人</p>

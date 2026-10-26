@@ -8,7 +8,7 @@ function escapeRegExp(value: string): string {
 
 export function MentionText({ text, mentions }: { text: string; mentions?: TweetMention[] }) {
   const valid = (mentions ?? []).filter((mention) => mention.display_name);
-  if (!valid.length) return <Linkify text={text} />;
+  if (!valid.length) return <Linkify text={text} hashtags />;
   const byLabel = new Map(valid.map((mention) => [`@${mention.display_name}`, mention]));
   const pattern = new RegExp(`(${[...byLabel.keys()].map(escapeRegExp).join("|")})`, "g");
   return (
@@ -19,7 +19,7 @@ export function MentionText({ text, mentions }: { text: string; mentions?: Tweet
           <Link data-ui-link key={`${part}-${index}`} href={`/members/${mention.profile_id}`} prefetch={false} className="font-semibold text-accent" onClick={(event) => event.stopPropagation()}>
             {part}
           </Link>
-        ) : <Linkify key={index} text={part} />;
+        ) : <Linkify key={index} text={part} hashtags />;
       })}
     </>
   );

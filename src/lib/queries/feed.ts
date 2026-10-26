@@ -74,6 +74,18 @@ export async function getFeed(
   const selected = new Set(candidates.map((row) => `${row.kind}:${row.id}`));
   const baseRecords = candidateRecords.filter((row) => selected.has(`record:${row.id}`));
   const rawTweets = candidateTweets.filter((row) => selected.has(`tweet:${row.id}`));
+  // currentUserId remains part of this function's public contract/query key. The
+  // RPC derives the authenticated viewer from auth.uid(), so it cannot be spoofed.
+  void currentUserId;
+  return (await hydrateFeedRows(supabase, baseRecords, rawTweets)).slice(0, limit);
+}
+
+/** 取得済みの記録・つぶやきに、項目・投票・いいね・返信件数・引用を付けて新しい順に並べる。 */
+export async function hydrateFeedRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  baseRecords: ReturnType<typeof normalizeRecordWithAuthor>[],
+  rawTweets: ReturnType<typeof normalizeTweetWithAuthor>[],
+): Promise<FeedItem[]> {
   const recIds = baseRecords.map((r) => r.id);
   // 投票・メンションの取得（attachTweetSocialData）と、いいね・コメント件数の取得は
   // どちらも上の1回目の結果だけに依存していて、互いには依存しない。直列に待つと
@@ -81,9 +93,6 @@ export async function getFeed(
   // 渡した順序とIDをそのまま返すので、IDはここで先に確定できる。
   const twIds = rawTweets.map((t) => t.id);
 
-  // currentUserId remains part of this function's public contract/query key. The
-  // RPC derives the authenticated viewer from auth.uid(), so it cannot be spoofed.
-  void currentUserId;
   const [records, tweets, social, quoted] = await Promise.all([
     attachRecordFieldGroups(supabase, baseRecords),
     attachTweetSocialData(supabase, rawTweets),
@@ -110,12 +119,7 @@ export async function getFeed(
     ),
   ];
 
-  items.sort((a, b) =>
-    a.created_at === b.created_at
-      ? b.id.localeCompare(a.id)
-      : a.created_at < b.created_at ? 1 : -1,
-  );
-  return items.slice(0, limit);
+  return sortFeedItems(items);
 }
 
 /**

@@ -2309,6 +2309,10 @@ export type Database = {
         Args: { p_target_type: string; p_target_id: string; p_content: string; p_mention_ids: string[] }
         Returns: { id: string; user_id: string; target_type: string; target_id: string; content: string; created_at: string; updated_at: string; sheet_reply_index: number | null }
       }
+      search_feed: {
+        Args: { p_query: string; p_before_at?: string | null; p_before_id?: string | null; p_limit?: number }
+        Returns: { kind: string; id: string; created_at: string }[]
+      }
       get_comment_like_state: {
         Args: { comment_ids: string[] }
         Returns: { comment_id: string; likes_count: number; liked_by_me: boolean }[]

@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
+import { useHashtagSuggestions } from "@/hooks/use-hashtag-suggestions";
+import { completeHashtag, trailingHashtagQuery } from "@/lib/hashtags";
 import type { CommentAuthor, CommentWithAuthor, TargetType } from "@/types";
 
 type CommentLike = { liked: boolean; count: number };
@@ -38,6 +41,7 @@ export function CommentSection({
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }> | null>(null);
   const [mentionIds, setMentionIds] = useState<string[]>([]);
   const mentionQuery = text.match(/@([^\s@\n]*)$/)?.[1]?.toLocaleLowerCase("ja") ?? null;
+  const hashtagSuggestions = useHashtagSuggestions(trailingHashtagQuery(text));
   const membersRequested = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
   const countChange = useRef(onCountChange);
@@ -323,6 +327,8 @@ export function CommentSection({
           ))}
         </div>
       )}
+
+      <HashtagSuggestions items={hashtagSuggestions} onSelect={(tag) => setText((value) => completeHashtag(value, tag))} className="mt-2" />
 
       <div className="mt-3 flex min-w-0 items-end gap-2">
         <Textarea
