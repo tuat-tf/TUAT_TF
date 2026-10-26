@@ -39,7 +39,7 @@ export function MyTrainingChartCached({
   if (!showIntensitySummary) return null;
   return (
     <>
-      <TrainingChart records={data} showIntensitySummary viewerId={userId} recordFields={recordFields} initialShowAllFields={initialShowAllFields} />
+      <TrainingChart records={data} viewerId={userId} recordFields={recordFields} initialShowAllFields={initialShowAllFields} />
       <RefreshStatus failed={isError} busy={isFetching} label="練習記録" retry={() => { void refetch(); }} />
     </>
   );

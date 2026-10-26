@@ -52,13 +52,11 @@ function bucketStart(d: Date, period: Period): Date {
 /** 練習量の推移。日/週/月を切り替え、横スライドで過去を遡れる。棒タップで内訳。 */
 export function TrainingChart({
   records,
-  showIntensitySummary = false,
   viewerId,
   recordFields = [],
   initialShowAllFields = false,
 }: {
   records: TrainingRecord[];
-  showIntensitySummary?: boolean;
   viewerId?: string;
   recordFields?: RecordFieldDef[];
   initialShowAllFields?: boolean;
@@ -153,20 +151,17 @@ export function TrainingChart({
 
   return (
     <Card className="p-4 space-y-3">
-      <div data-training-periods className="flex flex-wrap items-center justify-between gap-3">
-        <p className="section-label">{showIntensitySummary ? "走行サマリー" : "練習量の推移"}</p>
-        <div className="w-full min-w-0">
-          <SegmentedControl
-            items={[
-              { key: "recent", label: "直近7日" },
-              { key: "day", label: "日" },
-              { key: "week", label: "週" },
-              { key: "month", label: "月" },
-            ]}
-            value={period}
-            onChange={(key) => changePeriod(key as Period)}
-          />
-        </div>
+      <div data-training-periods className="min-w-0">
+        <SegmentedControl
+          items={[
+            { key: "recent", label: "直近7日" },
+            { key: "day", label: "日" },
+            { key: "week", label: "週" },
+            { key: "month", label: "月" },
+          ]}
+          value={period}
+          onChange={(key) => changePeriod(key as Period)}
+        />
       </div>
 
       <IntensitySummary summary={sel} period={period} label={recent ? `${format(sel.start, "M/d")}〜${format(new Date(today+"T00:00:00"), "M/d")}` : bucketLabel(sel, true)} previousTotal={previousTotal}>
@@ -250,30 +245,22 @@ export function TrainingChart({
       )}
       </IntensitySummary>
 
-      {/* 表示項目の選択は切替ボタンから直接開く。 */}
-      <div data-training-detail className="rounded-xl bg-bg p-3">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-          <SegmentedControl
-            items={[
-              { key: "specified", label: "項目選択" },
-              { key: "all", label: "すべて表示" },
-            ]}
-            value={showAllFields ? "all" : "specified"}
-            onChange={(key) => {
-              setShowAllFields(key === "all");
-              if (key === "specified") setFieldPickerOpen(true);
-              else setShowDetail(true);
-            }}
-          />
-          </div>
-          <Button variant="ghost" size="icon" className="h-11 w-11 shrink-0 lg:h-11 lg:w-11" aria-label={showDetail ? "練習記録を閉じる" : "練習記録を表示"} aria-expanded={showDetail} aria-controls={detailId} onClick={() => setShowDetail(current => !current)}>
-            <ChevronDown size={18} className={cn("transition-transform", showDetail && "rotate-180")} aria-hidden="true" />
-          </Button>
+      {/* この期間の記録。開いてから、見たい項目だけに絞れる。 */}
+      <div data-training-detail className="rounded-xl bg-bg">
+        <div className="flex items-center gap-1 pr-1">
+          <button type="button" data-ui-disclosure aria-expanded={showDetail} aria-controls={detailId} onClick={() => setShowDetail(current => !current)} className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 px-3 text-left text-[13px] font-semibold">
+            この期間の記録
+            <ChevronDown size={16} className={cn("shrink-0 text-muted transition-transform", showDetail && "rotate-180")} aria-hidden="true" />
+          </button>
+          {showDetail && <Button variant="ghost" size="sm" className="shrink-0 text-[12px] text-accent" onClick={() => setFieldPickerOpen(true)}>項目を選ぶ</Button>}
         </div>
         <Sheet open={fieldPickerOpen} onOpenChange={setFieldPickerOpen}>
-          <SheetContent title="表示項目">
+          <SheetContent title="表示する項目">
             <div className="space-y-1">
+              <label className="flex min-h-11 items-center gap-3 rounded-xl px-3">
+                <input type="checkbox" checked={showAllFields} onChange={event => setShowAllFields(event.target.checked)} className="h-5 w-5 accent-accent" />
+                <span className="text-body font-semibold">すべて</span>
+              </label>
               {availableFields.map(field => <label key={field.key} className="flex min-h-11 items-center gap-3 rounded-xl px-3">
                 <input type="checkbox" checked={effectiveFields.includes(field.key)} onChange={event => { setSelectedFields(event.target.checked ? [...effectiveFields, field.key] : effectiveFields.filter(key => key !== field.key)); setShowAllFields(false); }} className="h-5 w-5 accent-accent" />
                 <span className="text-body">{field.label}</span>
@@ -283,7 +270,7 @@ export function TrainingChart({
             <Button size="lg" className="mt-4" onClick={() => { setFieldPickerOpen(false); setShowDetail(true); }}>完了</Button>
           </SheetContent>
         </Sheet>
-        <div id={detailId} hidden={!showDetail} className="mt-3">
+        <div id={detailId} hidden={!showDetail} className="px-3 pb-3">
           {showDetail && (sel.records.length === 0 ? (
             <p className="text-caption">この期間は記録がありません</p>
           ) : (
@@ -326,51 +313,38 @@ function IntensitySummary({
   children: ReactNode;
 }) {
   const difference = summary.total - previousTotal;
-  const previousLabel = period === "recent" ? "その前の7日間" : period === "day" ? "前日" : period === "week" ? "先週" : "先月";
-  const periodComparison = previousTotal === 0
-    ? `${previousLabel}0km`
-    : Math.abs(difference) < 0.05
-      ? `${previousLabel}と同じ`
-      : `${previousLabel}比 ${difference > 0 ? "+" : ""}${formatDistance(difference)}km`;
-  const trainingDays = new Set(summary.records.filter((record) => displayedDistance(record) > 0).map((record) => record.recorded_date)).size;
+  // 直近7日の「前」も、部員の感覚では先週。
+  const previousLabel = period === "day" ? "前日" : period === "month" ? "先月" : "先週";
+  const periodComparison = Math.abs(difference) < 0.05
+    ? `${previousLabel}と同じ`
+    : `${previousLabel}比 ${difference > 0 ? "+" : "−"}${formatDistance(Math.abs(difference))}km`;
+  const segments = [
+    ...INTENSITY_ORDER.map((intensity) => ({ key: intensity, label: INTENSITY_LABELS[intensity].label, value: summary.by[intensity], color: INTENSITY_LABELS[intensity].color, className: undefined })),
+    { key: "unclassified", label: "その他", value: summary.unclassified, color: undefined, className: "bg-muted/35" },
+  ].filter((segment) => segment.value > 0);
 
   return (
     <div data-training-summary>
-      <div className="grid h-6 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3">
-        <p className="min-w-0 truncate text-[12px] font-semibold leading-6" title={label}>{label}</p>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="min-w-0 truncate text-[12px] text-muted2" title={label}>{label}</p>
         <p className="shrink-0 text-xl font-bold leading-6 tabular-nums">
           {formatDistance(summary.total)}
-          <span className="ml-1 text-caption">km</span>
+          <span className="ml-0.5 text-caption">km</span>
         </p>
       </div>
-      <p className="mt-1 flex h-[18px] items-center gap-2 text-caption leading-[18px] tabular-nums">
-        <span className="min-w-0 truncate" title={periodComparison}>{periodComparison}</span>
-        <span className="shrink-0">走行{trainingDays}日</span>
-      </p>
+      <p className="text-right text-caption tabular-nums">{periodComparison}</p>
 
       <div data-training-visualization className="mt-2 h-[122px]">
         {children}
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-        {INTENSITY_ORDER.map((intensity) => {
-          const value = summary.by[intensity];
-          return (
-            <div key={intensity} className="flex h-4 min-w-0 items-center gap-1 text-[11px] leading-4">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: INTENSITY_LABELS[intensity].color }}
-              />
-              <span className="truncate text-muted2">{INTENSITY_LABELS[intensity].label}</span>
-              <span className="ml-auto shrink-0 tabular-nums text-muted2">{formatDistance(value)}km</span>
-            </div>
-          );
-        })}
-        <div className="flex h-4 min-w-0 items-center gap-1 text-[11px] leading-4">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-muted/35" />
-          <span className="truncate text-muted2">その他</span>
-          <span className="ml-auto shrink-0 tabular-nums text-muted2">{formatDistance(summary.unclassified)}km</span>
-        </div>
-      </div>
+      {segments.length > 0 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        {segments.map((segment) => (
+          <span key={segment.key} className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted2">
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", segment.className)} style={segment.color ? { backgroundColor: segment.color } : undefined} />
+            {segment.label} {formatDistance(segment.value)}km
+          </span>
+        ))}
+      </div>}
     </div>
   );
 }
@@ -430,7 +404,6 @@ function RecentWeekBars({ buckets, total, today }: { buckets: Bucket[]; total: n
             <span className={cn("mt-1 text-[11px] leading-[14px]", isToday ? "font-bold text-accent" : "text-muted2")}>
               {isToday ? "今日" : format(b.start, "E", { locale: ja })}
             </span>
-            <span className="text-[9px] leading-3 tabular-nums text-muted2">{format(b.start, "M/d")}</span>
           </div>
         );
       })}

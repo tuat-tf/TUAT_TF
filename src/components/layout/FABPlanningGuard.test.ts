@@ -307,7 +307,7 @@ describe("monthly planning draft recovery", () => {
     openDay(empty); tree = render(plannerView);
     const openedEmpty = daySections(tree).find((node) => node.props["data-planning-day"] === empty.props["data-planning-day"])!;
     expect(elements(openedEmpty).some((node) => node.props.placeholder === "例: 400m×10（つなぎ200m）")).toBe(false);
-    expect(textOf(openedEmpty)).toContain("集合時間か練習場所を入れると、メニューも書けます。");
+    expect(textOf(openedEmpty)).toContain("時間か場所を入れると、メニューを書けます。");
   });
 
   it("folds the menu settings behind a summary that follows the list and the save state", async () => {

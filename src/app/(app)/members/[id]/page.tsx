@@ -172,7 +172,7 @@ async function MemberDetails({ profile, viewer }: { profile: Profile; viewer: Pr
   return (
     <>
         {profile.blocks.includes("middle_long") && (
-          <TrainingChart records={records} recordFields={profile.record_fields} showIntensitySummary viewerId={viewer.id} initialShowAllFields={cookieStore.get(trainingReviewPreferenceKey(viewer.id))?.value === "1"} />
+          <TrainingChart records={records} recordFields={profile.record_fields} viewerId={viewer.id} initialShowAllFields={cookieStore.get(trainingReviewPreferenceKey(viewer.id))?.value === "1"} />
         )}
 
         {(isSelf || notes.length > 0) && (

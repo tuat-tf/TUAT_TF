@@ -17,10 +17,10 @@ const COPY: Record<UnsavedIntent, { title: string; description: string; confirm:
   // 練習記録・つぶやきの書きかけは端末に下書きとして残る（2026-10-27）。閉じても投稿はされない。
   draft: {
     title: "下書きに残しますか？",
-    description: "まだ投稿していません。下書きはこの端末に残り、次に開いたときに続きから書けます。",
-    confirm: "下書きに残して閉じる",
+    description: "この端末に残り、次に開くと続きから書けます。",
+    confirm: "下書きに残す",
     busy: "閉じています…",
-    discard: "下書きを破棄して閉じる",
+    discard: "破棄する",
   },
   create: {
     title: "作成しますか？",

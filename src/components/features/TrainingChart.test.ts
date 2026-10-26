@@ -34,23 +34,22 @@ function render(initialShowAllFields = false) {
 }
 
 describe("training chart display controls", () => {
-  it.each([false, true])("offers one item picker and all-fields mode (all=%s)", (all) => {
+  it.each([false, true])("opens the period's records from one button and keeps the field choice inside (all=%s)", (all) => {
     const html = render(all);
-    expect(html).toMatch(new RegExp(`aria-pressed="${!all}"[^>]*>項目選択</button>`));
-    expect(html).toMatch(new RegExp(`aria-pressed="${all}"[^>]*>すべて表示</button>`));
-    expect(html).not.toContain("選んだ項目");
-    expect(html).not.toContain("表示項目を選ぶ");
-    expect(html).not.toContain("練習内容の表示");
-    expect(html).not.toContain("data-ui-disclosure");
-    expect(html).toContain('aria-label="練習記録を表示"');
+    expect(html).toMatch(/aria-expanded="false"[^>]*>この期間の記録/);
+    // Field choice lives in the sheet opened from the expanded list, not as a second switch.
+    expect(html).not.toContain("項目選択");
+    expect(html).not.toContain("すべて表示");
+    expect(html).not.toContain("項目を選ぶ");
   });
 
-  it("preserves the seven-day totals, previous-period comparison and intensity breakdown in either display mode", () => {
+  it("shows the seven-day total, a short comparison and only the intensities that were run, in either display mode", () => {
     const html = render();
     const text = html.replace(/<[^>]*>/g, "");
-    expect(text).toContain("10/16〜10/22");
-    expect(text).toContain("10kmその前の7日間比 -2km走行3日");
-    expect(text).toContain("低強度3km中強度2km高強度2km解糖系1kmその他2km");
+    expect(text).toContain("10/16〜10/2210km先週比 −2km");
+    expect(text).not.toContain("その前の7日間");
+    expect(text).not.toContain("走行");
+    expect(text).toContain("低強度 3km中強度 2km高強度 2km解糖系 1kmその他 2km");
     expect(html).toContain('aria-label="直近7日間の日別走行距離、合計10km（10/16 5km、10/17 0km、10/18 0km、10/19 0km、10/20 2km、10/21 0km、10/22 3km）"');
     // One bar per day, scaled to the busiest day (5km → full height).
     expect([...html.matchAll(/flex-col-reverse[^"]*" style="height:([\d.]+)px"/g)].map((match) => Math.round(Number(match[1]) * 10) / 10)).toEqual([76, 30.4, 45.6]);
@@ -75,12 +74,14 @@ describe("training chart display controls", () => {
     expect(html).not.toContain("data-training-axis");
   });
 
-  it("keeps seven empty days and all five intensity amounts when there is no running distance", () => {
+  it("keeps seven empty days and no intensity list when there is no running distance", () => {
     const html = renderToStaticMarkup(createElement(TrainingChart, { records: [] }));
     expect(html).toContain('aria-label="直近7日間の走行距離は0kmです"');
     expect(html).not.toContain("flex-col-reverse");
     expect(html.match(/rounded-t-\[3px\] bg-separator/g)).toHaveLength(7);
     expect(html).not.toContain("NaN");
-    expect(html.replace(/<[^>]*>/g, "")).toContain("低強度0km中強度0km高強度0km解糖系0kmその他0km");
+    const text = html.replace(/<[^>]*>/g, "");
+    expect(text).toContain("0km先週と同じ");
+    expect(text).not.toContain("低強度");
   });
 });
