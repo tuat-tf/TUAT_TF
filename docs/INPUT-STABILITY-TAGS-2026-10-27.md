@@ -18,3 +18,10 @@ DB・migration・権限の変更なし。
 - 型検査成功、対象ESLint成功（警告0）。Vitest 226ファイル中225成功・1,974試験成功。失敗した `src/lib/local-image-storage.test.ts`（3件）は今回未変更で、Windows上でローカル画像保存先が使えないことによる環境起因。
 - ローカル開発サーバー＋合成データ（375px、Chromium）: 直近7日の棒7本と今日の強調、記録欄の#タグ色付け（入力欄と下敷きの行間・余白・文字サイズ・高さが一致）、KeyValueの#タグリンク、ページ最下部での入力時にスクロール位置が不変、スレッド入力欄が高さ縮小（キーボード相当）時に下端から88px→8px、閉じるとタブの上10pxへ戻ることを確認。
 - 未確認: iPhone/Android実機のキーボード挙動、実DBでの#タグ候補取得（合成環境では認証なしのためログイン画面へ遷移）。
+
+## 本番反映完了
+
+- commit `eb72a522f015623888ecac2a3fcb8c5a7b8ca4c2` を master へ1回push（`6527ee5..eb72a52`、ff）。Windowsでの `npm run build`・check:environment成功。
+- `ops/pc-host/pc-release.py release` で `6527ee5 → eb72a52` に切替。loopback `/api/version` 一致、Jobs・timer active、backup封印valid。公開 https://app.tuat-tf.workers.dev/api/version も `eb72a52`（旧URLは307で転送）。スクリプトの公開確認の403はCloudflareがPythonのUAを拒否したもの。
+- Vercelは10/20の`92e8b09`以降デプロイされておらず、今回も対象外。
+- 未確認: スマホ実機での入力・キーボード、認証済み本番画面での表示。
