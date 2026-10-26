@@ -24,6 +24,9 @@ import { prepareTweetImage, validateTweetImage } from "@/lib/tweet-image";
 import { QuotedPostCard } from "@/components/cards/QuotedPostCard";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
+import { DraftRestoredNotice } from "@/components/post/DraftRestoredNotice";
+import { usePostDraft } from "@/hooks/use-post-draft";
+import { readPostDraft } from "@/lib/post-drafts";
 import type { QuotedPost } from "@/types";
 import type { Database } from "@/types/database";
 
@@ -39,8 +42,14 @@ type TweetConfirmation = Database["public"]["Tables"]["tweets"]["Row"] & {
   tweet_mentions: { profile_id: string }[];
 };
 
+/** 端末に残す下書き。画像は端末のファイルなので残さない。 */
+type TweetDraftValues = {
+  content: string; mentionIds: string[];
+  pollEnabled: boolean; pollOptions: string[]; pollMultiple: boolean; pollAnonymous: boolean; pollAllowOptions: boolean;
+};
+
 /** つぶやきフォーム。tweet を渡すと編集モード */
-export type TweetFormHandle = { save: () => void };
+export type TweetFormHandle = { save: () => void; discardDraft: () => void };
 export const TweetForm = forwardRef<
   TweetFormHandle,
   {
@@ -48,13 +57,18 @@ export const TweetForm = forwardRef<
     initialStory?: boolean;
     /** 引用する投稿。新規作成時だけ指定でき、あとから引用先は変えられない。 */
     quote?: Exclude<QuotedPost, { kind: "missing" }>;
+    /** 渡すと、新規の書きかけをこの部員の下書きとして端末に残す（編集・引用では残さない）。 */
+    draftUserId?: string;
     onDone: () => void;
     onDirtyChange?: (dirty: boolean) => void;
   }
->(function TweetForm({ tweet, initialStory = false, quote, onDone, onDirtyChange }, ref) {
+>(function TweetForm({ tweet, initialStory = false, quote, draftUserId, onDone, onDirtyChange }, ref) {
   const router = useRouter();
   const editing = !!tweet;
-  const [content, setContent] = useState(tweet?.content ?? "");
+  const draftKind = initialStory ? "story" : "tweet";
+  const draftOwner = !editing && !quote ? draftUserId ?? null : null;
+  const [restored, setRestored] = useState(() => readPostDraft<TweetDraftValues>(draftKind, draftOwner));
+  const [content, setContent] = useState(restored?.values.content ?? tweet?.content ?? "");
   const [saving, setSaving] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
   const [draftId] = useState(() => tweet?.id ?? crypto.randomUUID());
@@ -68,12 +82,24 @@ export const TweetForm = forwardRef<
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }>>([]);
   const [membersFailed, setMembersFailed] = useState(false);
   const [membersAttempt, setMembersAttempt] = useState(0);
-  const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>([]);
-  const [pollEnabled, setPollEnabled] = useState(false);
-  const [pollOptions, setPollOptions] = useState(["", ""]);
-  const [pollMultiple, setPollMultiple] = useState(false);
-  const [pollAnonymous, setPollAnonymous] = useState(true);
-  const [pollAllowOptions, setPollAllowOptions] = useState(false);
+  const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>(restored?.values.mentionIds ?? []);
+  const [pollEnabled, setPollEnabled] = useState(restored?.values.pollEnabled ?? false);
+  const [pollOptions, setPollOptions] = useState(restored?.values.pollOptions ?? ["", ""]);
+  const [pollMultiple, setPollMultiple] = useState(restored?.values.pollMultiple ?? false);
+  const [pollAnonymous, setPollAnonymous] = useState(restored?.values.pollAnonymous ?? true);
+  const [pollAllowOptions, setPollAllowOptions] = useState(restored?.values.pollAllowOptions ?? false);
+  const draftValues = useMemo<TweetDraftValues>(() => ({
+    content, mentionIds: selectedMentionIds, pollEnabled, pollOptions, pollMultiple, pollAnonymous, pollAllowOptions,
+  }), [content, selectedMentionIds, pollEnabled, pollOptions, pollMultiple, pollAnonymous, pollAllowOptions]);
+  const draftEmpty = !content.trim() && !(pollEnabled && pollOptions.some((option) => option.trim()));
+  const postDraft = usePostDraft(draftKind, draftOwner, draftValues, draftEmpty);
+  /** 復元した下書きを捨てて、空のフォームから書き直す。 */
+  function discardRestored() {
+    postDraft.clear();
+    setRestored(null);
+    setContent(""); setSelectedMentionIds([]);
+    setPollEnabled(false); setPollOptions(["", ""]); setPollMultiple(false); setPollAnonymous(true); setPollAllowOptions(false);
+  }
   const mentionMatch = content.match(/@([^\s@\n]*)$/);
   const mentionQuery = mentionMatch?.[1]?.toLocaleLowerCase("ja") ?? null;
   const { ref: hashtagRef, ...hashtag } = useHashtagCompletion(content, setContent);
@@ -93,7 +119,7 @@ export const TweetForm = forwardRef<
   useEffect(() => {
     onDirtyChange?.(content !== initialContent || !!imageFile || expiresIn24Hours !== initialStory || pollEnabled);
   }, [content, imageFile, expiresIn24Hours, initialContent, initialStory, onDirtyChange, pollEnabled]);
-  useImperativeHandle(ref, () => ({ save: () => { void submit(); } }));
+  useImperativeHandle(ref, () => ({ save: () => { void submit(); }, discardDraft: postDraft.finish }));
   useFormDraft({ dirty: false, busy: saving, onSave: submit });
   useEffect(() => {
     let active = true;
@@ -230,6 +256,7 @@ export const TweetForm = forwardRef<
         return;
       }
       setUnconfirmed(false);
+      postDraft.finish();
       setContent("");
       setImageFile(null);
       setExpiresIn24Hours(false);
@@ -245,6 +272,7 @@ export const TweetForm = forwardRef<
   return (
     <div className="min-w-0 space-y-3 pb-4">
     <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-3">
+      {restored && <DraftRestoredNotice savedAt={restored.savedAt} onDiscard={discardRestored} />}
       <section className="overflow-hidden rounded-card border border-separator/80 bg-card transition-colors focus-within:border-accent/50">
         <HashtagTextarea
           ref={hashtagRef}

@@ -11,9 +11,17 @@ import { Button } from "@/components/ui/button";
  * のかが読み取れなかった（オーナー指摘 2026-09-19）。
  * 動詞は docs/WORDING-GUIDELINES.md §6-1（投稿する／更新する／保存する）に合わせる。
  */
-export type UnsavedIntent = "post" | "create" | "update" | "save" | "check";
+export type UnsavedIntent = "post" | "create" | "update" | "save" | "check" | "draft";
 
 const COPY: Record<UnsavedIntent, { title: string; description: string; confirm: string; busy: string; discard: string }> = {
+  // 練習記録・つぶやきの書きかけは端末に下書きとして残る（2026-10-27）。閉じても投稿はされない。
+  draft: {
+    title: "下書きに残しますか？",
+    description: "まだ投稿していません。下書きはこの端末に残り、次に開いたときに続きから書けます。",
+    confirm: "下書きに残して閉じる",
+    busy: "閉じています…",
+    discard: "下書きを破棄して閉じる",
+  },
   create: {
     title: "作成しますか？",
     description: "まだ作成していない内容があります。",

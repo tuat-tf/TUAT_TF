@@ -395,7 +395,15 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   const menuLabel = `メニュー（${BLOCKS[block].label}${targetIds.length ? "・個人指定" : ""}）`;
 
   return <div className="space-y-4"><fieldset disabled={busy} className="min-w-0 space-y-4">
-    <SegmentedControl items={(Object.keys(SCOPE_LABELS) as ScheduleScope[]).map((key) => ({ key, label: SCOPE_LABELS[key] }))} value={scheduleScope} onChange={(value) => changeScope(value as ScheduleScope)} />
+    <div>
+      <p className="section-label mb-1.5">対象</p>
+      <SegmentedControl items={(Object.keys(SCOPE_LABELS) as ScheduleScope[]).map((key) => ({ key, label: SCOPE_LABELS[key] }))} value={scheduleScope} onChange={(value) => changeScope(value as ScheduleScope)} />
+      <p className="mt-1.5 text-xs text-muted">
+        {scheduleScope === "all"
+          ? `全員向けの予定を編集します。${canMenu ? `メニューは「メニューの設定」のブロック（${BLOCKS[block].label}）に付きます。` : ""}`
+          : `${SCOPE_LABELS[scheduleScope]}の予定${canMenu ? "とメニュー" : ""}を編集します。全員向けの予定もここに出ます。`}
+      </p>
+    </div>
     <div className="flex items-center justify-between rounded-xl bg-bg px-2 py-1"><button data-ui-action="icon" type="button" aria-label="前の月" onClick={() => moveMonth(-1)} className="flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent"><ChevronLeft aria-hidden="true" /></button><strong>{year}年{month}月</strong><button data-ui-action="icon" type="button" aria-label="次の月" onClick={() => moveMonth(1)} className="flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent"><ChevronRight aria-hidden="true" /></button></div>
     {canMenu && <div className={`rounded-xl border bg-card ${!sheetBackedCommonMenu && status === "draft" ? "border-warning/50" : "border-separator"}`}>
       <button data-ui-disclosure type="button" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left">

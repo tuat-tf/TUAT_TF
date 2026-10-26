@@ -253,11 +253,12 @@ function ContextualFAB({
     setPendingTimelineClose(null);
   }
 
-  function savePendingTimelineForm() {
+  /** 書きかけを端末の下書きから消してから閉じる。残す場合はそのまま閉じれば、フォームが閉じる前に保存する。 */
+  function discardPendingTimelineDraft() {
     const kind = pendingTimelineClose;
-    setPendingTimelineClose(null);
-    if (kind === "record") recordRef.current?.save();
-    if (kind === "tweet") tweetRef.current?.save();
+    if (kind === "record") recordRef.current?.discardDraft();
+    if (kind === "tweet") tweetRef.current?.discardDraft();
+    if (kind) closeTimelineForm(kind);
   }
 
   function handlePlanningSaved() {
@@ -355,7 +356,7 @@ function ContextualFAB({
       </FormModal>
 
       <FormModal open={tweetOpen} onOpenChange={(open) => { if (!open) { if (tweetDirty) setPendingTimelineClose("tweet"); else closeTimelineForm("tweet"); } }} title={tweetInitialStory ? "ストーリー" : "つぶやき"}>
-        <TweetForm key={tweetInitialStory ? "story" : "tweet"} ref={tweetRef} initialStory={tweetInitialStory} onDirtyChange={setTweetDirty} onDone={() => closeTimelineForm("tweet")} />
+        <TweetForm key={tweetInitialStory ? "story" : "tweet"} ref={tweetRef} initialStory={tweetInitialStory} draftUserId={userId} onDirtyChange={setTweetDirty} onDone={() => closeTimelineForm("tweet")} />
       </FormModal>
 
       <FormModal
@@ -367,11 +368,12 @@ function ContextualFAB({
         <ResultForm userId={userId} events={catalog.events} competitions={catalog.competitions} onDone={() => closeTimelineForm("result")} />
       </FormModal>
 
-      <UnsavedChangesDialog open={pendingTimelineClose !== null} busy={false} intent="post" onContinue={() => setPendingTimelineClose(null)} onDiscard={() => { if (pendingTimelineClose) closeTimelineForm(pendingTimelineClose); }} onSave={savePendingTimelineForm} />
+      <UnsavedChangesDialog open={pendingTimelineClose !== null} busy={false} intent="draft" onContinue={() => setPendingTimelineClose(null)} onDiscard={discardPendingTimelineDraft} onSave={() => { if (pendingTimelineClose) closeTimelineForm(pendingTimelineClose); }} />
 
       <FormModal open={directForm === "planning"} autoFocus={false} onOpenChange={(open) => !open && closeDirectForm()} title="予定" intent="save">
         <div className="space-y-5">
           <fieldset disabled={planningDraftFlags.busy}>
+            <p className="section-label mb-1.5">種類</p>
             <SegmentedControl
             items={[
               { key: "practice", label: "練習" },

@@ -14,6 +14,9 @@ import { IntensityInput, type IntensityValues } from "@/components/features/Inte
 import { recordFieldsFromJson } from "@/lib/profile-normalize";
 import { Textarea } from "@/components/ui/textarea";
 import { HashtagField } from "@/components/post/HashtagTextarea";
+import { DraftRestoredNotice } from "@/components/post/DraftRestoredNotice";
+import { usePostDraft } from "@/hooks/use-post-draft";
+import { readPostDraft } from "@/lib/post-drafts";
 import { isRecordHashtagField } from "@/lib/hashtags";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -107,39 +110,36 @@ function serializeRecordDraft(draft: RecordDraftValues): string {
  * 練習記録フォーム。新規投稿と編集の両対応。
  * record を渡すと編集モード（その記録を更新）になる。
  */
-export type RecordFormHandle = { save: () => void };
+export type RecordFormHandle = { save: () => void; discardDraft: () => void };
 export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddleLong: boolean; record?: PracticeRecord; recordSource?: "app" | "sheet"; recordFields?: RecordFieldDef[]; sheetTransition?: SheetTransition | null; systemRecordForm?: boolean; onDone: () => void; onDirtyChange?: (dirty: boolean) => void }>(function RecordForm({ userId, isMiddleLong, record, recordFields, sheetTransition, systemRecordForm = false, onDone, onDirtyChange }, ref) {
   const router = useRouter();
   const formId = useId();
   const { showToast } = useToast();
   const editing = !!record;
 
-  const [date, setDate] = useState(record?.recorded_date ?? jstToday());
-  const [dist, setDist] = useState<IntensityValues>(
-    record
-      ? {
-          low: numStr(record.dist_low),
-          mid: numStr(record.dist_mid),
-          high: numStr(record.dist_high),
-          speed: numStr(record.dist_speed),
-        }
-      : EMPTY,
-  );
-  const [actualDistance, setActualDistance] = useState(numStr(record?.dist_actual ?? 0));
-  const [strides, setStrides] = useState(numStr(record?.strides ?? 0));
-  const [resultText, setResultText] = useState(record?.result_text ?? "");
-  const [strengthText, setStrengthText] = useState(record?.strength_text ?? "");
-  const [menuText, setMenuText] = useState(record?.menu_text ?? "");
-  const [focusText, setFocusText] = useState(record?.focus_text ?? "");
-  const [memo, setMemo] = useState(record?.memo ?? "");
-  const [condition, setCondition] = useState<Condition | null>(record?.condition ?? null);
+  // 新規作成では、閉じる前の書きかけ（端末の下書き）があれば続きから開く。記録カードからの編集は対象外。
+  const [restored, setRestored] = useState(() => editing ? null : readPostDraft<RecordDraftValues>("record", userId));
+  const [initial] = useState(() => restored?.values ?? recordDraftValues(record, record?.recorded_date ?? jstToday()));
+  const [date, setDate] = useState(initial.date);
+  const [dist, setDist] = useState<IntensityValues>(initial.dist);
+  const [actualDistance, setActualDistance] = useState(initial.actualDistance);
+  const [strides, setStrides] = useState(initial.strides);
+  const [resultText, setResultText] = useState(initial.resultText);
+  const [strengthText, setStrengthText] = useState(initial.strengthText);
+  const [menuText, setMenuText] = useState(initial.menuText);
+  const [focusText, setFocusText] = useState(initial.focusText);
+  const [memo, setMemo] = useState(initial.memo);
+  const [condition, setCondition] = useState<Condition | null>(initial.condition);
+  /** 下書きの続きを開いた日。その日の保存済み記録は、上書きに使わず比較の基準にだけ使う。 */
+  const restoredDateRef = useRef(restored?.values.date ?? null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [unconfirmed, setUnconfirmed] = useState(false);
   const [draftId] = useState(() => record?.id ?? crypto.randomUUID());
   const saveState = useRef({ uncertain: false });
   const pendingSave = useRef<{ id: string; updating: boolean; values: RecordSaveValues } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useImperativeHandle(ref, () => ({ save: () => { void submit(); } }));
+  useImperativeHandle(ref, () => ({ save: () => { void submit(); }, discardDraft: () => postDraft.finish() }));
   // 新規作成モードでその日の記録が既にあるか（1日1記録ルール。見つかったら編集扱いでフォームへ読み込む）
   const [hasExistingSameDay, setHasExistingSameDay] = useState(false);
 
@@ -157,13 +157,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
   const visibleIntensities = systemRecordForm
     ? (["low", "mid", "high", "speed"] as const).filter((key) => fieldEnabled(`dist_${key}` as Parameters<typeof recordFieldHidden>[1]))
     : undefined;
-  const [customValues, setCustomValues] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const [k, v] of Object.entries(record?.custom ?? {})) {
-      init[k] = v == null ? "" : String(v);
-    }
-    return init;
-  });
+  const [customValues, setCustomValues] = useState<Record<string, string>>(initial.customValues);
   const [baselineSnapshot, setBaselineSnapshot] = useState(() =>
     serializeRecordDraft(recordDraftValues(record, record?.recorded_date ?? jstToday())),
   );
@@ -198,6 +192,25 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
   useEffect(() => { snapshotRef.current = currentSnapshot; baselineRef.current = baselineSnapshot; });
   const dirty = hasMeaningfulContent || record || hasExistingSameDay ? currentSnapshot !== baselineSnapshot : false;
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  const draftValues = useMemo<RecordDraftValues>(() => ({
+    date, dist, actualDistance, strides, resultText, strengthText, menuText, focusText, memo, condition, customValues,
+  }), [actualDistance, condition, customValues, date, dist, focusText, memo, menuText, resultText, strengthText, strides]);
+  // 保存済みの記録と同じ内容なら下書きは要らない（開き直せば記録から読み込まれる）。
+  const postDraft = usePostDraft("record", editing ? null : userId, draftValues, !dirty);
+  function applyValues(values: RecordDraftValues) {
+    setDist(values.dist); setActualDistance(values.actualDistance); setStrides(values.strides);
+    setResultText(values.resultText); setStrengthText(values.strengthText); setMenuText(values.menuText);
+    setFocusText(values.focusText); setMemo(values.memo); setCondition(values.condition); setCustomValues(values.customValues);
+  }
+  /** 復元した下書きを捨て、その日の保存済みの記録（なければ空）から書き直す。 */
+  function discardRestored() {
+    postDraft.clear();
+    setRestored(null);
+    restoredDateRef.current = null;
+    appliedDateRef.current = null;
+    applyValues(recordDraftValues(null, date));
+    setReloadKey((key) => key + 1);
+  }
   useFormDraft({ dirty: false, busy: saving, onSave: submit });
 
   useEffect(() => {
@@ -235,12 +248,24 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
         if (!active) return;
         const found = data as PracticeRecord | null;
         setHasExistingSameDay(!!found);
+        const nextDraft = recordDraftValues(found, date);
+        const applyFieldSet = () => {
+          if (systemRecordForm && found?.record_fields_version != null) setConfiguredFields(found.record_fields_snapshot ?? []);
+          else if (recordFields) setConfiguredFields(sheetTransition && sheetTransition.mode !== "off" && date < OCTOBER_START ? sheetTransition.legacy.record_fields : recordFields);
+        };
+        // 下書きの続きを開いた日は、保存済みの記録で上書きせず、変更の比較にだけ使う。
+        if (restoredDateRef.current === date) {
+          restoredDateRef.current = null;
+          appliedDateRef.current = date;
+          applyFieldSet();
+          setBaselineSnapshot(serializeRecordDraft(nextDraft));
+          return;
+        }
         // 読み込み中、または同じ日の再取得中に入力が進んでいたら、打っている内容を消さない。
         const edited = snapshotRef.current !== requestSnapshot ||
           (appliedDateRef.current === date && snapshotRef.current !== baselineRef.current);
         if (edited) return;
         appliedDateRef.current = date;
-        const nextDraft = recordDraftValues(found, date);
         setDist(nextDraft.dist);
         setActualDistance(nextDraft.actualDistance);
         setStrides(nextDraft.strides);
@@ -251,14 +276,13 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
         setMemo(nextDraft.memo);
         setCondition(nextDraft.condition);
         setCustomValues(nextDraft.customValues);
-        if (systemRecordForm && found?.record_fields_version != null) setConfiguredFields(found.record_fields_snapshot ?? []);
-        else if (recordFields) setConfiguredFields(sheetTransition && sheetTransition.mode !== "off" && date < OCTOBER_START ? sheetTransition.legacy.record_fields : recordFields);
+        applyFieldSet();
         setBaselineSnapshot(serializeRecordDraft(nextDraft));
       });
     return () => {
       active = false;
     };
-  }, [date, editing, systemRecordForm, userId, recordFields, sheetTransition]);
+  }, [date, editing, systemRecordForm, userId, recordFields, sheetTransition, reloadKey]);
 
   function buildCustom(): Record<string, string | number | null> {
     const out: Record<string, string | number | null> = { ...(record?.custom ?? {}) };
@@ -396,7 +420,8 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
       setUnconfirmed(false);
       const savedId = attempt.id;
 
-      // DBへの保存はここで完了しているので、先にフォームを閉じる。
+      // DBへの保存はここで完了しているので、先にフォームを閉じる。下書きはもう要らない。
+      postDraft.finish();
       router.refresh();
       onDone();
 
@@ -426,6 +451,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
   return (
     <div data-ui-record-form className="min-w-0 space-y-4 pb-4">
     <fieldset disabled={saving || unconfirmed} className="min-w-0 space-y-4">
+      {restored && <DraftRestoredNotice savedAt={restored.savedAt} onDiscard={discardRestored} />}
       {/* 日付 */}
       <div data-ui-record-field>
         <label htmlFor={`${formId}-date`} className="section-label mb-1.5 block">日付</label>
