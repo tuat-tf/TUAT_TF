@@ -47,9 +47,17 @@ function hasMenuValue(draft?: MenuDraft) { return !!draft && [draft.content, dra
 
 export type MonthlyPlanningEditorHandle = { save: () => Promise<boolean> };
 
-export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, { initialTab?: "schedule" | "menu"; canSchedule?: boolean; canMenu?: boolean; onDirtyChange?: (dirty: boolean) => void; onDraftChange?: (draft: Parameters<typeof useFormDraft>[0] | null) => void; onSaved?: () => void; onClose?: () => void }>(function MonthlyPlanningEditorV2({ initialTab = "schedule", canSchedule = true, canMenu = true, onDirtyChange, onDraftChange, onSaved, onClose }, ref) {
+const SCOPE_LABELS: Record<ScheduleScope, string> = { all: "全体", middle_long: "中長距離", short: "短距離" };
+const STATE_PRIORITY: RowState[] = ["error", "saving", "dirty", "saved"];
+
+/**
+ * 1か月の練習予定とメニューをまとめて入力する。1日1行で並べ、行を開くとその日の予定とメニューを
+ * 続けて編集できる。メニューの公開状態・個人指定などは「メニューの設定」に畳み、要約だけ常に見せる。
+ */
+export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, { canSchedule?: boolean; canMenu?: boolean; onDirtyChange?: (dirty: boolean) => void; onDraftChange?: (draft: Parameters<typeof useFormDraft>[0] | null) => void; onSaved?: () => void; onClose?: () => void }>(function MonthlyPlanningEditorV2({ canSchedule = true, canMenu = true, onDirtyChange, onDraftChange, onSaved, onClose }, ref) {
   const now = new Date();
-  const [tab, setTab] = useState<"schedule" | "menu">(initialTab === "menu" && !canMenu ? "schedule" : initialTab === "schedule" && !canSchedule ? "menu" : initialTab);
+  const [openDates, setOpenDates] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [block, setBlock] = useState<Block>("middle_long");
@@ -69,7 +77,8 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   const [expandedDates, setExpandedDates] = useState<string[]>([]);
 
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-  const activeScheduleScope: ScheduleScope = tab === "menu" ? (block === "short" ? "short" : "middle_long") : scheduleScope;
+  // 予定とメニューは同じ一覧で編集する。一覧の対象（全体・中長距離・短距離）が予定の読込先を決める。
+  const activeScheduleScope: ScheduleScope = scheduleScope;
   const localDraftKey = `track-app:monthly-planner:${monthKey}:${activeScheduleScope}`;
   const days = useMemo(() => Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => {
     const date = `${monthKey}-${String(index + 1).padStart(2, "0")}`;
@@ -247,12 +256,11 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
       userId = authError ? null : user?.id ?? null;
     } catch { userId = null; }
     if (!userId) return null;
-    const targetBlock = tab === "menu" ? block : scheduleScope;
     const { data, error: createError } = await supabase.from("practice_schedules").insert({
       schedule_date: date,
       schedule_type: "practice",
       created_by: userId,
-      target_blocks: targetBlock === "all" ? [] : [targetBlock],
+      target_blocks: blocksOf(scheduleScope),
     }).select("*").single();
     if ((createError && !createError.code) || (!createError && !data)) throw new Error("Schedule creation result unknown");
     if (createError || !data) return null;
@@ -345,7 +353,8 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   }
 
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const visibleDays = (tab === "menu"
+  // 予定を作れない人（メニューだけ書く人）には、予定がある日だけを出す。
+  const visibleDays = (!canSchedule
     ? days.filter(({ date }) => !!schedules[date])
     : showActiveOnly
       ? days.filter(({ date }) => schedules[date] || hasScheduleValue(scheduleDrafts[date]))
@@ -368,54 +377,95 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
   useEffect(() => () => onDraftChange?.(null), [onDraftChange]);
   function isExpanded(date: string) { return expandedDates.includes(date); }
   function toggleExpanded(date: string) { setExpandedDates((current) => current.includes(date) ? current.filter((item) => item !== date) : [...current, date]); }
+  function isOpen(date: string) { return openDates.includes(date); }
+  function toggleOpen(date: string) { setOpenDates((current) => current.includes(date) ? current.filter((item) => item !== date) : [...current, date]); }
+  /** 予定とメニューのうち、いちばん注意が要る状態を行に出す。 */
+  function dayState(date: string): RowState | undefined {
+    const states = [rowStates[stateKey("schedule", date)], rowStates[stateKey("menu", date)]];
+    return STATE_PRIORITY.find((state) => states.includes(state));
+  }
+  function changeScope(next: ScheduleScope) {
+    if (hasDirtyChanges) localStorage.setItem(localDraftKey, JSON.stringify({ schedules: scheduleDrafts, menus: menuDrafts }));
+    setScheduleScope(next); setSchedules({}); setScheduleDrafts({}); setRowStates({});
+    // 中長距離・短距離の一覧では、そのブロックのメニューを書く。全体の一覧だけ設定で選ぶ。
+    if (next !== "all") setBlock(next);
+  }
+  const menuSaveLabel = sheetBackedCommonMenu ? "スプレッドシートへ保存" : status === "published" ? "公開" : "下書き";
+  const menuSettingsSummary = `${BLOCKS[block].label}・${targetIds.length ? `${targetIds.length}人を個人指定` : "ブロック全体"}・${menuSaveLabel}`;
+  const menuLabel = `メニュー（${BLOCKS[block].label}${targetIds.length ? "・個人指定" : ""}）`;
 
   return <div className="space-y-4"><fieldset disabled={busy} className="min-w-0 space-y-4">
-    {tab === "schedule" && <SegmentedControl items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]} value={scheduleScope} onChange={(value) => { if (hasDirtyChanges) localStorage.setItem(localDraftKey, JSON.stringify({ schedules: scheduleDrafts, menus: menuDrafts })); setScheduleScope(value as ScheduleScope); setSchedules({}); setScheduleDrafts({}); setRowStates({}); }} />}
-    <SegmentedControl items={[...(canSchedule ? [{ key: "schedule", label: "予定" }] : []), ...(canMenu ? [{ key: "menu", label: "メニュー" }] : [])]} value={tab} onChange={(value) => setTab(value as "schedule" | "menu")} />
+    <SegmentedControl items={(Object.keys(SCOPE_LABELS) as ScheduleScope[]).map((key) => ({ key, label: SCOPE_LABELS[key] }))} value={scheduleScope} onChange={(value) => changeScope(value as ScheduleScope)} />
     <div className="flex items-center justify-between rounded-xl bg-bg px-2 py-1"><button data-ui-action="icon" type="button" aria-label="前の月" onClick={() => moveMonth(-1)} className="flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent"><ChevronLeft aria-hidden="true" /></button><strong>{year}年{month}月</strong><button data-ui-action="icon" type="button" aria-label="次の月" onClick={() => moveMonth(1)} className="flex h-11 w-11 items-center justify-center rounded-full pressable focus-visible:outline-2 focus-visible:outline-accent"><ChevronRight aria-hidden="true" /></button></div>
-    <div className="flex items-center justify-between gap-3">{tab === "schedule" ? <SegmentedControl className="w-52" items={[{ key: "all", label: "すべての日" }, { key: "active", label: "予定あり" }]} value={showActiveOnly ? "active" : "all"} onChange={(value) => setShowActiveOnly(value === "active")} /> : <span className="text-xs text-muted">予定がある日のみ表示</span>}<span className="shrink-0 text-xs text-muted">変更 {dirtyCount}件</span></div>
-    {tab === "menu" && <div className="space-y-3 rounded-xl border border-separator bg-card p-3">
-      <Select value={block} onValueChange={(value) => setBlock(value as Block)} ariaLabel="ブロック" options={EDITABLE_BLOCK_ORDER.map((item) => ({ value: item, label: BLOCKS[item].label }))} />
-      <PersonPicker people={members} value={targetIds} onChange={setTargetIds} label="個人指定（空ならブロック全体）" />
-      {sheetBackedCommonMenu ? (
-        <p className="rounded-xl bg-accent/5 px-3 py-2 text-xs text-muted">
-          中長距離のブロック全体メニューは、GASを通して月別スプレッドシートへ保存します。
-        </p>
-      ) : (
-        <div className={`rounded-xl border p-3 ${status === "published" ? "border-accent/30 bg-accent/5" : "border-warning/30 bg-warning/5"}`}><p className="section-label mb-2">保存後の状態</p><SegmentedControl items={[{ key: "published", label: "公開" }, { key: "draft", label: "下書き" }]} value={status} onChange={(value) => setStatus(value as "draft" | "published")} /><p className="mt-2 text-xs text-muted">{status === "published" ? "保存するとすぐに部員へ公開されます" : MENU_DRAFT_VISIBILITY_DESCRIPTION}</p></div>
-      )}
+    {canMenu && <div className={`rounded-xl border bg-card ${!sheetBackedCommonMenu && status === "draft" ? "border-warning/50" : "border-separator"}`}>
+      <button data-ui-disclosure type="button" aria-expanded={settingsOpen} onClick={() => setSettingsOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold">メニューの設定</span>
+          <span className={`block text-xs ${!sheetBackedCommonMenu && status === "draft" ? "font-semibold text-warning" : "text-muted"}`}>{menuSettingsSummary}</span>
+        </span>
+        <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${settingsOpen ? "rotate-180" : ""}`} />
+      </button>
+      {settingsOpen && <div className="space-y-3 border-t border-separator p-3">
+        {scheduleScope === "all" && <Select value={block} onValueChange={(value) => setBlock(value as Block)} ariaLabel="メニューのブロック" options={EDITABLE_BLOCK_ORDER.map((item) => ({ value: item, label: BLOCKS[item].label }))} />}
+        <PersonPicker people={members} value={targetIds} onChange={setTargetIds} label="個人指定（空ならブロック全体）" />
+        {sheetBackedCommonMenu ? (
+          <p className="rounded-xl bg-accent/5 px-3 py-2 text-xs text-muted">
+            中長距離のブロック全体メニューは、GASを通して月別スプレッドシートへ保存します。
+          </p>
+        ) : (
+          <div className={`rounded-xl border p-3 ${status === "published" ? "border-accent/30 bg-accent/5" : "border-warning/30 bg-warning/5"}`}><p className="section-label mb-2">保存後の状態</p><SegmentedControl items={[{ key: "published", label: "公開" }, { key: "draft", label: "下書き" }]} value={status} onChange={(value) => setStatus(value as "draft" | "published")} /><p className="mt-2 text-xs text-muted">{status === "published" ? "保存するとすぐに部員へ公開されます" : MENU_DRAFT_VISIBILITY_DESCRIPTION}</p></div>
+        )}
+      </div>}
     </div>}
-    <div className="space-y-2">{visibleDays.map(({ date, day, weekday }) => <section key={date} className={`rounded-xl border bg-card p-3 ${rowStates[stateKey(tab, date)] === "error" ? "border-danger" : "border-separator"}`}><div className="mb-2 flex items-center"><strong className="text-sm">{month}/{day}（{weekday}）</strong><RowStatus state={rowStates[stateKey(tab, date)]} /></div>
-      {tab === "schedule" ? (
+    <div className="flex items-center justify-between gap-3">{canSchedule ? <SegmentedControl className="w-52" items={[{ key: "all", label: "すべての日" }, { key: "active", label: "予定あり" }]} value={showActiveOnly ? "active" : "all"} onChange={(value) => setShowActiveOnly(value === "active")} /> : <span className="text-xs text-muted">予定がある日のみ表示</span>}<span className="shrink-0 text-xs text-muted">変更 {dirtyCount}件</span></div>
+    <div className="space-y-2">{visibleDays.map(({ date, day, weekday }) => {
+      const draft = scheduleDrafts[date];
+      const state = dayState(date);
+      const open = isOpen(date);
+      // メニューは予定に付く。予定がない日は、集合時間か場所を入れると書けるようになる。
+      const menuReady = !!schedules[date] || hasScheduleValue(draft);
+      const venueLabel = draft?.venue ? venues.find((venue) => venue.name === draft.venue)?.short || draft.venue : "";
+      const summary = [draft?.time, venueLabel].filter(Boolean).join("・");
+      return <section key={date} data-planning-day={date} className={`rounded-xl border bg-card ${state === "error" ? "border-danger" : "border-separator"}`}>
+        <button type="button" data-ui-disclosure aria-expanded={open} onClick={() => toggleOpen(date)} className="flex min-h-12 w-full items-center gap-2 px-3 py-2 text-left">
+          <strong className={`min-w-[5.75rem] shrink-0 whitespace-nowrap text-sm tabular-nums ${date === today ? "text-accent" : ""}`}>{month}/{day}（{weekday}）</strong>
+          <span className={`min-w-0 flex-1 truncate text-xs ${summary ? "text-ink" : "text-muted"}`}>{summary || (menuReady ? "予定あり" : "予定なし")}</span>
+          {canMenu && hasMenuValue(menuDrafts[date]) && <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">メニュー</span>}
+          <RowStatus state={state} />
+          <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {open && <div className="space-y-4 border-t border-separator p-3">
+      {canSchedule ? (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <MeetingTimeField value={scheduleDrafts[date]?.time ?? ""} onChange={(time) => updateSchedule(date, { time })} />
-            <VenueField label="練習場所" venues={venues} value={scheduleDrafts[date]?.venue ?? ""} onChange={(venue) => updateSchedule(date, { venue })} />
+            <MeetingTimeField value={draft?.time ?? ""} onChange={(time) => updateSchedule(date, { time })} />
+            <VenueField label="練習場所" venues={venues} value={draft?.venue ?? ""} onChange={(venue) => updateSchedule(date, { venue })} />
           </div>
-          {isScheduleSavable(scheduleDrafts[date]) && (
+          {isScheduleSavable(draft) && (
             <div>
               <p className="section-label mb-1.5">対象</p>
               <SegmentedControl
-                items={[{ key: "all", label: "全体" }, { key: "middle_long", label: "中長距離" }, { key: "short", label: "短距離" }]}
-                value={scheduleDrafts[date]?.scope ?? activeScheduleScope}
+                items={(Object.keys(SCOPE_LABELS) as ScheduleScope[]).map((key) => ({ key, label: SCOPE_LABELS[key] }))}
+                value={draft?.scope ?? activeScheduleScope}
                 onChange={(value) => updateSchedule(date, { scope: value as ScheduleScope })}
               />
-              {(scheduleDrafts[date]?.scope ?? activeScheduleScope) !== activeScheduleScope && (
+              {(draft?.scope ?? activeScheduleScope) !== activeScheduleScope && (
                 <p className="mt-1 text-xs text-warning">
-                  保存すると、この予定は「{{ all: "全体", middle_long: "中長距離", short: "短距離" }[scheduleDrafts[date]?.scope ?? activeScheduleScope]}」へ移ります。
+                  保存すると、この予定は「{SCOPE_LABELS[draft?.scope ?? activeScheduleScope]}」へ移ります。
                 </p>
               )}
             </div>
           )}
           <div>
             <p className="section-label mb-1.5">詳細</p>
-            <Textarea autoGrow rows={2} className="min-h-16" placeholder="例: 集合方法、持ち物" value={scheduleDrafts[date]?.note ?? ""} onChange={(event) => updateSchedule(date, { note: event.target.value })} />
+            <Textarea autoGrow rows={2} className="min-h-16" placeholder="例: 集合方法、持ち物" value={draft?.note ?? ""} onChange={(event) => updateSchedule(date, { note: event.target.value })} />
           </div>
         </div>
-      ) : (
-        <div className="space-y-3">
+      ) : draft?.note ? <p className="whitespace-pre-wrap text-xs text-muted">{draft.note}</p> : null}
+      {canMenu && (menuReady ? (
+        <div className="space-y-3 border-t border-separator pt-3">
           <div>
-            <p className="section-label mb-1.5">メニュー</p>
+            <p className="section-label mb-1.5">{menuLabel}</p>
             <Textarea autoGrow rows={3} className="min-h-20" placeholder="例: 400m×10（つなぎ200m）" value={menuDrafts[date]?.content ?? ""} onChange={(event) => updateMenu(date, { content: event.target.value })} />
           </div>
           {(block === "middle_long" || block === "short") && <button data-ui-disclosure aria-expanded={isExpanded(date)} type="button" onClick={() => toggleExpanded(date)} className="inline-flex items-center gap-1 text-xs font-semibold text-accent">{isExpanded(date) ? <ChevronUp size={14} /> : <ChevronDown size={14} />}{isExpanded(date) ? "詳細を閉じる" : block === "middle_long" ? "ペース・補足・補強を入力" : "説明を入力"}</button>}
@@ -438,8 +488,10 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
             <Textarea autoGrow rows={2} className="min-h-16" placeholder="例: 目的、走り方、注意点" value={menuDrafts[date]?.remark ?? ""} onChange={(event) => updateMenu(date, { remark: event.target.value })} />
           </div>}
         </div>
-      )}
-    </section>)}</div>
+      ) : <p className="border-t border-separator pt-3 text-xs text-muted">集合時間か練習場所を入れると、メニューも書けます。</p>)}
+        </div>}
+      </section>;
+    })}</div>
     {error && <p className="text-center text-caption text-danger">{error}</p>}
     <FormModalFooter><Button size="lg" className={`w-full ${savingAll ? "opacity-100" : ""}`} disabled={busy || dirtyCount === 0} onClick={() => { void saveAll().then((ok) => { if (ok) onSaved?.(); }); }}>{savingAll ? <><LoaderCircle size={18} className="animate-spin" />保存中…</> : <><Save size={17} />変更をまとめて保存（{dirtyCount}件）</>}</Button></FormModalFooter>
     </fieldset>

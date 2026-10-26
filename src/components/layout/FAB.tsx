@@ -388,7 +388,7 @@ function ContextualFAB({
           />
           </fieldset>
           {scheduleType === "practice" ? (
-            <MonthlyPlanningEditorV2 ref={planningRef} initialTab="schedule" canSchedule={can.createSchedule} canMenu={can.createMenu} onDirtyChange={setPlanningDirty} onDraftChange={onPlanningDraftChange} onSaved={handlePlanningSaved} onClose={closeDirectForm} />
+            <MonthlyPlanningEditorV2 ref={planningRef} canSchedule={can.createSchedule} canMenu={can.createMenu} onDirtyChange={setPlanningDirty} onDraftChange={onPlanningDraftChange} onSaved={handlePlanningSaved} onClose={closeDirectForm} />
           ) : (
             <ScheduleForm
               key={scheduleType}

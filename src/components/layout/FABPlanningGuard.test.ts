@@ -93,7 +93,7 @@ function switchDialog(tree: unknown) { return elements(tree).find((node) => type
 const handle = { current: null as { save: () => Promise<boolean> } | null };
 function plannerView() {
   return (MonthlyPlanningEditorV2 as unknown as { render: (props: unknown, ref: unknown) => ReactElement }).render({
-    initialTab: "schedule", onSaved: hooks.saved, onClose: hooks.closed, onDirtyChange: hooks.dirty,
+    onSaved: hooks.saved, onClose: hooks.closed, onDirtyChange: hooks.dirty,
   }, handle);
 }
 function currentDraft() { return vi.mocked(useFormDraft).mock.calls.at(-1)![0]; }
@@ -103,8 +103,18 @@ function textOf(tree: unknown): string {
   if (tree && typeof tree === "object" && "props" in tree) return textOf((tree as ReactElement<Record<string, unknown>>).props.children);
   return "";
 }
+function daySections(tree: unknown) {
+  return elements(tree).filter((node) => typeof node.props["data-planning-day"] === "string");
+}
+/** 1日1行の一覧で、その日の行を開く（予定とメニューの入力欄は開いた行にだけ出る）。 */
+function openDay(day: ReactElement<Record<string, unknown>>) {
+  const toggle = elements(day).find((node) => node.type === "button" && "aria-expanded" in node.props)!;
+  (toggle.props.onClick as () => void)();
+}
 async function readyPlanner() {
   render(plannerView); await flush();
+  const tree = render(plannerView);
+  for (const day of daySections(tree).slice(0, 2)) openDay(day);
   return render(plannerView);
 }
 function editNote(tree: unknown, value: string, index = 0) {
@@ -258,8 +268,11 @@ describe("monthly planning draft recovery", () => {
     hooks.readMembers = [{ id: "member-1", display_name: "部員", blocks: ["middle_long"] }];
     hooks.readMenus = [{ id: "menu-existing", schedule_id: "schedule-1", content: "元のメニュー", targets: [{ user_id: "member-1" }] }];
     let tree = await readyPlanner();
-    const tabs = elements(tree).find((node) => Array.isArray(node.props.items) && (node.props.items as { key: string }[]).some((item) => item.key === "menu"))!;
-    (tabs.props.onChange as (tab: string) => void)("menu"); tree = render(plannerView);
+    // The mocked useEffect runs no cleanup, so let the block-wide menu load settle before switching targets.
+    await flush(); tree = render(plannerView);
+    const settings =elements(tree).find((node) => node.type === "button" && textOf(node.props.children).startsWith("メニューの設定"))!;
+    (settings.props.onClick as () => void)(); tree = render(plannerView);
+    openDay(daySections(tree).find((node) => node.props["data-planning-day"] === date)!); tree = render(plannerView);
     const people = elements(tree).find((node) => node.props.label === "個人指定（空ならブロック全体）")!;
     (people.props.onChange as (ids: string[]) => void)(["member-1"]); render(plannerView);
     await flush(); tree = render(plannerView); await flush(); tree = render(plannerView);
@@ -272,6 +285,45 @@ describe("monthly planning draft recovery", () => {
     expect(localStorage.removeItem).not.toHaveBeenCalled();
     expect(currentDraft()).toMatchObject({ dirty: true, busy: false });
     expect(elements(tree).find((node) => node.props.placeholder === "例: 400m×10（つなぎ200m）")?.props.value).toBe("");
+  });
+
+  it("lists one folded row per day and opens a scheduled day with its schedule and menu together", async () => {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    hooks.readSchedules = [{ id: "schedule-1", schedule_date: date, meeting_time: "17:00:00", venue_name: "府中", target_blocks: [] }];
+    render(plannerView); await flush();
+    let tree = render(plannerView);
+    expect(daySections(tree)).toHaveLength(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
+    expect(elements(tree).some((node) => node.props.placeholder === "例: 集合方法、持ち物")).toBe(false);
+    const day = daySections(tree).find((node) => node.props["data-planning-day"] === date)!;
+    expect(textOf(day)).toContain("17:00・府中");
+    openDay(day); tree = render(plannerView);
+    const opened = daySections(tree).find((node) => node.props["data-planning-day"] === date)!;
+    expect(elements(opened).some((node) => node.props.placeholder === "例: 集合方法、持ち物")).toBe(true);
+    expect(elements(opened).some((node) => node.props.placeholder === "例: 400m×10（つなぎ200m）")).toBe(true);
+    expect(textOf(opened)).toContain("メニュー（中長距離）");
+    // A day without a schedule asks for the schedule first instead of creating one silently for a menu.
+    const empty = daySections(tree).find((node) => node.props["data-planning-day"] !== date)!;
+    openDay(empty); tree = render(plannerView);
+    const openedEmpty = daySections(tree).find((node) => node.props["data-planning-day"] === empty.props["data-planning-day"])!;
+    expect(elements(openedEmpty).some((node) => node.props.placeholder === "例: 400m×10（つなぎ200m）")).toBe(false);
+    expect(textOf(openedEmpty)).toContain("集合時間か練習場所を入れると、メニューも書けます。");
+  });
+
+  it("folds the menu settings behind a summary that follows the list and the save state", async () => {
+    let tree = await readyPlanner();
+    const settings = () => elements(tree).find((node) => node.type === "button" && textOf(node.props.children).startsWith("メニューの設定"))!;
+    expect(textOf(settings())).toContain("中長距離・ブロック全体・スプレッドシートへ保存");
+    expect(elements(tree).some((node) => node.props.label === "個人指定（空ならブロック全体）")).toBe(false);
+    const scope = elements(tree).find((node) => Array.isArray(node.props.items) && (node.props.items as { key: string }[]).some((item) => item.key === "short"))!;
+    (scope.props.onChange as (value: string) => void)("short"); tree = render(plannerView);
+    expect(textOf(settings())).toContain("短距離・ブロック全体・公開");
+    (settings().props.onClick as () => void)(); tree = render(plannerView);
+    expect(elements(tree).some((node) => node.props.label === "個人指定（空ならブロック全体）")).toBe(true);
+    expect(elements(tree).some((node) => node.props.ariaLabel === "メニューのブロック")).toBe(false);
+    const state = elements(tree).find((node) => Array.isArray(node.props.items) && (node.props.items as { key: string }[]).some((item) => item.key === "draft"))!;
+    (state.props.onChange as (value: string) => void)("draft"); tree = render(plannerView);
+    expect(textOf(settings())).toContain("短距離・ブロック全体・下書き");
   });
 
   it("treats failed authentication as a pre-write failure and keeps the draft editable", async () => {
