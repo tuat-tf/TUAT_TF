@@ -19,7 +19,11 @@ export async function loadFeed(
 /** タイムラインの検索（続きは cursor で取得） */
 export async function searchTimeline(query: string, cursor: SearchCursor = null) {
   await getCurrentUserId();
-  return searchFeed(query, cursor);
+  // Server actions take any input from the client; only plain strings reach the query.
+  if (typeof query !== "string") return { items: [], next: null };
+  const safeCursor = cursor && typeof cursor.createdAt === "string" && typeof cursor.id === "string"
+    ? { createdAt: cursor.createdAt, id: cursor.id } : null;
+  return searchFeed(query, safeCursor);
 }
 
 /** 投稿・返信の入力中に出す #タグ候補 */

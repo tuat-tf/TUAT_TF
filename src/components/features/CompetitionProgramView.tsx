@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { isCompetitionArchived } from "@/lib/competition-lifecycle";
+import { isCompetitionArchived, isCompetitionFinished } from "@/lib/competition-lifecycle";
+import { jstToday } from "@/lib/date";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
@@ -62,7 +63,9 @@ export function CompetitionProgramView({
         <p className="mb-3 text-headline">{competition.name}</p>
         {isCompetitionArchived(competition)
           ? <p className="text-caption">アーカイブ：大会の出場者と記録を保存しています。</p>
-          : <CompetitionInProgress entries={entries} />}
+          : isCompetitionFinished(competition, jstToday())
+            ? <p className="text-caption text-muted2">大会は終了しました。</p>
+            : <CompetitionInProgress entries={entries} />}
       </Card>
       <div data-ui-group className="flex items-center justify-between gap-2 rounded-xl border border-separator bg-card p-3">
         <p className="text-micro text-muted2">

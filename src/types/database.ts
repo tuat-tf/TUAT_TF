@@ -131,6 +131,7 @@ export type Database = {
           id: string
           is_countdown: boolean
           name: string
+          program_closed_at: string | null
           program_source_url: string | null
           sort_order: number
           starts_on: string
@@ -141,6 +142,7 @@ export type Database = {
           id: string
           is_countdown?: boolean
           name: string
+          program_closed_at?: string | null
           program_source_url?: string | null
           sort_order?: number
           starts_on: string
@@ -151,6 +153,7 @@ export type Database = {
           id?: string
           is_countdown?: boolean
           name?: string
+          program_closed_at?: string | null
           program_source_url?: string | null
           sort_order?: number
           starts_on?: string

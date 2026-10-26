@@ -1,11 +1,13 @@
 // #ハッシュタグ。本文中の文字列そのもので、専用の表は持たない（検索は本文から探す）。
+// 他のSNSと同じく、タグは文字・数字・_ が続くところまで。空白・記号・句読点・絵文字で終わる。
 // 区切りは supabase/migrations/20261026030000_search_feed.sql の search_feed と揃える。
 
-const STOP = "\\s#＃.,!?、。，．！？「」『』()（）<>＜＞:;：；\"'”’@＠/・…~〜～";
-const TAG_BODY = `[^${STOP}]{1,30}`;
+const TAG_CHARS = String.raw`[\p{L}\p{M}\p{N}_]`;
 // 英数字の直後の # はタグにしない（C#、&#123; など）。URL内の # は Linkify が先に取り除く。
-const HASHTAG_RE = new RegExp(`(^|[^0-9A-Za-z&_])[#＃](${TAG_BODY})`, "g");
-const TRAILING_TAG_RE = new RegExp(`(^|[^0-9A-Za-z&_])[#＃]([^${STOP}]{0,30})$`);
+// 後読みにするのは、"#朝練#夕練" のように続けて書いたタグも両方拾うため。
+const HASHTAG_RE = new RegExp(`(?<![0-9A-Za-z&_])[#＃](${TAG_CHARS}{1,50})`, "gu");
+const TRAILING_TAG_RE = new RegExp(`(?<![0-9A-Za-z&_])[#＃](${TAG_CHARS}{0,50})$`, "u");
+const LEADING_TAG_CHARS_RE = new RegExp(`^${TAG_CHARS}*`, "u");
 
 /** 比較用（全角半角・大文字小文字を区別しない）。 */
 export function hashtagKey(tag: string): string {
@@ -16,14 +18,14 @@ function isTag(tag: string): boolean {
   return !/^[0-9]+$/.test(tag.normalize("NFKC"));
 }
 
-/** 本文をタグとそれ以外に分ける（表示用）。 */
+/** 本文をタグとそれ以外に分ける（表示用・入力欄の色付け用）。 */
 export function splitHashtags(text: string): Array<string | { tag: string }> {
   const parts: Array<string | { tag: string }> = [];
   let last = 0;
   for (const match of text.matchAll(HASHTAG_RE)) {
-    const tag = match[2];
+    const tag = match[1];
     if (!isTag(tag)) continue;
-    const start = match.index + match[1].length;
+    const start = match.index;
     if (start > last) parts.push(text.slice(last, start));
     parts.push({ tag });
     last = start + 1 + tag.length;
@@ -44,15 +46,17 @@ export function hashtagSearchHref(tag: string): string {
   return `/timeline/search?q=${encodeURIComponent(`#${tag}`)}`;
 }
 
-/** 入力の末尾で書きかけのタグ（"#" だけなら ""）。書いていなければ null。 */
-export function trailingHashtagQuery(text: string): string | null {
-  const match = text.match(TRAILING_TAG_RE);
-  return match ? match[2] : null;
+/** カーソル位置で書きかけのタグ（"#" だけなら ""）。書いていなければ null。 */
+export function hashtagQueryAt(text: string, caret: number): string | null {
+  const match = text.slice(0, caret).match(TRAILING_TAG_RE);
+  return match ? match[1] : null;
 }
 
-/** 書きかけのタグを選んだタグで置き換える。 */
-export function completeHashtag(text: string, tag: string): string {
-  return text.replace(TRAILING_TAG_RE, (_, before: string) => `${before}#${tag} `);
+/** カーソル位置の書きかけのタグを選んだタグで置き換え、置き換え後のカーソル位置も返す。 */
+export function completeHashtag(text: string, caret: number, tag: string): { text: string; caret: number } {
+  const after = text.slice(caret).replace(LEADING_TAG_CHARS_RE, "");
+  const before = text.slice(0, caret).replace(TRAILING_TAG_RE, () => (/^\s/.test(after) ? `#${tag}` : `#${tag} `));
+  return { text: before + after, caret: before.length + (/^\s/.test(after) ? 1 : 0) };
 }
 
 export type HashtagUse = { text: string; createdAt: string; mine: boolean };

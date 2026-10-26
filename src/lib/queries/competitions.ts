@@ -13,7 +13,7 @@ import type {
   PbRecord,
 } from "@/types";
 
-export const COMPETITION_SELECT = "id,name,starts_on,ends_on,sort_order,is_countdown,program_source_url,archive_at";
+export const COMPETITION_SELECT = "id,name,starts_on,ends_on,sort_order,is_countdown,program_source_url,program_closed_at,archive_at";
 /** 部で統一している大会（対抗戦など）の一覧 */
 export async function getCompetitions() {
   const supabase = await createClient();

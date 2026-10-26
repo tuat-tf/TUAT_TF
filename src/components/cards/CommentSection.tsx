@@ -11,8 +11,7 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
-import { useHashtagSuggestions } from "@/hooks/use-hashtag-suggestions";
-import { completeHashtag, trailingHashtagQuery } from "@/lib/hashtags";
+import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
 import type { CommentAuthor, CommentWithAuthor, TargetType } from "@/types";
 
 type CommentLike = { liked: boolean; count: number };
@@ -41,7 +40,7 @@ export function CommentSection({
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }> | null>(null);
   const [mentionIds, setMentionIds] = useState<string[]>([]);
   const mentionQuery = text.match(/@([^\s@\n]*)$/)?.[1]?.toLocaleLowerCase("ja") ?? null;
-  const hashtagSuggestions = useHashtagSuggestions(trailingHashtagQuery(text));
+  const { ref: hashtagRef, ...hashtag } = useHashtagCompletion(text, setText);
   const membersRequested = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
   const countChange = useRef(onCountChange);
@@ -328,17 +327,21 @@ export function CommentSection({
         </div>
       )}
 
-      <HashtagSuggestions items={hashtagSuggestions} onSelect={(tag) => setText((value) => completeHashtag(value, tag))} className="mt-2" />
+      <HashtagSuggestions items={hashtag.suggestions} onSelect={hashtag.select} className="mt-2" />
 
       <div className="mt-3 flex min-w-0 items-end gap-2">
-        <Textarea
+        <HashtagTextarea
+          ref={hashtagRef}
           aria-label="コメントを入力"
           rows={1}
+          autoGrow
           maxLength={500}
           placeholder="コメントを入力"
           value={text}
-          onChange={(event) => setText(event.target.value)}
-          className="min-h-11 min-w-0 flex-1 py-2.5"
+          onChange={(event) => { setText(event.target.value); hashtag.track(event); }}
+          onSelect={hashtag.track}
+          wrapperClassName="flex-1"
+          className="min-h-11 py-2.5"
         />
         <Button
           type="button"

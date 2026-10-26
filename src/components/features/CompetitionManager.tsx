@@ -311,11 +311,13 @@ function CompetitionForm({
   const [startsOn, setStartsOn] = useState(competition?.starts_on ?? "");
   const [endsOn, setEndsOn] = useState(competition?.ends_on ?? "");
   const [programSourceUrl, setProgramSourceUrl] = useState(competition?.program_source_url ?? "");
+  const [programClosed, setProgramClosed] = useState(Boolean(competition?.program_closed_at));
   const sort = sortOrder;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dirty = JSON.stringify([name, startsOn, endsOn, programSourceUrl]) !== JSON.stringify([
+  const dirty = JSON.stringify([name, startsOn, endsOn, programSourceUrl, programClosed]) !== JSON.stringify([
     competition?.name ?? "", competition?.starts_on ?? "", competition?.ends_on ?? "", competition?.program_source_url ?? "",
+    Boolean(competition?.program_closed_at),
   ]);
 
   async function submit() {
@@ -336,6 +338,7 @@ function CompetitionForm({
       starts_on: startsOn,
       ends_on: endsOn || null,
       program_source_url: programSourceUrl.trim() || null,
+      program_closed_at: programClosed ? competition?.program_closed_at ?? new Date().toISOString() : null,
     };
     try {
     const { data, error: saveError } = competition
@@ -403,6 +406,14 @@ function CompetitionForm({
           設定すると、農工大の出場種目・出場選手を定期的に自動で取り込み、ホームにプログラムのカードが出ます。
         </p>
       </div>
+      {programSourceUrl.trim() && (
+        <Toggle
+          label="速報の取得を終了"
+          description="自動の取り込みを止め、ホームに終了と表示します。取り込んだ結果は残ります。"
+          checked={programClosed}
+          onChange={() => setProgramClosed((value) => !value)}
+        />
+      )}
       {error && <p className="text-caption text-danger text-center">{error}</p>}
       <FormModalFooter>
         <Button size="lg" onClick={submit} disabled={saving} className="gap-1">

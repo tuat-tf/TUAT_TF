@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   let query = admin
     .from("competitions")
-    .select("id,starts_on,ends_on,program_source_url,archive_at")
+    .select("id,starts_on,ends_on,program_source_url,program_closed_at,archive_at")
     .not("program_source_url", "is", null);
   if (onlyCompetitionId) query = query.eq("id", onlyCompetitionId);
   const { data: competitions, error: competitionsError } = await query;
@@ -97,7 +97,8 @@ export async function POST(request: Request) {
   const results: { competitionId: string; ok: boolean; rows?: number; entries?: number; error?: string }[] = [];
 
   for (const competition of competitions ?? []) {
-    if (!onlyCompetitionId && isCompetitionArchived(competition)) continue;
+    // 速報の取得を終了した大会は自動では取りに行かない（指定した手動取得はできる）。
+    if (!onlyCompetitionId && (isCompetitionArchived(competition) || competition.program_closed_at)) continue;
     const sourceUrl = competition.program_source_url;
     if (!sourceUrl) continue;
     try {

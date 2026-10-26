@@ -5,6 +5,14 @@ export function isCompetitionArchived(competition: Lifecycle, now = Date.now()):
   return Boolean(competition.archive_at && Date.parse(competition.archive_at) <= now);
 }
 
+/** 速報の取得を終了したか、最終日を過ぎた大会。ホームでは進行中の表示をやめて終了と出す。 */
+export function isCompetitionFinished(
+  competition: { program_closed_at?: string | null; starts_on: string; ends_on: string | null },
+  today: string,
+): boolean {
+  return Boolean(competition.program_closed_at) || (competition.ends_on ?? competition.starts_on) < today;
+}
+
 export function selectHomeCompetition<T extends Lifecycle & { is_countdown: boolean; starts_on: string; ends_on: string | null }>(
   competitions: T[], now = Date.now(),
 ): T | null {

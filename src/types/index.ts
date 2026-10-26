@@ -579,6 +579,8 @@ export interface CompetitionRow {
   is_countdown: boolean;
   /** 速報サイトのタイムテーブルURL。設定した大会だけプログラムを自動取込する */
   program_source_url: string | null;
+  /** 速報の取得を終了した時刻。設定すると自動取込を止め、ホームで終了と表示する */
+  program_closed_at?: string | null;
 }
 
 /** 大会プログラム1件（速報サイトから取り込んだ、農工大の出場種目・出場選手） */

@@ -1,7 +1,10 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+/** 入力欄の見た目。#タグの色付け（HashtagTextarea）が同じ文字位置に重ねるためにも使う。 */
+export const TEXTAREA_CLASS = "w-full rounded-xl bg-card border border-separator px-3 py-2.5 text-base text-ink placeholder:text-muted outline-none focus:border-accent transition-colors resize-none";
+
+export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   /** 入力内容に合わせて高さを伸ばし、入力欄内の縦スクロールをなくす。 */
   autoGrow?: boolean;
 };
@@ -51,7 +54,7 @@ export const Textarea = React.forwardRef<
       data-ui-field
       className={cn(
         // text-base(16px) は必須: iOS Safari は16px未満の入力欄にフォーカスすると自動ズーム→画面がガクつくため
-        "w-full rounded-xl bg-card border border-separator px-3 py-2.5 text-base text-ink placeholder:text-muted outline-none focus:border-accent transition-colors resize-none",
+        TEXTAREA_CLASS,
         autoGrow && "overflow-y-hidden",
         className,
       )}

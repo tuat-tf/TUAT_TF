@@ -43,11 +43,11 @@ export async function searchFeed(query: string, cursor: SearchCursor = null): Pr
   return { items, next: hits.length === SEARCH_PAGE ? { createdAt: last.created_at, id: last.id } : null };
 }
 
-/** 直近90日のつぶやき・返信に書かれた #タグ を、よく・最近使われた順に返す。 */
+/** 直近1週間のつぶやき・返信に書かれた #タグ を、よく・最近使われた順に返す。 */
 export async function getRecentHashtags(currentUserId: string): Promise<RankedHashtag[]> {
   const supabase = await createClient();
   const now = new Date();
-  const since = new Date(now.getTime() - 90 * 86_400_000).toISOString();
+  const since = new Date(now.getTime() - 7 * 86_400_000).toISOString();
   const [tweets, comments] = await Promise.all([
     supabase.from("tweets").select("content, user_id, created_at")
       .gte("created_at", since)

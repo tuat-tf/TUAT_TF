@@ -1,28 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { completeHashtag, extractHashtags, rankHashtags, splitHashtags, suggestHashtags, trailingHashtagQuery } from "./hashtags";
+import { completeHashtag, extractHashtags, hashtagQueryAt, rankHashtags, splitHashtags, suggestHashtags } from "./hashtags";
 
 describe("hashtags", () => {
-  it("finds tags in Japanese text and stops at punctuation", () => {
+  it("ends a tag at spaces, punctuation, symbols and emoji like other social apps", () => {
     expect(extractHashtags("部活後ジム直行\n#アルファ男性への道 #load to alpha\n今日は＃朝練、楽しかった")).toEqual(["アルファ男性への道", "load", "朝練"]);
+    expect(extractHashtags("#朝練😊 #夕練！ #400m-走 #陸上_部 #ＴＵＡＴ")).toEqual(["朝練", "夕練", "400m", "陸上_部", "ＴＵＡＴ"]);
   });
 
-  it("skips numbers, C# and duplicates", () => {
+  it("skips numbers, C# and duplicates, and finds tags written back to back", () => {
     expect(extractHashtags("#1 C#を勉強 &#123; #朝練 #朝練")).toEqual(["朝練"]);
+    expect(extractHashtags("#朝練#夕練")).toEqual(["朝練", "夕練"]);
   });
 
   it("splits text around tags without losing characters", () => {
-    const text = "今日の#朝練。明日も#朝練";
+    const text = "今日の#朝練。明日も#朝練😊";
     const parts = splitHashtags(text);
-    expect(parts).toEqual(["今日の", { tag: "朝練" }, "。明日も", { tag: "朝練" }]);
+    expect(parts).toEqual(["今日の", { tag: "朝練" }, "。明日も", { tag: "朝練" }, "😊"]);
     expect(parts.map((part) => typeof part === "string" ? part : `#${part.tag}`).join("")).toBe(text);
   });
 
-  it("reads and completes the tag being typed", () => {
-    expect(trailingHashtagQuery("今日は #朝")).toBe("朝");
-    expect(trailingHashtagQuery("今日は #")).toBe("");
-    expect(trailingHashtagQuery("今日は #朝練 ")).toBeNull();
-    expect(trailingHashtagQuery("C#")).toBeNull();
-    expect(completeHashtag("今日は ＃朝", "朝練")).toBe("今日は #朝練 ");
+  it("reads the tag being typed at the cursor", () => {
+    expect(hashtagQueryAt("今日は #朝", 6)).toBe("朝");
+    expect(hashtagQueryAt("今日は #", 5)).toBe("");
+    expect(hashtagQueryAt("今日は #朝練 ", 8)).toBeNull();
+    expect(hashtagQueryAt("C#", 2)).toBeNull();
+    expect(hashtagQueryAt("#朝 のあと", 2)).toBe("朝");
+  });
+
+  it("completes the tag at the cursor and keeps the rest of the text", () => {
+    expect(completeHashtag("今日は ＃朝", 6, "朝練")).toEqual({ text: "今日は #朝練 ", caret: 8 });
+    expect(completeHashtag("#朝 のあと", 2, "朝練")).toEqual({ text: "#朝練 のあと", caret: 4 });
+    expect(completeHashtag("#朝れ続き", 2, "朝練")).toEqual({ text: "#朝練 ", caret: 4 });
   });
 
   it("ranks recent and own tags first and keeps the latest spelling", () => {
