@@ -151,7 +151,7 @@ it("home competition failure is not an unconfigured countdown or zero goals", as
   await expect(competitions.getHomeCompetition()).rejects.toEqual(unavailable);
   results.competitions = { data: [], error: null };
   expect(await competitions.getHomeCompetition()).toBeNull();
-  results.competitions = { data: [{ id: "meet", is_countdown: true, starts_on: "2026-10-13", ends_on: null }], error: null };
+  results.competitions = { data: [{ id: "meet", is_countdown: true, starts_on: "2099-10-13", ends_on: null }], error: null };
   results.competition_goals = { data: null, count: null, error: unavailable };
   await expect(competitions.getHomeCompetition()).rejects.toEqual(unavailable);
   results.competition_goals = { data: null, count: 0, error: null };

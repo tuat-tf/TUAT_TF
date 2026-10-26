@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { competitionDays, isTypedResultOf } from "@/lib/competition-days";
 import { jstToday } from "@/lib/date";
-import { selectHomeCompetition } from "@/lib/competition-lifecycle";
+import { finishedHomeCompetitions, isCompetitionFinished, selectHomeCompetition } from "@/lib/competition-lifecycle";
 import { readCompetitionProgramEntries } from "@/lib/competition-program-query";
 import type {
   CompetitionRow,
@@ -45,14 +45,19 @@ export async function getHomeCompetition() {
     .from("competitions")
     .select(COMPETITION_SELECT);
   if (error) throw error;
-  const competition = selectHomeCompetition(data ?? []);
-  if (!competition) return null;
+  const rows = (data ?? []) as CompetitionRow[];
+  const today = jstToday();
+  // 終了した大会はカウントダウン・目標・進行中の表示をやめ、「終了・結果を見る」の1行にそろえる。
+  const selected = selectHomeCompetition(rows);
+  const competition = selected && !isCompetitionFinished(selected, today) ? selected : null;
+  const finished = finishedHomeCompetitions(rows, today);
+  if (!competition) return finished.length ? { competition: null, goalCount: 0, finished } : null;
   const { count, error: countError } = await supabase
     .from("competition_goals")
     .select("user_id", { count: "exact", head: true })
     .eq("competition_id", competition.id);
   if (countError) throw countError;
-  return { competition: competition as CompetitionRow, goalCount: count ?? 0 };
+  return { competition, goalCount: count ?? 0, finished };
 }
 
 /** 目標一覧ページ（大会別）。目標の横に出す本人のPBも一緒に読む */

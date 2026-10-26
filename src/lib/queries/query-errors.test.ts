@@ -81,7 +81,7 @@ describe("query failures are distinct from successful empty results", () => {
     client.clear();
   });
   it("does not show zero goals when only the home competition's count fails", async () => {
-    state.results.competitions = { data: [{ id: "meet", is_countdown: true, starts_on: "2026-10-10", ends_on: null, archive_at: null }], error: null };
+    state.results.competitions = { data: [{ id: "meet", is_countdown: true, starts_on: "2099-10-10", ends_on: null, archive_at: null }], error: null };
     state.results.competition_goals = { data: null, error: { message: "count unavailable" }, count: null };
     await expect(getHomeCompetition()).rejects.toMatchObject({ message: "count unavailable" });
   });

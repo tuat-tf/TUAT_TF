@@ -13,6 +13,18 @@ export function isCompetitionFinished(
   return Boolean(competition.program_closed_at) || (competition.ends_on ?? competition.starts_on) < today;
 }
 
+/**
+ * ホームに「終了・結果を見る」の1行で残す大会（終了済みでアーカイブ前のもの、新しい順）。
+ * OB戦も速報を取り込んだ大会も同じ扱い。アーカイブするとホームから消える。
+ */
+export function finishedHomeCompetitions<T extends Lifecycle & { program_closed_at?: string | null; starts_on: string; ends_on: string | null }>(
+  competitions: T[], today: string, now = Date.now(),
+): T[] {
+  return competitions
+    .filter((c) => !isCompetitionArchived(c, now) && isCompetitionFinished(c, today))
+    .sort((a, b) => (b.ends_on ?? b.starts_on).localeCompare(a.ends_on ?? a.starts_on));
+}
+
 export function selectHomeCompetition<T extends Lifecycle & { is_countdown: boolean; starts_on: string; ends_on: string | null }>(
   competitions: T[], now = Date.now(),
 ): T | null {

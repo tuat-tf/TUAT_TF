@@ -56,12 +56,31 @@ describe("home content loading", () => {
   });
 });
 
-describe("finished OB meet on home", () => {
-  it.each([{ roles: [] }, { roles: [{ name: "OB戦2026", can_manage_system: true }] }])("keeps only a compact results link for roles $roles", async ({ roles }) => {
-    mocks.profile.mockResolvedValue({ id: "me", blocks: [], roles, display_name: "テスト" });
+describe("finished competitions on home", () => {
+  it("shows a finished imported-results competition the same way as the OB meet", async () => {
+    mocks.profile.mockResolvedValue({ id: "me", blocks: [], roles: [], display_name: "テスト" });
+    mocks.competition.mockResolvedValue({ competition: null, goalCount: 0, finished: [
+      { id: "riko", name: "理工系", starts_on: "2026-10-25", ends_on: null, program_source_url: "http://sairiku.net/result/x/", program_closed_at: "2026-10-26T06:22:38Z" },
+      { id: "3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5", name: "OB戦", starts_on: "2026-10-11", ends_on: null, program_source_url: null },
+    ] });
     const body = HomePage().props.children[1].props.children;
     const content = await body.type(body.props);
-    const html = renderToStaticMarkup(content.props.children[2]);
+    const html = renderToStaticMarkup(content.props.children[1]);
+    expect(html).toContain('href="/competitions/riko/program"');
+    expect(html.match(/結果を見る/g)).toHaveLength(2);
+    expect(html.match(/終了/g)).toHaveLength(2);
+    expect(html).not.toContain("出場");
+    expect(mocks.program).not.toHaveBeenCalled();
+  });
+
+  it.each([{ roles: [] }, { roles: [{ name: "OB戦2026", can_manage_system: true }] }])("keeps only a compact results link for roles $roles", async ({ roles }) => {
+    mocks.profile.mockResolvedValue({ id: "me", blocks: [], roles, display_name: "テスト" });
+    mocks.competition.mockResolvedValue({ competition: null, goalCount: 0, finished: [
+      { id: "3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5", name: "OB戦", starts_on: "2026-10-11", ends_on: null, program_source_url: null },
+    ] });
+    const body = HomePage().props.children[1].props.children;
+    const content = await body.type(body.props);
+    const html = renderToStaticMarkup(content.props.children[1]);
     expect(html).toContain("OB戦");
     expect(html).toContain("終了");
     expect(html).toContain("結果を見る");

@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { format, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 import { ChevronRight, Folder } from "lucide-react";
-import { OB_PROGRAM_PATH } from "@/lib/ob-meet";
+import { isObCompetition } from "@/lib/ob-meet";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { HomeSkeleton } from "@/components/ui/page-skeletons";
@@ -33,6 +33,7 @@ import { permissionsOf } from "@/lib/permissions";
 import { RECORD_SOURCE_COOKIE, showRecordSourceFor } from "@/lib/record-source-display";
 import type {
   Attendee,
+  CompetitionRow,
   NoticeWithReactions,
   NoteWithRelations,
   ScheduleWithMenus,
@@ -55,10 +56,9 @@ export default function HomePage() {
 }
 
 async function HomeContent({ nowJst }: { nowJst: Date }) {
-  const [notices, competition, obEntry, summary, schedules, notes, feed] = await Promise.all([
+  const [notices, competition, summary, schedules, notes, feed] = await Promise.all([
     NoticesSection(),
     CompetitionSection(),
-    ObEntrySection(),
     WeeklySummarySection({ nowJst }),
     SchedulesSection(),
     NotesSection(),
@@ -68,7 +68,6 @@ async function HomeContent({ nowJst }: { nowJst: Date }) {
     <div data-home-grid className="grid grid-cols-1 items-start gap-5 px-4 pt-1 md:px-6 lg:grid-cols-2 lg:gap-6">
       <div data-home-section="notices" className="min-w-0 empty:hidden lg:col-span-2">{notices}</div>
       <div data-home-section="competition" className="min-w-0 empty:hidden lg:col-span-2">{competition}</div>
-      <div data-home-section="ob-entry" className="min-w-0 empty:hidden">{obEntry}</div>
       <div data-home-section="summary" className="min-w-0 empty:hidden">{summary}</div>
       <div data-home-section="schedules" className="min-w-0 empty:hidden">{schedules}</div>
       <div data-home-section="notes" className="min-w-0 empty:hidden">{notes}</div>
@@ -78,17 +77,29 @@ async function HomeContent({ nowJst }: { nowJst: Date }) {
   );
 }
 
-/** 終了したOB戦は結果への入口だけを残す。 */
-function ObEntrySection() {
+/**
+ * 終了した大会は、OB戦も速報を取り込んだ大会も「大会名 終了 結果を見る」の1行だけを残す。
+ * 大会の管理でアーカイブするとホームから消える。
+ */
+function FinishedCompetitions({ competitions }: { competitions: CompetitionRow[] }) {
+  if (competitions.length === 0) return null;
   return (
-    <Card>
-      <Link data-ui-row href={OB_PROGRAM_PATH} prefetch={false} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className="text-headline">OB戦</span>
-          <span className="text-caption">終了</span>
-        </span>
-        <span className="flex shrink-0 items-center gap-1 text-body text-accent">結果を見る<ChevronRight size={16} /></span>
-      </Link>
+    <Card className="divide-y divide-separator">
+      {competitions.map((competition) => (
+        <Link
+          data-ui-row
+          key={competition.id}
+          href={competition.program_source_url || isObCompetition(competition.id) ? `/competitions/${competition.id}/program` : `/competitions/${competition.id}`}
+          prefetch={false}
+          className="flex min-h-14 items-center justify-between gap-3 px-4 py-3"
+        >
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="truncate text-headline">{competition.name}</span>
+            <span className="shrink-0 text-caption">終了</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1 text-body text-accent">結果を見る<ChevronRight size={16} /></span>
+        </Link>
+      ))}
     </Card>
   );
 }
@@ -96,16 +107,22 @@ function ObEntrySection() {
 async function CompetitionSection() {
   const result = await getHomeCompetition();
   if (!result) return null;
-  const programEntries = result.competition.program_source_url
-    ? await getCompetitionProgramEntries(result.competition.id)
+  const active = result.competition;
+  const programEntries = active?.program_source_url
+    ? await getCompetitionProgramEntries(active.id)
     : [];
   return (
-      <CompetitionHomeSection
-        competition={result.competition}
-        entries={programEntries}
-        goalCount={result.goalCount}
-        initialToday={jstToday()}
-      />
+    <div className="space-y-2">
+      {active && (
+        <CompetitionHomeSection
+          competition={active}
+          entries={programEntries}
+          goalCount={result.goalCount}
+          initialToday={jstToday()}
+        />
+      )}
+      <FinishedCompetitions competitions={result.finished} />
+    </div>
   );
 }
 
