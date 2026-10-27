@@ -2,6 +2,12 @@ import { createHmac } from "node:crypto";
 import { after } from "next/server";
 import { obResultsFeedToken } from "./ob-results-feed-auth";
 
+/**
+ * 2026-10-27 owner: the shared OB sheet is being reworked by hand, so the app stops feeding it.
+ * While true the app sends no wake-up and the snapshot feed refuses, so the publisher keeps the sheet as is.
+ */
+export const OB_SHEET_OUTPUT_PAUSED = true;
+
 // A destination, not a credential. Requests require the private derived-key signature.
 const publisherUrl = "https://script.google.com/macros/s/AKfycbwY-OnTP2np6YsXUzEy27J4TUX64agfP3VxBc07iRx9YbRKy67ONuYVnrDWhXjqwH4e/exec";
 
@@ -29,6 +35,7 @@ export async function notifyObResults(): Promise<boolean> {
 
 /** Only after a verified save; a failed export must never undo or repeat the DB save. */
 export function scheduleObResultsPublish() {
+  if (OB_SHEET_OUTPUT_PAUSED) return;
   after(async () => {
     if (!await notifyObResults()) console.warn("OB sheet notification failed; hourly publisher will recover");
   });

@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import { obResultsFeedToken } from "./ob-results-feed-auth";
 vi.mock("next/server", () => ({ after: (callback: () => Promise<void>) => callback() }));
-import { notifyObResults } from "./ob-results-notify";
+import { notifyObResults, OB_SHEET_OUTPUT_PAUSED, scheduleObResultsPublish } from "./ob-results-notify";
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 it("sends only a signed wake-up and handles failure without retrying a save", async () => {
   vi.stubEnv("SHEET_SYNC_SECRET", "synthetic-key");
@@ -25,4 +25,11 @@ it("retries a busy publisher, and sends nothing without configuration", async ()
   request.mockResolvedValueOnce(new Response('{"ok":false,"busy":true}')).mockResolvedValueOnce(new Response('{"ok":true}'));
   const result=notifyObResults(); await vi.runAllTimersAsync();
   expect(await result).toBe(true); expect(request).toHaveBeenCalledTimes(2);
+});
+it("sends no wake-up after a save while the sheet output is paused", () => {
+  vi.stubEnv("SHEET_SYNC_SECRET", "synthetic-key");
+  const request = vi.fn(); vi.stubGlobal("fetch", request);
+  expect(OB_SHEET_OUTPUT_PAUSED).toBe(true);
+  scheduleObResultsPublish();
+  expect(request).not.toHaveBeenCalled();
 });

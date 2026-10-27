@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const state = vi.hoisted(() => ({ read: vi.fn(), admin: vi.fn() }));
+const state = vi.hoisted(() => ({ read: vi.fn(), admin: vi.fn(), paused: false }));
+vi.mock("@/lib/ob-results-notify", () => ({ get OB_SHEET_OUTPUT_PAUSED() { return state.paused; } }));
 vi.mock("@/lib/queries/ob-results-publish", () => ({ getObPublishedResults: state.read }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: state.admin }));
 import { obResultsFeedToken, OB_RESULTS_SPREADSHEET_ID } from "@/lib/ob-results-feed-auth";
@@ -11,6 +12,7 @@ beforeEach(() => {
   vi.stubEnv("SHEET_SYNC_SECRET", "synthetic-sync-secret");
   state.read.mockReset().mockResolvedValue({ entries: [], operations: [] });
   state.admin.mockReset().mockReturnValue({});
+  state.paused = false;
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -29,6 +31,13 @@ it("rejects the retired university workbook token after moving to the club workb
 it("fails closed when the key is unavailable", async () => {
   vi.stubEnv("SHEET_SYNC_SECRET", "");
   expect((await GET(request())).status).toBe(503);
+  expect(state.admin).not.toHaveBeenCalled();
+});
+it("refuses the feed while the sheet output is paused, so the publisher keeps the sheet", async () => {
+  state.paused = true;
+  expect((await GET(request())).status).toBe(503);
+  expect((await GET(request("synthetic-sync-secret"))).status).toBe(401);
+  expect(state.read).not.toHaveBeenCalled();
   expect(state.admin).not.toHaveBeenCalled();
 });
 it("includes six relay lanes as public team cells without adding individual edit targets",async()=>{

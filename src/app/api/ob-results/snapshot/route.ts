@@ -8,6 +8,7 @@ import { obPublishedResultSheets } from "@/lib/ob-results-sheet";
 import { obResultsFeedToken, OB_RESULTS_SPREADSHEET_ID } from "@/lib/ob-results-feed-auth";
 import { obSheetStatusTargets } from "@/lib/ob-sheet-status";
 import { obSheetEditSource } from "@/lib/ob-sheet-edits";
+import { OB_SHEET_OUTPUT_PAUSED } from "@/lib/ob-results-notify";
 
 export const maxDuration = 60;
 const headers = { "Cache-Control": "private, no-store", "Vary": "Authorization, X-OB-Relay-Results" };
@@ -19,6 +20,8 @@ export async function GET(request: Request) {
   if (!timingSafeEqualString(request.headers.get("authorization") ?? "", `Bearer ${obResultsFeedToken(secret)}`)) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401, headers });
   }
+  // The publisher treats a non-200 as "keep the previous sheet" and writes nothing.
+  if (OB_SHEET_OUTPUT_PAUSED) return NextResponse.json({ error: "共有スプレッドシートへの出力を停止しています" }, { status: 503, headers });
   try {
     const { entries, operations, heatLabels, relaySheets=[] } = await getObPublishedResults(createAdminClient());
     // Older deployed GAS accepts exactly twelve tabs. Include relay only for a compatible publisher.
