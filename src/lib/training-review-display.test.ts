@@ -5,7 +5,7 @@ import type { PracticeRecord, RecordFieldDef } from "@/types";
 const record: PracticeRecord = {
   id: "synthetic-record", user_id: "synthetic-author", recorded_date: "2026-10-01",
   dist_low: 5, dist_mid: 0, dist_high: 0, dist_speed: 0, dist_actual: 0,
-  strides: 2, condition: "normal", menu_text: "tempo", focus_text: "rhythm",
+  strides: "2", condition: "normal", menu_text: "tempo", focus_text: "rhythm",
   result_text: "3:30", strength_text: "core", memo: "reflection",
   custom: { sleep: 0, retired_column: "old saved value" }, likes_count: 0,
   created_at: "2026-10-01T00:00:00Z",

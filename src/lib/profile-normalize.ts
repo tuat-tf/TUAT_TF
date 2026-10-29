@@ -88,7 +88,7 @@ export function normalizePracticeRecord(row: PracticeRecordRow): PracticeRecord 
     dist_high: row.dist_high ?? 0,
     dist_actual: row.dist_actual ?? 0,
     dist_speed: row.dist_speed ?? 0,
-    strides: row.strides ?? 0,
+    strides: row.strides ?? null,
     condition: row.condition === "great" || row.condition === "normal" || row.condition === "bad" ? row.condition : null,
     custom: recordValuesFromJson(row.custom),
     record_fields_snapshot: recordFieldsFromJson(row.record_fields_snapshot ?? null),
@@ -105,7 +105,7 @@ export function normalizeRecordWithAuthor(
     dist_high: row.dist_high ?? 0,
     dist_actual: row.dist_actual ?? 0,
     dist_speed: row.dist_speed ?? 0,
-    strides: row.strides ?? 0,
+    strides: row.strides ?? null,
     condition:
       row.condition === "great" || row.condition === "normal" || row.condition === "bad"
         ? row.condition

@@ -77,7 +77,7 @@ function recordDraftValues(record: PracticeRecord | null | undefined, date: stri
         }
       : { ...EMPTY },
     actualDistance: numStr(record?.dist_actual ?? 0),
-    strides: numStr(record?.strides ?? 0),
+    strides: record?.strides ?? "",
     resultText: record?.result_text ?? "",
     strengthText: record?.strength_text ?? "",
     menuText: record?.menu_text ?? "",
@@ -309,7 +309,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
     const customHasContent = customFields.some((field) => hasCustomRecordContent(customValues[field.key]));
     const hasContent = isMiddleLong
       ? distTotal > 0 || actualHasContent ||
-        (fieldEnabled("strides") && (parseInt(strides) || 0) > 0) ||
+        (fieldEnabled("strides") && !!strides.trim()) ||
         (fieldEnabled("result_text") && !!resultText.trim()) ||
         (fieldEnabled("strength_text") && !!strengthText.trim()) ||
         (fieldEnabled("memo") && !!memo.trim()) ||
@@ -347,7 +347,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
             dist_high: parseFloat(dist.high) || 0,
             dist_speed: parseFloat(dist.speed) || 0,
             dist_actual: parseFloat(actualDistance) || 0,
-            strides: parseInt(strides) || 0,
+            strides: strides.trim() || null,
             result_text: resultText.trim() || null,
             strength_text: strengthText.trim() || null,
             menu_text: null,
@@ -363,7 +363,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
             dist_high: 0,
             dist_speed: 0,
             dist_actual: 0,
-            strides: 0,
+            strides: null,
             result_text: resultText.trim() || null,
             strength_text: null,
             menu_text: menuText.trim() || null,
@@ -480,17 +480,14 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
           </div>}
           {fieldEnabled("strides") && <div className="mt-2 flex items-center gap-2">
             <label htmlFor={`${formId}-strides`} className="text-[13px] font-medium">{recordFieldLabel(configuredFields, "strides", "流し")}</label>
+            {/* 本数だけでなく「100m×3」のような書き方もできる1行の自由入力 */}
             <Input
-              type="number"
               id={`${formId}-strides`}
-              inputMode="numeric"
-              min={0}
-              placeholder="0"
+              placeholder="例: 100m×3"
               value={strides}
               onChange={(e) => setStrides(e.target.value)}
-              className="h-9 w-20 text-right"
+              className="h-9 min-w-0 flex-1"
             />
-            <span className="text-caption">本</span>
           </div>}
         </div>
       )}

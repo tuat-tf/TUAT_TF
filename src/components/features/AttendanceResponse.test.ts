@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ScheduleAttendance } from "@/components/cards/schedule/ScheduleAttendance";
+import { UpcomingScheduleCard } from "@/components/cards/UpcomingScheduleCard";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/components/layout/glass/system-glass-state", () => ({ useSystemGlass: () => true }));
@@ -53,5 +54,31 @@ describe("future attendance contact entry points", () => {
     expect(html).toContain("授業があるため欠席します");
     expect(html).toContain("連絡を編集");
     expect(html).not.toContain("遅刻を連絡");
+  });
+});
+
+describe("multi-day attendance lists", () => {
+  it("counts each person once per day instead of once per answered day", () => {
+    const days = ["2099-11-13", "2099-11-14", "2099-11-15"];
+    const people = ["a", "b"].map((id) => ({ ...profile, id, display_name: id }));
+    // 2人が3日とも出席。日ごとの一覧で2人ずつ、同じ日に同じ人の行が重なっていても1人。
+    const rows = days.flatMap((day) => people.map((person) => ({ user_id: person.id, attend_date: day, status: "present" as const, is_late: false, late_note: null, absence_note: null, profile: person })));
+    const html = renderToStaticMarkup(createElement(ScheduleAttendance, {
+      scheduleId: "schedule", userId: "me", attendanceDays: days, multiDayAttendance: true,
+      attendanceDefaultBlock: "all", handleAttendanceChanged: vi.fn(), attendeesState: [...rows, rows[0]],
+    }));
+    expect(html.match(/出欠一覧（出席2人、欠席0人）/g)).toHaveLength(3);
+    expect(html).not.toContain("出席6人");
+  });
+  it("shows the home upcoming card day by day", () => {
+    const days = ["2099-11-13", "2099-11-14", "2099-11-15"];
+    const people = ["a", "b"].map((id) => ({ ...profile, id, display_name: id }));
+    const attendees = days.flatMap((day) => people.map((person) => ({ user_id: person.id, attend_date: day, status: "present" as const, is_late: false, late_note: null, absence_note: null, profile: person })));
+    const html = renderToStaticMarkup(createElement(UpcomingScheduleCard, {
+      schedule: { id: "s", schedule_date: days[0], end_date: days[2], schedule_type: "meet", title: "大会", meeting_time: null, venue_name: null, menus: [] } as never,
+      attendees, attendanceDefaultBlock: "all", userId: "me", myProfile: profile,
+    }));
+    expect(html.match(/出欠一覧（出席2人、欠席0人）/g)).toHaveLength(3);
+    for (const label of ["11/13", "11/14", "11/15"]) expect(html).toContain(label);
   });
 });

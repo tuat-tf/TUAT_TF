@@ -12,7 +12,7 @@ import { IntensityBar } from "@/components/features/IntensityBar";
 import { PostActions } from "@/components/cards/PostActions";
 import { RecordOwnerMenu } from "@/components/cards/PostOwnerMenu";
 import { CONDITIONS, gradeShort } from "@/lib/constants";
-import { recordFieldHidden, recordFieldLabel } from "@/lib/record-fields";
+import { recordFieldHidden, recordFieldLabel, stridesText } from "@/lib/record-fields";
 import { displayedDistance } from "@/lib/record-distance";
 import { recordSummaryText } from "@/lib/post-summary";
 import { isRecordHashtagField } from "@/lib/hashtags";
@@ -94,7 +94,7 @@ export function RecordCard({
       </div>
 
       {distanceVisible && totalDistance > 0 && <IntensityBar record={record} />}
-      {fieldVisible("strides") && record.strides > 0 && <p className="text-[12px] text-muted2">{recordFieldLabel(recordFields, "strides", "流し")} {record.strides}本</p>}
+      {fieldVisible("strides") && record.strides?.trim() && <p className="text-[12px] text-muted2 whitespace-pre-wrap break-words">{recordFieldLabel(recordFields, "strides", "流し")} {stridesText(record.strides)}</p>}
 
       {details.length > 0 && (
         <ExpandableSection maxHeight={150} forceExpanded={embedded}>

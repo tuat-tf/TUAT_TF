@@ -1,6 +1,6 @@
 import { CONDITIONS, INTENSITY_LABELS } from "@/lib/constants";
 import { format, subDays } from "date-fns";
-import { BUILTIN_RECORD_FIELD_KEYS } from "@/lib/record-fields";
+import { BUILTIN_RECORD_FIELD_KEYS, stridesText } from "@/lib/record-fields";
 import { formatKm } from "@/lib/utils";
 import type { TrainingRecord, RecordFieldDef } from "@/types";
 
@@ -73,8 +73,8 @@ export function trainingReviewFields(
       value = condition ? `${condition.symbol} ${condition.label}` : value;
     } else if (builtin && key.startsWith("dist_") && typeof value === "number") {
       value = `${formatKm(value)}km`;
-    } else if (key === "strides" && typeof value === "number") {
-      value = `${value}本`;
+    } else if (key === "strides" && typeof value === "string") {
+      value = stridesText(value);
     }
     if (typeof value !== "string" && typeof value !== "number") return [];
     const fallback = key === "result_text" && (record.menu_text || record.focus_text) ? "タイム" : BUILTIN_LABELS[key];

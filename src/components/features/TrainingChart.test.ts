@@ -13,7 +13,7 @@ function record(recorded_date: string, overrides: Partial<TrainingRecord> = {}):
   return {
     id: recorded_date, recorded_date,
     dist_low: 0, dist_mid: 0, dist_high: 0, dist_speed: 0, dist_actual: 0,
-    strides: 0, condition: null, menu_text: null, focus_text: null,
+    strides: null, condition: null, menu_text: null, focus_text: null,
     result_text: null, strength_text: null, memo: null, custom: {},
     ...overrides,
   };

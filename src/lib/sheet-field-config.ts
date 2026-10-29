@@ -150,7 +150,7 @@ export function buildSheetRecordFields(options: {
     const fixed = isFixedSheetColumn(column.label, options.isMiddleLong);
     const builtin = sheetBuiltinKey(column.label, options, column.index);
     if (builtin === "dist_actual") return [];
-    const type = builtin?.startsWith("dist_") || builtin === "strides"
+    const type = builtin?.startsWith("dist_")
       ? "number"
       : (options.types[column.index] ?? "text");
     if (!fixed && !selected.has(column.index)) {

@@ -53,6 +53,12 @@ export function recordFieldLabel(
   return (fields ?? []).find((field) => field.key === key)?.label?.trim() || fallback;
 }
 
+/** 流しの表示。以前の本数だけの入力（数字のみ）は従来どおり「◯本」と出す。 */
+export function stridesText(value: string): string {
+  const text = value.trim();
+  return /^\d+$/.test(text) ? `${text}本` : text;
+}
+
 export function canSaveRecord(hasContent: boolean, updatingExisting: boolean): boolean {
   return hasContent || updatingExisting;
 }
@@ -60,7 +66,7 @@ export function canSaveRecord(hasContent: boolean, updatingExisting: boolean): b
 export function editableBuiltinRecordFields(isMiddleLong: boolean): { key: BuiltinRecordFieldKey; label: string; type: "text" | "number" }[] {
   return isMiddleLong
     ? [
-        { key: "strides", label: "流し", type: "number" },
+        { key: "strides", label: "流し", type: "text" },
         { key: "result_text", label: "結果", type: "text" },
         { key: "strength_text", label: "補強", type: "text" },
         { key: "memo", label: "感想・振り返り", type: "text" },

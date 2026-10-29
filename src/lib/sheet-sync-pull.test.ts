@@ -9,7 +9,7 @@ const fieldMap = {
 function dbRecord(date: string, memo: string): DbRecord {
   return {
     id: `record-${date}`, user_id: "user-1", recorded_date: date,
-    dist_low: 0, dist_mid: 0, dist_high: 0, dist_speed: 0, strides: 0,
+    dist_low: 0, dist_mid: 0, dist_high: 0, dist_speed: 0, strides: null,
     dist_actual: 0,
     strength_text: null, result_text: null, memo, menu_text: null, focus_text: null,
     custom: {}, updated_at: null, synced_at: null, from_sheet: true,

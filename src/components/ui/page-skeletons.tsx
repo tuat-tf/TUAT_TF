@@ -113,9 +113,9 @@ export function ListSkeleton() {
   return <LoadingRegion label="一覧"><div className="space-y-4"><Title action /><div className="space-y-3 px-4"><Skeleton className="h-11 w-full rounded-xl" /><Skeleton className="h-3 w-16" /><Panel className="overflow-hidden">{[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="flex items-center gap-3 border-b border-separator px-4 py-3 last:border-0"><Skeleton className="h-9 w-9 shrink-0 rounded-full" /><div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-3.5 w-28 max-w-full" /><Skeleton className="h-2.5 w-16" /></div><Skeleton className="h-3 w-3 shrink-0" /></div>)}</Panel></div></div></LoadingRegion>;
 }
 
-export function MyPageSkeleton({ showTraining = true, adminRows = 0, profilePending = false }: { showTraining?: boolean; adminRows?: number; profilePending?: boolean } = {}) {
+export function MyPageSkeleton({ showTraining = true, showAdmin = false, profilePending = false }: { showTraining?: boolean; showAdmin?: boolean; profilePending?: boolean } = {}) {
   if (profilePending) return <LoadingRegion label="マイページ"><Title title="マイページ" action /><div className="px-4 pt-1"><ProfileCard /></div></LoadingRegion>;
-  return <LoadingRegion label="マイページ"><Title title="マイページ" action /><div className="space-y-5 px-4 pt-1"><ProfileCard />{showTraining && <TrainingChartSkeleton />}<Rows count={6} height={56} />{showTraining && <section className="space-y-2"><Label /><Rows count={1} height={56} /></section>}{adminRows > 0 && <section className="space-y-2"><Label /><Rows count={adminRows} height={56} /></section>}<section className="space-y-2"><Label /><ActivitySkeleton /></section></div></LoadingRegion>;
+  return <LoadingRegion label="マイページ"><Title title="マイページ" action /><div className="space-y-5 px-4 pt-1"><ProfileCard />{showTraining && <TrainingChartSkeleton />}<Rows count={7} height={56} />{showTraining && <section className="space-y-2"><Label /><Rows count={1} height={56} /></section>}{showAdmin && <section className="space-y-2"><Label /><Rows count={1} height={63} /></section>}<section className="space-y-2"><Label /><ActivitySkeleton /></section></div></LoadingRegion>;
 }
 
 /** サブページ共通の見出し（左に戻る・中央にタイトル）。SubHeader と同じ高さ。 */

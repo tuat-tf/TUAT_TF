@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveFieldMap, sheetToAppValues } from "./field-map";
+import { normalizeBuiltinValue, resolveFieldMap, sheetToAppValues } from "./field-map";
 
 const member = { header: ["低強度", "低強度", "睡眠", "睡眠"], columns: [
   { index: 2, label: "低強度" }, { index: 5, label: "低強度" },
@@ -40,5 +40,17 @@ describe("physical sheet column selection", () => {
       { key: "dist_low", label: "低強度", type: "number", sourceHeader: "低強度", sourceColumn: 5 },
       { key: "duplicate", label: "低強度", type: "number", sourceHeader: "低強度", sourceColumn: 5 },
     ])).toThrow("同じシート列");
+  });
+});
+
+describe("strides as free text", () => {
+  const map = resolveFieldMap({ header: ["流し"] }, []);
+  it("keeps what the sheet says instead of squashing it into a number", () => {
+    expect(map.builtin.get("strides")?.numeric).toBe(false);
+    expect(normalizeBuiltinValue("strides", { numeric: false }, "150m×2")).toBe("150m×2");
+    expect(normalizeBuiltinValue("strides", { numeric: false }, 3)).toBe("3");
+  });
+  it.each(["0", "０", "0.0", "", " "])("treats the old blank placeholder %j as no entry", (value) => {
+    expect(normalizeBuiltinValue("strides", { numeric: false }, value)).toBeNull();
   });
 });

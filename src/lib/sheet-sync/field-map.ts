@@ -21,16 +21,14 @@ export type BuiltinKey =
   | "menu_text"
   | "focus_text";
 
-export const BUILTINS: { key: BuiltinKey; keywords: string[]; numeric: boolean; integer?: boolean }[] = [
+export const BUILTINS: { key: BuiltinKey; keywords: string[]; numeric: boolean }[] = [
   { key: "dist_low", keywords: ["低強度"], numeric: true },
   { key: "dist_mid", keywords: ["中強度"], numeric: true },
   { key: "dist_high", keywords: ["高強度"], numeric: true },
   { key: "dist_speed", keywords: ["解糖系"], numeric: true },
   { key: "dist_actual", keywords: ["実際の距離", "実距離", "走行距離", "総距離"], numeric: true },
-  // strides はDBがINT型。シートに小数（例: 0.3）が入っていても丸めて取り込み、
-  // insert全体を巻き込んで失敗させない（2026-07-09〜12、この型不一致で定期連携の
-  // 新規取込が3日間全滅した実例あり）。
-  { key: "strides", keywords: ["流し"], numeric: true, integer: true },
+  // strides は「100m×3」のような自由な文字列（2026-10-29 にDBもtextへ変更）。
+  { key: "strides", keywords: ["流し"], numeric: false },
   { key: "strength_text", keywords: ["補強"], numeric: false },
   { key: "result_text", keywords: ["結果", "ペース", "タイム"], numeric: false },
   { key: "memo", keywords: ["感想"], numeric: false },
@@ -73,7 +71,7 @@ export const txt = (v: string | number | null | undefined) => {
 };
 // ── マッピング解決：このシートの見出しから「アプリ項目→実際の見出し名」を作る ──
 export type FieldMap = {
-  builtin: Map<BuiltinKey, { header: string; column: number; numeric: boolean; integer?: boolean }>;
+  builtin: Map<BuiltinKey, { header: string; column: number; numeric: boolean }>;
   custom: Map<string, { header: string; column: number; type: "text" | "number" }>;
 };
 
@@ -126,7 +124,7 @@ export function resolveFieldMap(
     const hit = configuredHeader(headers.filter((candidate) => item.key !== "memo" || candidate.n === "感想"
         || (candidate.n === "コメント" && norm(configured?.sourceHeader ?? "") === "コメント")), usedColumns, configured);
     if (!hit) continue;
-    builtin.set(item.key, { header: hit.raw, column: hit.column, numeric: item.numeric, integer: item.integer });
+    builtin.set(item.key, { header: hit.raw, column: hit.column, numeric: item.numeric });
     usedColumns.add(hit.column);
   }
 
@@ -143,7 +141,7 @@ export function resolveFieldMap(
       hit = uniqueHeader(available.filter((candidate) => item.keywords.some((keyword) => candidate.n.includes(norm(keyword)))));
     }
     if (!hit) continue;
-    builtin.set(item.key, { header: hit.raw, column: hit.column, numeric: item.numeric, integer: item.integer });
+    builtin.set(item.key, { header: hit.raw, column: hit.column, numeric: item.numeric });
     usedColumns.add(hit.column);
   }
 
@@ -170,7 +168,7 @@ export type DbRecord = {
   dist_high: number;
   dist_speed: number;
   dist_actual: number;
-  strides: number;
+  strides: string | null;
   strength_text: string | null;
   result_text: string | null;
   memo: string | null;
@@ -190,12 +188,15 @@ export function appBuiltin(rec: DbRecord, key: BuiltinKey): number | string | nu
 /** Compare stored and sheet values using the same supported field representation. */
 export function normalizeBuiltinValue(
   key: BuiltinKey,
-  mapping: { numeric: boolean; integer?: boolean },
+  mapping: { numeric: boolean },
   value: string | number | null | undefined,
 ): number | string | null {
-  if (!mapping.numeric) return txt(value);
+  if (!mapping.numeric) {
+    const text = txt(value);
+    // 以前の数値列では空欄と0を同じ「入力なし」として保存していた。シートの0を新しい入力として扱わない。
+    return key === "strides" && text !== null && /^[+-]?[0０]+([.．][0０]+)?$/.test(text) ? null : text;
+  }
   const parsed = parseSheetNum(value);
-  if (mapping.integer) return Math.round(parsed);
   return DISTANCE_KEYS.has(key) ? roundKm(parsed) : Math.round(parsed * 10) / 10;
 }
 

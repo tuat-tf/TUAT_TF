@@ -23,7 +23,7 @@ export function clearCellsFor(map: FieldMap, date: string): Record<string, strin
     dist_high: 0,
     dist_speed: 0,
     dist_actual: 0,
-    strides: 0,
+    strides: null,
     strength_text: null,
     result_text: null,
     memo: null,

@@ -209,17 +209,10 @@ async function SchedulesSection() {
         <div className="space-y-2">
           {upcomingSchedules.map((schedule) => {
             const attendees = attendeesBySchedule.get(schedule.id) ?? [];
-            // コンパクトカードが出すのは初日（まだ来ていない予定なので初日が対象日）。
-            const mine = attendees.find(
-              (attendee) =>
-                attendee.user_id === profile.id &&
-                attendee.attend_date === schedule.schedule_date,
-            );
             return (
               <UpcomingScheduleCard
                 key={schedule.id}
                 schedule={schedule}
-                initialStatus={mine?.status ?? "none"}
                 attendees={attendees}
                 attendanceDefaultBlock={profile.attendance_default_block}
                 userId={profile.id}

@@ -7,17 +7,15 @@ import { ja } from "date-fns/locale";
 import { Clock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AttendanceToggle, type AttendanceChange } from "@/components/features/AttendanceToggle";
-import { AttendeesButton } from "@/components/features/AttendeesButton";
+import type { AttendanceChange } from "@/components/features/AttendanceToggle";
+import { ScheduleAttendance } from "@/components/cards/schedule/ScheduleAttendance";
 import { cn } from "@/lib/utils";
 import { SCHEDULE_TYPES } from "@/lib/constants";
 import { venueShort } from "@/lib/venues";
-import { jstToday } from "@/lib/date";
-import { currentAttendanceDate, scheduleAttendanceDates } from "@/lib/schedule-days";
+import { scheduleAttendanceDates } from "@/lib/schedule-days";
 import type {
   Attendee,
   AttendanceDefaultBlock,
-  AttendanceStatusOrNone,
   AuthorMini,
   ScheduleWithMenus,
 } from "@/types";
@@ -26,34 +24,29 @@ import type {
  * ホーム「今後の予定」のコンパクトカード。
  * 出席・欠席の人数は「出欠一覧の初期表示」で選んだブロックだけを数える
  * （マネージャーは中長距離・短距離のどちらでも数える）。
+ * 複数日開催は日ごとに出欠を出す（まとめると同じ人が日数ぶん並ぶ）。
  * 出欠タップでその場の一覧を更新して人数を数え直すため、AttendanceToggle が
  * 失敗時に前の状態で onChanged を呼び直すとロールバックも自然に成立する。
  */
 export function UpcomingScheduleCard({
   schedule,
-  initialStatus,
   attendees,
   attendanceDefaultBlock,
   userId,
   myProfile,
 }: {
   schedule: ScheduleWithMenus;
-  initialStatus: AttendanceStatusOrNone;
   attendees: Attendee[];
   attendanceDefaultBlock: AttendanceDefaultBlock;
   userId: string;
   /** 自分の出欠を即時反映するための最小プロフィール */
   myProfile: AuthorMini;
 }) {
-  // 複数日開催はまだ終わっていない最初の日を出す（残りの日は予定ページで日ごとに提出する）。
   const days = scheduleAttendanceDates(schedule.schedule_date, schedule.end_date);
-  const attendDate = currentAttendanceDate(days, jstToday());
-  const [status, setStatus] = useState<AttendanceStatusOrNone>(initialStatus);
   const [attendeesState, setAttendeesState] = useState(attendees);
   const meta = SCHEDULE_TYPES[schedule.schedule_type];
 
-  function handleChanged(change: AttendanceChange) {
-    setStatus(change.status);
+  function handleChanged(attendDate: string, change: AttendanceChange) {
     setAttendeesState((previous) => {
       const others = previous.filter(
         (attendee) =>
@@ -104,16 +97,15 @@ export function UpcomingScheduleCard({
           </div>
         </div>
       </Link>
-      <AttendanceToggle
+      <ScheduleAttendance
         scheduleId={schedule.id}
-        attendDate={attendDate}
         userId={userId}
-        initial={status}
-        initialLate={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.is_late ?? false}
-        initialLateNote={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.late_note ?? null}
-        initialAbsenceNote={attendeesState.find(a => a.user_id === userId && a.attend_date === attendDate)?.absence_note ?? null}
-        summary={<AttendeesButton attendees={attendeesState} defaultBlock={attendanceDefaultBlock} />}
-        onChanged={handleChanged}
+        attendanceDays={days}
+        multiDayAttendance={days.length > 1}
+        attendeesState={attendeesState}
+        attendanceDefaultBlock={attendanceDefaultBlock}
+        handleAttendanceChanged={handleChanged}
+        className="space-y-2"
       />
     </Card>
   );

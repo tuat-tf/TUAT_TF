@@ -10,6 +10,6 @@ export default function Loading() {
 async function ProfileLoading() {
   const profile = await getCurrentProfile();
   const permissions = permissionsOf(profile.roles);
-  const adminRows = Number(permissions.manageMembers) + Number(permissions.createSchedule) + (permissions.manageSystem ? 3 : 0);
-  return <MyPageSkeleton showTraining={profile.blocks.includes("middle_long")} adminRows={adminRows} />;
+  const showAdmin = permissions.manageMembers || permissions.createSchedule || permissions.manageSystem;
+  return <MyPageSkeleton showTraining={profile.blocks.includes("middle_long")} showAdmin={showAdmin} />;
 }

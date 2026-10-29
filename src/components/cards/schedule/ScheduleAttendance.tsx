@@ -13,6 +13,7 @@ export function ScheduleAttendance({
   attendeesState,
   attendanceDefaultBlock,
   handleAttendanceChanged,
+  className = "-mt-1 space-y-2 px-4 pb-3 lg:px-3 lg:pb-2.5",
 }: {
   scheduleId: string;
   userId: string;
@@ -21,14 +22,13 @@ export function ScheduleAttendance({
   attendeesState: Attendee[];
   attendanceDefaultBlock: AttendanceDefaultBlock;
   handleAttendanceChanged: (day: string, change: AttendanceChange) => void;
+  className?: string;
 }) {
   return (
-    <div className="-mt-1 space-y-2 px-4 pb-3 lg:px-3 lg:pb-2.5">
+    <div className={className}>
           {attendanceDays.map((day) => {
-            // 複数日開催は日ごとに出欠を出す。単日の予定は従来どおり1行だけ。
-            const dayAttendees = multiDayAttendance
-              ? attendeesState.filter((a) => a.attend_date === day)
-              : attendeesState;
+            // 出欠は日ごとに数える。複数日開催の各日をまとめると同じ人が日数ぶん並ぶ。
+            const dayAttendees = attendeesState.filter((a) => a.attend_date === day);
             const mine = attendeesState.find(
               (a) => a.user_id === userId && a.attend_date === day,
             );

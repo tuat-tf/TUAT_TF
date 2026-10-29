@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSaveRecord, customRecordFields, editableBuiltinRecordFields, isBuiltinRecordField, recordFieldHidden, recordFieldLabel } from "./record-fields";
+import { canSaveRecord, customRecordFields, editableBuiltinRecordFields, isBuiltinRecordField, recordFieldHidden, recordFieldLabel, stridesText } from "./record-fields";
 import type { RecordFieldDef } from "@/types";
 
 const builtin: RecordFieldDef = { key: "memo", label: "Memo", type: "text" };
@@ -21,4 +21,9 @@ describe("record field helpers", () => {
     expect(canSaveRecord(false, true)).toBe(true);
     expect(canSaveRecord(false, false)).toBe(false);
   });
+});
+
+describe("stridesText", () => {
+  it("keeps the old count display for a plain number", () => expect(stridesText(" 3 ")).toBe("3本"));
+  it("shows written strides as they were entered", () => expect(stridesText("100m×3")).toBe("100m×3"));
 });

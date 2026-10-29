@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_ATTENDANCE_DAYS,
-  currentAttendanceDate,
   scheduleAttendanceDates,
 } from "./schedule-days";
 
@@ -42,21 +41,5 @@ describe("scheduleAttendanceDates", () => {
     expect(scheduleAttendanceDates("2026-01-01", "2030-01-01")).toHaveLength(
       MAX_ATTENDANCE_DAYS,
     );
-  });
-});
-
-describe("currentAttendanceDate", () => {
-  const days = ["2026-09-21", "2026-09-22", "2026-09-23"];
-
-  it("開催前は初日", () => {
-    expect(currentAttendanceDate(days, "2026-09-01")).toBe("2026-09-21");
-  });
-
-  it("開催中はその日以降で最初の日", () => {
-    expect(currentAttendanceDate(days, "2026-09-22")).toBe("2026-09-22");
-  });
-
-  it("全部終わっていれば最終日", () => {
-    expect(currentAttendanceDate(days, "2026-10-01")).toBe("2026-09-23");
   });
 });

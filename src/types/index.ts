@@ -147,7 +147,8 @@ export interface PracticeRecord {
   dist_mid: number;
   dist_high: number;
   dist_speed: number;
-  strides: number;
+  /** 流し。本数だけでなく「100m×3」などの自由な文字列。 */
+  strides: string | null;
   /** 強度別がすべて0のときだけ合計表示に使う、シートの「実際の距離」。 */
   dist_actual: number;
   result_text: string | null;

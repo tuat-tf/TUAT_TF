@@ -39,14 +39,20 @@ export function attendanceCounts(
   return { present, absent };
 }
 
-/** 「出席◯」表示。タップで出席者・欠席者一覧 */
+/** 同じ人が複数行あっても1人として扱う（後の行＝最新の回答を残す）。 */
+function uniqueByUser(list: Attendee[]): Attendee[] {
+  return [...new Map(list.map((attendee) => [attendee.user_id, attendee])).values()];
+}
+
+/** 「出席◯」表示。1日分の出欠を渡す。タップで出席者・欠席者一覧 */
 export function AttendeesButton({
-  attendees,
+  attendees: dayAttendees,
   defaultBlock,
 }: {
   attendees: Attendee[];
   defaultBlock: AttendanceDefaultBlock;
 }) {
+  const attendees = uniqueByUser(dayAttendees);
   const [open, setOpen] = useState(false);
   const [block, setBlock] = useState<AttendanceDefaultBlock>(defaultBlock);
 

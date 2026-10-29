@@ -20,7 +20,7 @@ import { getUserTrainingRecords } from "./records";
 beforeEach(() => { state.rows = []; state.calls = []; state.failFrom = -1; state.rpc.mockReset(); });
 const record = (id: string) => ({
   id, recorded_date: "2026-10-01", dist_low: null, dist_mid: 2, dist_high: 0, dist_speed: 0, dist_actual: 3,
-  strides: 0, condition: "normal", result_text: "結果", strength_text: "補強", memo: "感想", menu_text: "メニュー",
+  strides: null, condition: "normal", result_text: "結果", strength_text: "補強", memo: "感想", menu_text: "メニュー",
   focus_text: "目的", custom: { sleep: 8 }, record_fields_version: null,
 });
 it("retains full review values but omits unused metadata and legacy definition requests", async () => {

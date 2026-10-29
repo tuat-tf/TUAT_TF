@@ -1330,7 +1330,7 @@ export type Database = {
           recorded_date: string
           result_text: string | null
           strength_text: string | null
-          strides: number | null
+          strides: string | null
           synced_at: string | null
           updated_at: string
           user_id: string
@@ -1356,7 +1356,7 @@ export type Database = {
           recorded_date: string
           result_text?: string | null
           strength_text?: string | null
-          strides?: number | null
+          strides?: string | null
           synced_at?: string | null
           updated_at?: string
           user_id: string
@@ -1382,7 +1382,7 @@ export type Database = {
           recorded_date?: string
           result_text?: string | null
           strength_text?: string | null
-          strides?: number | null
+          strides?: string | null
           synced_at?: string | null
           updated_at?: string
           user_id?: string

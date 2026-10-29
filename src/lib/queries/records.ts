@@ -40,7 +40,7 @@ export async function getUserTrainingRecords(userId: string): Promise<TrainingRe
   const records: TrainingRecord[] = data.map(row => ({
     ...row,
     dist_low: row.dist_low ?? 0, dist_mid: row.dist_mid ?? 0, dist_high: row.dist_high ?? 0,
-    dist_speed: row.dist_speed ?? 0, dist_actual: row.dist_actual ?? 0, strides: row.strides ?? 0,
+    dist_speed: row.dist_speed ?? 0, dist_actual: row.dist_actual ?? 0, strides: row.strides ?? null,
     condition: row.condition === "great" || row.condition === "normal" || row.condition === "bad" ? row.condition : null,
     custom: recordValuesFromJson(row.custom),
   }));

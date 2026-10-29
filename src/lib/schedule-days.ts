@@ -21,11 +21,3 @@ export function scheduleAttendanceDates(
   }
   return days;
 }
-
-/**
- * 複数日開催のうち、いま出欠を出す対象として最初に見せる日。
- * まだ終わっていない最初の日。全部終わっていれば最終日。
- */
-export function currentAttendanceDate(days: string[], today: string): string {
-  return days.find((day) => day >= today) ?? days[days.length - 1];
-}
