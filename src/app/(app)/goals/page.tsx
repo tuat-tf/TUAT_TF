@@ -7,7 +7,9 @@ import { Linkify } from "@/components/common/Linkify";
 import { GoalEditor } from "@/components/features/GoalEditor";
 import { CompetitionGoalLink } from "@/components/features/CompetitionGoalLink";
 import { getCurrentProfile } from "@/lib/supabase/auth";
-import { getGoalHub } from "@/lib/queries";
+import { MonthlyGoals } from "@/components/features/MonthlyGoals";
+import { getGoalHub, getMonthlyGoals } from "@/lib/queries";
+import { jstToday } from "@/lib/date";
 
 /**
  * 目標のハブ（マイページ→目標）。
@@ -16,7 +18,10 @@ import { getGoalHub } from "@/lib/queries";
  */
 export default async function GoalsPage() {
   const profile = await getCurrentProfile();
-  const { upcoming, past, myGoalCounts } = await getGoalHub(profile.id);
+  const [{ upcoming, past, myGoalCounts }, monthlyGoals] = await Promise.all([
+    getGoalHub(profile.id),
+    getMonthlyGoals(profile.id),
+  ]);
 
   return (
     <>
@@ -39,6 +44,13 @@ export default async function GoalsPage() {
               goal={profile.goal}
               label={profile.goal ? "目標を編集" : "目標を設定"}
             />
+          </Card>
+        </section>
+
+        <section className="space-y-2">
+          <p className="section-label">月ごとの目標と振り返り</p>
+          <Card className="overflow-hidden">
+            <MonthlyGoals userId={profile.id} thisMonth={jstToday().slice(0, 7)} goals={monthlyGoals} />
           </Card>
         </section>
 

@@ -20,7 +20,7 @@ vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: async () => {
   return new Map();
 } }));
 import { getNotesData, getNoteById, getThreads, getThreadById, getThreadPosts, getNoteArticles, getChildNotes, getNoteArticleById, getRecentSharedNotes, getNoteAncestors } from "./notes";
-import { getCompetitions, getCompetitionEvents, getCompetitionById, getCompetitionProgramEntries, getGoalHub, getHomeCompetition, getCompetitionGoals } from "./competitions";
+import { getCompetitions, getCompetitionEvents, getCompetitionById, getCompetitionProgramEntries, getGoalHub, getHomeCompetition, getCompetitionGoals, getMonthlyGoals } from "./competitions";
 import { getMembersList, getMemberDirectory, getAllRoles, getAllRoleCategories } from "./members";
 import { getNotices, getHomeNotices, getPersonalNotifications, getUnreadNotificationCount } from "./notices";
 import { getAllVenues } from "./venues";
@@ -37,7 +37,7 @@ const reads: [string, () => Promise<unknown>][] = [
   ["competitions", getCompetitions], ["event catalog", getCompetitionEvents],
   ["competition detail", () => getCompetitionById("competition")], ["program", () => getCompetitionProgramEntries("competition")],
   ["home competition", getHomeCompetition], ["competition goals", () => getCompetitionGoals("competition")],
-  ["goal hub", () => getGoalHub("viewer")], ["members", getMembersList], ["member directory", getMemberDirectory],
+  ["goal hub", () => getGoalHub("viewer")], ["monthly goals", () => getMonthlyGoals("viewer")], ["members", getMembersList], ["member directory", getMemberDirectory],
   ["roles", getAllRoles], ["role categories", getAllRoleCategories],
   ["notices", () => getNotices("viewer")], ["home notices", () => getHomeNotices("viewer")],
   ["notifications", () => getPersonalNotifications("viewer")], ["unread count", () => getUnreadNotificationCount("viewer")],
@@ -68,6 +68,24 @@ describe("query failures are distinct from successful empty results", () => {
     expect(await getNoteById("missing-or-rls-hidden")).toBeNull();
     expect(await getCompetitionById("missing-or-rls-hidden")).toBeNull();
     expect(await getHomeCompetition()).toBeNull();
+  });
+  it("lists next, this and last month even when empty, and older months only when written", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-31T16:00:00Z")); // 2027-01-01 01:00 JST
+    try {
+      expect(await getMonthlyGoals("viewer")).toEqual([
+        { month: "2027-02", goal: null, reflection: null },
+        { month: "2027-01", goal: null, reflection: null },
+        { month: "2026-12", goal: null, reflection: null },
+      ]);
+      state.results.monthly_goals = { data: [{ month: "2026-08-01", goal: "夏合宿を完走", reflection: "後半で崩れた" }, { month: "2027-01-01", goal: "週4回", reflection: null }], error: null };
+      expect(await getMonthlyGoals("viewer")).toEqual([
+        { month: "2027-02", goal: null, reflection: null },
+        { month: "2027-01", goal: "週4回", reflection: null },
+        { month: "2026-12", goal: null, reflection: null },
+        { month: "2026-08", goal: "夏合宿を完走", reflection: "後半で崩れた" },
+      ]);
+    } finally { vi.useRealTimers(); }
   });
   it("keeps the last successful note list in the existing React Query cache after a failed refresh", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

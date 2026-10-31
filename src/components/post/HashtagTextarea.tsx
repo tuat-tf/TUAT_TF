@@ -14,6 +14,21 @@ import { cn } from "@/lib/utils";
 export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & { value: string; wrapperClassName?: string }>(
   function HashtagTextarea({ value, className, wrapperClassName, onScroll, ...props }, ref) {
     const mirror = useRef<HTMLDivElement>(null);
+    const field = useRef<HTMLTextAreaElement | null>(null);
+    const setRef = useCallback((node: HTMLTextAreaElement | null) => {
+      field.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    }, [ref]);
+    // iOS Safari insets textarea text by 3px on each side (not removable by CSS), so the field wraps
+    // a character earlier than the colored layer and the caret drifts from the text on later lines.
+    useLayoutEffect(() => {
+      const layer = mirror.current;
+      if (!layer || !field.current || !isIosWebKit()) return;
+      const style = getComputedStyle(field.current);
+      layer.style.paddingLeft = `${parseFloat(style.paddingLeft) + 3}px`;
+      layer.style.paddingRight = `${parseFloat(style.paddingRight) + 3}px`;
+    }, [className]);
     return (
       <div className={cn("relative min-w-0", wrapperClassName)}>
         <div
@@ -29,7 +44,7 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
           {"​"}
         </div>
         <Textarea
-          ref={ref}
+          ref={setRef}
           value={value}
           // block: an inline-block textarea leaves a baseline gap below it, so the colored layer (inset-0)
           // would be taller than the field and show a second border.
@@ -44,6 +59,10 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
     );
   },
 );
+
+function isIosWebKit() {
+  return /iP(?:hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
 
 /** 色付けと候補を1つにまとめた入力欄（練習記録の自由記述欄など）。 */
 export function HashtagField({

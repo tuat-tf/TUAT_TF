@@ -625,6 +625,41 @@ export type Database = {
           },
         ]
       }
+      monthly_goals: {
+        Row: {
+          goal: string | null
+          id: string
+          month: string
+          reflection: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          goal?: string | null
+          id?: string
+          month: string
+          reflection?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          goal?: string | null
+          id?: string
+          month?: string
+          reflection?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_articles: {
         Row: {
           author_id: string

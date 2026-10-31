@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { competitionDays, isTypedResultOf } from "@/lib/competition-days";
-import { jstToday } from "@/lib/date";
+import { jstToday, shiftMonth } from "@/lib/date";
 import { finishedHomeCompetitions, isCompetitionFinished, selectHomeCompetition } from "@/lib/competition-lifecycle";
 import { readCompetitionProgramEntries } from "@/lib/competition-program-query";
 import type {
@@ -177,3 +177,26 @@ export async function getGoalHub(userId: string) {
   };
 }
 
+
+export type MonthlyGoal = { month: string; goal: string | null; reflection: string | null };
+
+/**
+ * 月ごとの目標（本人だけ）。先月・今月・来月は書いていなくても並べ、それより前は書いた月だけ新しい順に返す。
+ * month は YYYY-MM。
+ */
+export async function getMonthlyGoals(userId: string): Promise<MonthlyGoal[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("monthly_goals")
+    .select("month,goal,reflection")
+    .eq("user_id", userId)
+    .order("month", { ascending: false })
+    .limit(60);
+  if (error) throw error;
+  const thisMonth = jstToday().slice(0, 7);
+  const saved = new Map((data ?? []).map((row) => [row.month.slice(0, 7), row]));
+  const months = new Set([shiftMonth(thisMonth, 1), thisMonth, shiftMonth(thisMonth, -1), ...saved.keys()]);
+  return [...months]
+    .sort((a, b) => b.localeCompare(a))
+    .map((month) => ({ month, goal: saved.get(month)?.goal ?? null, reflection: saved.get(month)?.reflection ?? null }));
+}
