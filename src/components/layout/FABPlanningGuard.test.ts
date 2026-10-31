@@ -106,10 +106,10 @@ function textOf(tree: unknown): string {
 function daySections(tree: unknown) {
   return elements(tree).filter((node) => typeof node.props["data-planning-day"] === "string");
 }
-/** 1日1行の一覧で、その日の行を開く（予定とメニューの入力欄は開いた行にだけ出る）。 */
+/** 1日1行の一覧で、その日の行を開く（予定とメニューの入力欄は開いた行にだけ出る）。開いている行は閉じない。 */
 function openDay(day: ReactElement<Record<string, unknown>>) {
   const toggle = elements(day).find((node) => node.type === "button" && "aria-expanded" in node.props)!;
-  (toggle.props.onClick as () => void)();
+  if (toggle.props["aria-expanded"] !== true) (toggle.props.onClick as () => void)();
 }
 async function readyPlanner() {
   render(plannerView); await flush();
