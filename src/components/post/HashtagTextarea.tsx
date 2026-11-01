@@ -20,12 +20,19 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
       if (typeof ref === "function") ref(node);
       else if (ref) ref.current = node;
     }, [ref]);
-    // iOS Safari insets textarea text by 3px on each side (not removable by CSS), so the field wraps
-    // a character earlier than the colored layer and the caret drifts from the text on later lines.
+    // The colored layer must wrap exactly where the field does, or the caret drifts from the text more
+    // with every line. Browsers give textareas their own text rules (iOS Safari: line-break
+    // after-white-space and nbsp-mode space instead of the page's line-break strict), so copy the
+    // field's computed values. iOS Safari also insets textarea text by 3px on each side (not removable by CSS).
     useLayoutEffect(() => {
       const layer = mirror.current;
-      if (!layer || !field.current || !isIosWebKit()) return;
+      if (!layer || !field.current) return;
       const style = getComputedStyle(field.current);
+      for (const property of MIRRORED_TEXT_PROPERTIES) {
+        const fieldValue = style.getPropertyValue(property);
+        if (fieldValue) layer.style.setProperty(property, fieldValue);
+      }
+      if (!isIosWebKit()) return;
       layer.style.paddingLeft = `${parseFloat(style.paddingLeft) + 3}px`;
       layer.style.paddingRight = `${parseFloat(style.paddingRight) + 3}px`;
     }, [className]);
@@ -59,6 +66,24 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
     );
   },
 );
+
+/** Text properties that change where a line wraps or how wide a glyph run is. */
+const MIRRORED_TEXT_PROPERTIES = [
+  "line-break",
+  "word-break",
+  "overflow-wrap",
+  "-webkit-nbsp-mode",
+  "letter-spacing",
+  "word-spacing",
+  "font-kerning",
+  "font-feature-settings",
+  "font-variant-ligatures",
+  "text-autospace",
+  "text-spacing-trim",
+  "text-rendering",
+  "line-height",
+  "tab-size",
+];
 
 function isIosWebKit() {
   return /iP(?:hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
