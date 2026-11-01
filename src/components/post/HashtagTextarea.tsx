@@ -8,54 +8,33 @@ import { completeHashtag, hashtagQueryAt, splitHashtags } from "@/lib/hashtags";
 import { cn } from "@/lib/utils";
 
 /**
- * #タグを入力中から青で見せる入力欄。文字を透明にした入力欄の下へ、同じ見た目・同じ位置で
- * 色付きの文字を重ねる（入力・変換・選択は普通の textarea のまま）。
+ * #タグを入力中から目立たせる入力欄。文字とカーソルは普通の textarea のまま見せ、その下へ
+ * 同じ位置で #タグ の背景だけを敷く（重ねた層の文字は透明）。文字を下の層で描くと、iPhone で
+ * 入力欄との文字組みの差だけカーソルが文字からずれるため。
  */
 export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & { value: string; wrapperClassName?: string }>(
   function HashtagTextarea({ value, className, wrapperClassName, onScroll, ...props }, ref) {
     const mirror = useRef<HTMLDivElement>(null);
-    const field = useRef<HTMLTextAreaElement | null>(null);
-    const setRef = useCallback((node: HTMLTextAreaElement | null) => {
-      field.current = node;
-      if (typeof ref === "function") ref(node);
-      else if (ref) ref.current = node;
-    }, [ref]);
-    // The colored layer must wrap exactly where the field does, or the caret drifts from the text more
-    // with every line. Browsers give textareas their own text rules (iOS Safari: line-break
-    // after-white-space and nbsp-mode space instead of the page's line-break strict), so copy the
-    // field's computed values. iOS Safari also insets textarea text by 3px on each side (not removable by CSS).
-    useLayoutEffect(() => {
-      const layer = mirror.current;
-      if (!layer || !field.current) return;
-      const style = getComputedStyle(field.current);
-      for (const property of MIRRORED_TEXT_PROPERTIES) {
-        const fieldValue = style.getPropertyValue(property);
-        if (fieldValue) layer.style.setProperty(property, fieldValue);
-      }
-      if (!isIosWebKit()) return;
-      layer.style.paddingLeft = `${parseFloat(style.paddingLeft) + 3}px`;
-      layer.style.paddingRight = `${parseFloat(style.paddingRight) + 3}px`;
-    }, [className]);
     return (
       <div className={cn("relative min-w-0", wrapperClassName)}>
         <div
           ref={mirror}
           aria-hidden="true"
           data-ui-field-mirror
-          className={cn(TEXTAREA_CLASS, className, "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words")}
+          className={cn(TEXTAREA_CLASS, className, "pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words text-transparent!")}
         >
           {splitHashtags(value).map((part, index) => typeof part === "string"
             ? part
-            : <span key={index} className="text-accent">#{part.tag}</span>)}
+            : <span key={index} className="rounded-sm bg-accent/15">#{part.tag}</span>)}
           {/* A trailing newline needs something after it to take up a line. */}
           {"​"}
         </div>
         <Textarea
-          ref={setRef}
+          ref={ref}
           value={value}
           // block: an inline-block textarea leaves a baseline gap below it, so the colored layer (inset-0)
           // would be taller than the field and show a second border.
-          className={cn(className, "relative block bg-transparent! text-transparent! caret-ink")}
+          className={cn(className, "relative block bg-transparent!")}
           onScroll={(event) => {
             if (mirror.current) mirror.current.scrollTop = event.currentTarget.scrollTop;
             onScroll?.(event);
@@ -66,28 +45,6 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
     );
   },
 );
-
-/** Text properties that change where a line wraps or how wide a glyph run is. */
-const MIRRORED_TEXT_PROPERTIES = [
-  "line-break",
-  "word-break",
-  "overflow-wrap",
-  "-webkit-nbsp-mode",
-  "letter-spacing",
-  "word-spacing",
-  "font-kerning",
-  "font-feature-settings",
-  "font-variant-ligatures",
-  "text-autospace",
-  "text-spacing-trim",
-  "text-rendering",
-  "line-height",
-  "tab-size",
-];
-
-function isIosWebKit() {
-  return /iP(?:hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
 
 /** 色付けと候補を1つにまとめた入力欄（練習記録の自由記述欄など）。 */
 export function HashtagField({

@@ -235,7 +235,7 @@
   box-shadow: none;
 }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-record-field] textarea[data-ui-field] { min-height: 96px; line-height: 1.6; }
-/* The #tag coloring layer under a transparent record textarea takes the field's look. */
+/* The #tag highlight layer under a record textarea takes the field's look. */
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-record-field] [data-ui-field-mirror] {
   border-radius: 12px;
   background: #f5f7fa;
