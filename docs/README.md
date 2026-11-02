@@ -1,5 +1,6 @@
 # 現行アプリの文書入口
 
+- [11/03 常時読込み文書の整理](DOC-TRIM-2026-11-03.md): PC本番運用の引き継ぎを現行の要点だけにし、旧記録を履歴へ移動。CLAUDE.mdの全文読込みを廃止。
 - [10/23 スプシ書き戻し保留の復旧と自動照合](SHEET-HOLD-RECOVERY-2026-10-23.md): 10/16から止まっていた書き戻しを復旧（保留101件解消）。応答不明の送信をシートで自動照合して完了させる処理を追加。
 - [10/23 本番反映のスクリプト化](PC-RELEASE-SCRIPT-2026-10-23.md): build/prepare/switch/pruneを1つの道具に。eeb58ad反映、約15分の停止と原因、旧release 18.9GB整理。
 
@@ -168,7 +169,7 @@
 | コメントとシートの削除 | [再取り込み防止](COMMENT-REIMPORT-PREVENTION-2026-10-01.md) / [コメント管理](COMMENT-MODERATION-2026-09-29.md) |
 | 9/27の残作業・稼働確認 | [定期処理移設と予備構成の検証](OPERATIONS-2026-09-27.md) |
 | 開発環境・コマンド | [README](../README.md) |
-| 現在のPC本番構成・起動・保全 | [PC本番運用](../ops/laptop/PC-PRODUCTION-HANDOFF.md) |
+| 現在のPC本番構成・起動・保全 | [PC本番運用](../ops/laptop/PC-PRODUCTION-HANDOFF.md) / [9〜10月の旧記録](history/PC-PRODUCTION-HANDOFF-2026-10-22.md) |
 | PC移設 / 旧クラウドへの復帰条件 | [PC移設](../ops/laptop/SERVER-HANDOFF.md) / [復帰](../ops/laptop/RETURN-TO-SUPABASE.md) |
 | UI・データ取得・更新の規約 | [UI統一](UI-UNIFICATION.md) / [文言](WORDING-GUIDELINES.md) |
 | 直近の現行アプリ改善 | [UI・通信改善](UI-PERFORMANCE-2026-09-23.md) / [ホーム・文書整理](HOME-2026-09-23.md) |

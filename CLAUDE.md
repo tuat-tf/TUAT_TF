@@ -1,3 +1,1 @@
 @AGENTS.md
-
-@ops/laptop/PC-PRODUCTION-HANDOFF.md

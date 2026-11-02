@@ -1,6 +1,6 @@
 # AGENTS.md — 現行アプリの作業入口
 
-更新: 2026-10-20。新しい所有者指示を優先する。詳細は必要な節だけ読む。
+更新: 2026-11-03。新しい所有者指示を優先する。詳細は必要な節だけ読む。
 
 ## 読み始め方
 
@@ -38,7 +38,7 @@
 
 - 主系はPC内の暗号化WSL領域へ集約したアプリ・DB・認証・画像。公開入口はCloudflare、旧Vercel URLとPC外の暗号化バックアップは残る。変更前に[PC本番運用](ops/laptop/PC-PRODUCTION-HANDOFF.md)の最新注記と対象作業の終了追記を読む。ソース統合・検証版・本番反映を区別する。
 - 持ち出せるLinuxノートへの移設でも正本/書込み先/定期処理を一つにし、既存クラウドの役割と撤去条件を整理する。Vercel常用・旧URL維持を最終条件にせず、既存の受入条件と未確認を引き継ぐ。現行とほぼ同じ通常操作の一連の試験を条件とした既存の移行承認は、その対象と受入条件に限る。不具合・主要操作の未確認が残る構成は切り替えない。[Linux・Cloudflareの計画と受入条件](docs/SURFACE-SERVER-TRIAL-2026-10-10.md)
-- 旧PC/cloud source fence、旧cloud Data API off、旧relay retired503、旧Windows backend/Jobsの無効状態を維持する。旧queue再送・予備への書込み・復帰時の書戻しを再開しない。端末内送信待ちも不採用。15分バックアップ、別場所への暗号化保存と完全性/復元検証を保護し、削減・整理のために単純停止しない。[構成の簡素化の経緯](docs/ARCHITECTURE-SIMPLIFICATION-2026-10-09.md)
+- 旧PC/cloud source fence、旧cloud Data API off、旧relay retired503、旧Windows backend/Jobsの無効状態を維持する。旧queue再送・予備への書込み・復帰時の書戻しを再開しない。端末内送信待ちも不採用。日次バックアップ、別場所への暗号化保存と完全性/復元検証を保護し、削減・整理のために単純停止しない。[構成の簡素化の経緯](docs/ARCHITECTURE-SIMPLIFICATION-2026-10-09.md)
 - D:\TUAT_TF\node_modules、WSL/DB、mirror-state、Jobs journalを保護。全Node終了・WSL停止・Docker volume削除を通常テストにしない。一時失敗だけで有効な認証cookieを消さない。
 - cacheComponents / experimental.staleTimesは再導入禁止。PullToRefreshを方式変更だけで復活させない。東京hnd1・React Query・loading・診断記録を維持し、Tab Labを戻さない。
 - ガラスは全員の標準、下部タブは直接透過。旧opt-in/背景画像化を戻さず、いいね・コメントは控えめな装飾。実装/公開状態は最新UI記録で照合。
