@@ -2,7 +2,7 @@
 
 ## PC内アプリと共有する現在の構成
 
-現在の主系・稼働記録・残る未確認は[PC本番運用](../laptop/PC-PRODUCTION-HANDOFF.md)の最新注記を優先する。`runtime: "shared-pc"` は、`ops/pc-host` が起動した一つのNextを再利用し、Jobs自身はNextを起動/停止しない。PC内構成ではAuthと画像もPC内で扱う。`config.shared-pc.example.json` はdisabledの例で、既存設定の置換には使わない。runtimeを省略する専用Next方式とcloud Auth/R2を使う旧共有方式は互換コードとして残るが、現在の稼働設定とは区別する。
+現在の主系・稼働記録・残る未確認は[PC本番運用](../../README.md)の最新注記を優先する。`runtime: "shared-pc"` は、`ops/pc-host` が起動した一つのNextを再利用し、Jobs自身はNextを起動/停止しない。PC内構成ではAuthと画像もPC内で扱う。`config.shared-pc.example.json` はdisabledの例で、既存設定の置換には使わない。runtimeを省略する専用Next方式とcloud Auth/R2を使う旧共有方式は互換コードとして残るが、現在の稼働設定とは区別する。
 
 共有方式の `appOrigin` は明示した `http://127.0.0.1:<port>` のrootだけ。公開URL・localhost・path・credentials・redirectは拒否する。固定releaseの `PC_APP_RUNTIME` / `NEXT_PUBLIC_PC_APP_RUNTIME`、固定HTTPS `APP_PUBLIC_ORIGIN`、same-originの公開Supabase URL、同期設定を検査する。PC内構成では `PC_LOCAL_RUNTIME` / `NEXT_PUBLIC_PC_LOCAL_RUNTIME` を一致させ、別々のloopback Auth/REST、local画像、R2画像読書き無効を確認し、cloud Auth/画像設定の混在を拒否する。
 
@@ -25,7 +25,7 @@
 | 期限切れ整理 | 毎日12:17 | GET /api/cron/cleanup-stories |
 | local Push配信 | 1分ごと（有効時） | POST /api/push/deliver |
 
-Vercel cronと旧DB cronの停止を維持する。[9/27記録](../../docs/OPERATIONS-2026-09-27.md)は最初の3処理のPC移行時の記録であり、現在のreleaseや配置を示すものではない。古い隔離候補や合成buildを本番へ使わない。
+Vercel cronと旧DB cronの停止を維持する。9/27記録は最初の3処理のPC移行時の記録であり、現在のreleaseや配置を示すものではない。古い隔離候補や合成buildを本番へ使わない。
 
 ## 準備と検証
 
@@ -49,7 +49,7 @@ Pushの失敗・結果不明は `pushFailures` に保持し、後続枠は1/2/4/
 
 外部メール監視は取りやめ済み。GAS監視・Worker health・署名鍵を稼働条件に含めず、外部healthは書かない。状態はPCのjournal/status.jsonに保存する。旧監視用の準備スクリプトは実行しない。
 
-2026-10-05の修正以降、APIが `sheetWritesUncertain=false` を明示した読み取り失敗/見出し不整合はfailedとして保持し、翌日の送信を保留しない。応答不明・旧API・書き込み後の不一致は従来どおり保留する。既に保留中の書き込みを読み取り成功だけで解除しない。稼働固定リリース、実データ照合、復旧証跡は [10/5の同期復旧](../../docs/SHEET-SYNC-RECOVERY-2026-10-05.md) を参照。
+2026-10-05の修正以降、APIが `sheetWritesUncertain=false` を明示した読み取り失敗/見出し不整合はfailedとして保持し、翌日の送信を保留しない。応答不明・旧API・書き込み後の不一致は従来どおり保留する。既に保留中の書き込みを読み取り成功だけで解除しない。稼働固定リリース、実データ照合、復旧証跡は 10/5の同期復旧 を参照。
 
 ## 旧Vercel cronからの移行記録
 

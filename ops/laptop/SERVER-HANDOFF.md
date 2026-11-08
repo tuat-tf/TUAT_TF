@@ -6,7 +6,7 @@
 
 旧手順は**DB/Authを別のWindows PCへ移す**前提で、アプリのURL（https://tuat-tf.vercel.app ）を維持する設計だった。現在の移設でもクラウド認証とPCデータの役割を分けて確認する。
 
-先に [PC-PRODUCTION-HANDOFF.md](PC-PRODUCTION-HANDOFF.md)（現行構成）と
+先に [PC-PRODUCTION-HANDOFF.md](../../README.md)（現行構成）と
 [RETURN-TO-SUPABASE.md](RETURN-TO-SUPABASE.md)（クラウドへ戻す道）を読む。
 この文書はPC間の移設手順であり、再移設やクラウド復帰を実行する指示ではない。移設先・時期は所有者の最新方針に従う。
 

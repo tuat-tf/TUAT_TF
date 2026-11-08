@@ -2,7 +2,7 @@
 
 **15:00 JST更新: 本番はPC DB/Authへ切替済み。所有者の実ログイン成功確認済み。期限は9月16日15:00。クラウド書き込みと旧cronは凍結中。**
 
-最新の引き継ぎは [PC-PRODUCTION-HANDOFF.md](PC-PRODUCTION-HANDOFF.md)、復帰操作は [RETURN-TO-SUPABASE.md](RETURN-TO-SUPABASE.md)。Google追加、Vercel秘密設定、R2暗号化DBバックアップは明示承認済み。Web Pushは鍵未取得で未移行。
+最新の引き継ぎは [PC-PRODUCTION-HANDOFF.md](../../README.md)、復帰操作は [RETURN-TO-SUPABASE.md](RETURN-TO-SUPABASE.md)。Google追加、Vercel秘密設定、R2暗号化DBバックアップは明示承認済み。Web Pushは鍵未取得で未移行。
 
 ## 以下は切替前の履歴（現在の状態として使わない）
 

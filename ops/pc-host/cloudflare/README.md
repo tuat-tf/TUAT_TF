@@ -1,7 +1,7 @@
 # PC app Cloudflare VPC entry
 
 The PC app now uses a fixed Cloudflare public entry. See the latest notes in
-[PC production handoff](../../laptop/PC-PRODUCTION-HANDOFF.md) for the accepted
+[PC production handoff](../../../README.md) for the accepted
 deployment, verification, and remaining checks. This folder describes the source
 and configuration contract. Checked-in templates still contain placeholders;
 their presence does not provision a resource or prove a deployed version.

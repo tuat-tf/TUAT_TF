@@ -1,7 +1,7 @@
 # PCアプリの単一host
 
 Cloudflare固定入口 → named Tunnel → loopback gateway → Next一つ → PC内DB/Auth/画像。
-PC主系への切替後の状態と未確認は [PC本番運用](../laptop/PC-PRODUCTION-HANDOFF.md) の最新注記を優先する。以下はhostの構成・検証契約であり、ソースが存在することだけで配置済みとは扱わない。独立releaseには
+PC主系への切替後の状態と未確認は [PC本番運用](../../README.md) の最新注記を優先する。以下はhostの構成・検証契約であり、ソースが存在することだけで配置済みとは扱わない。独立releaseには
 `environment.local.example.env` と [PCローカル構成の準備](../local-minimal/PC-PRECUTOVER.md) を使う。
 旧release/envと未解決履歴は復旧資料として保持する。旧cloud Data API・relay・Windows backend/Jobsの停止とsource fenceを維持し、旧Auth/画像設定や業務mirrorへ自動で戻さない。
 業務の予備/再送/lease発見は使わず、PC外には暗号化バックアップを残す。
@@ -46,7 +46,7 @@ Node24と、WindowsではPowerShell7を使用する。独立したrelease checko
 5. `backupConfigFile` と、既存PCの正確なarchive instance UUID・DB system identifierを固定する。hostは単一の[backup supervisor](../pc-backup/README.md)を先に所有し、毎起動のgeneration/startedAt/status path/DB IDをserverだけのchild envへ渡す。PC内構成では`localSnapshotReceiptFile`によるDB/Auth/画像のcombined snapshotを同じ世代で照合する。初回の新しい暗号archiveと復元検証が揃うまでは保存を保護し、Auth/読み取りは起動できる。静的envの旧generationは受け付けない。
 6. 起動はNext/gatewayとも127.0.0.1限定。gateway公開前に `/api/version` のcommitとreleaseIdを照合する。Task wrapperのmutexとstate lockで競合を拒否する。以前の候補で検証したlock primitiveを再利用し、managed wrapperがOS mutexを持ち、元PIDの停止とファイル同一性を再確認できる場合だけ古いlockを回収する。直接起動・生存/再利用PID・権限不明・壊れたlockは拒否する。backup側の不明lockは自動回収しない。
 
-更新前に最新の[PC本番運用](../laptop/PC-PRODUCTION-HANDOFF.md)を確認し、正式監視と独立した保全監視を先に維持する。正式監視はappの短い停止でも終了し、WSLサービスとmountが失われる場合がある。その上で共有Jobsの新規dispatchを止めてjournalの未解決操作を確認し、host設定を無効にする。hostはbackupを保護状態にして新規保存を止め、gateway経由の進行中要求と所有するNextをdrainする。backupの停止結果も確認し、未終了の可能性が残るbackup lockを成功扱いしない。Nextの標準終了処理をIPC経由で呼び、親死亡時も子だけを終了する。結果不明の書込みを再送しない。旧release/env/receiptを保全したまま、新releaseは別directoryとreleaseIdでbuildする。同じstate内で実行者は一つ。DB変更のrollbackはhostの旧版起動と別に評価する。
+更新前に最新の[PC本番運用](../../README.md)を確認し、正式監視と独立した保全監視を先に維持する。正式監視はappの短い停止でも終了し、WSLサービスとmountが失われる場合がある。その上で共有Jobsの新規dispatchを止めてjournalの未解決操作を確認し、host設定を無効にする。hostはbackupを保護状態にして新規保存を止め、gateway経由の進行中要求と所有するNextをdrainする。backupの停止結果も確認し、未終了の可能性が残るbackup lockを成功扱いしない。Nextの標準終了処理をIPC経由で呼び、親死亡時も子だけを終了する。結果不明の書込みを再送しない。旧release/env/receiptを保全したまま、新releaseは別directoryとreleaseIdでbuildする。同じstate内で実行者は一つ。DB変更のrollbackはhostの旧版起動と別に評価する。
 
 receiptは実行時node_modules（`.cache`のみ除外）・public・Node実行ファイルのSHA256とOS/architectureを含む。専用 `npm ci` からbuildし、改変や別platformを起動前に拒否する。Windowsでbuildした依存をLinuxへコピーして使わず、Linux上で改めて `npm ci` / build / receiptを作る。`.next/cache`等の可変診断/cacheはbuild hashから除外する。
 
@@ -56,7 +56,7 @@ Windowsの配置は、releaseとNode/PowerShell実行directoryをSYSTEM/Administ
 
 `synthetic-review.mjs --check` は外部接続やlistener/key生成を行わない。既存のowner-named private stateを指定した `--serve --state-dir <path>` だけが、独立のfake PC API18180/cloud Auth18181を起動する。実サービスの資格情報を引き継がず、画像/Sheetsを無効にする。これはbuilt NextのHTTP/cookie/経路/障害の試験用で、実DBのRLS・Google・Drive・R2・Push・PWAの証拠ではない。
 
-実構成の確認済み範囲と未確認は[PC本番運用](../laptop/PC-PRODUCTION-HANDOFF.md)と[集約作業記録](../../docs/PC-LOCAL-AUTH-IMAGES-2026-10-12.md)の終了追記を参照する。今後の変更でも固定入口/hostname、OAuth callback、local画像、Push鍵/購読、秘密隔離、通常保存、旧タブ、実端末PWA、OS再起動と別媒体復元を影響に応じて確認する。合成試験を実機の証拠にしない。
+実構成の確認済み範囲と未確認は[PC本番運用](../../README.md)と集約作業記録の終了追記を参照する。今後の変更でも固定入口/hostname、OAuth callback、local画像、Push鍵/購読、秘密隔離、通常保存、旧タブ、実端末PWA、OS再起動と別媒体復元を影響に応じて確認する。合成試験を実機の証拠にしない。
 
 ## 現行backupと旧backendの境界
 

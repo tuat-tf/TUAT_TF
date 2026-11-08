@@ -1,6 +1,6 @@
 # 設定と復旧資材
 
-2026-10-22更新の固定復旧支援パックd4cfda5、`ops/local-minimal/runtime.py` の `pc-private` を基準とする。稼働版は公開 `/api/version`・master・PC runtimeで照合し、この固定パックの版と区別する。日次バックアップと通常保存の切離しは[最新記録](../../docs/BACKUP-LOAD-2026-10-22.md)を参照する。保存先は部活Google Drive、公開入口は部活Cloudflare。値ではなく項目名を管理し、現行設定・秘密値をこの文書へ貼らない。新ホストのruntimeを自動生成・有効化するものではない。
+2026-10-22更新の固定復旧支援パックd4cfda5、`ops/local-minimal/runtime.py` の `pc-private` を基準とする。稼働版は公開 `/api/version`・master・PC runtimeで照合し、この固定パックの版と区別する。日次バックアップと通常保存の切離しは最新記録を参照する。保存先は部活Google Drive、公開入口は部活Cloudflare。値ではなく項目名を管理し、現行設定・秘密値をこの文書へ貼らない。新ホストのruntimeを自動生成・有効化するものではない。
 
 ## runtime設定一覧
 

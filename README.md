@@ -1,57 +1,161 @@
 # TUAT T&F
 
-陸上競技部向けの練習記録・予定・出欠・大会結果・ノート共有アプリ。Next.js 16 / React 19 / Supabase / Tailwind CSS v4 を使用する。
+東京農工大学陸上競技部の部員向けアプリ。練習記録・予定・出欠・大会結果・ノートを共有する。
 
-本番はCloudflareの公開入口から所有者PCへ接続し、アプリ・DB・認証・非公開画像をPC内で運用する。PC外には暗号化バックアップを保存する。旧クラウドへの業務データの切替・書戻しは再開しない。公開入口と稼働状態は [PC本番運用](ops/laptop/PC-PRODUCTION-HANDOFF.md) の最新注記を優先する。
+- 公開URL: https://app.tuat-tf.workers.dev
+- 技術: Next.js 16 / React 19 / Tailwind CSS 4 / Supabase（PC内で自前運用）
 
-検証版・未公開版を含む開発基準は `codex/unified-development-20261020` に集約した。所有者PCの作業場所は `D:\TUAT_TF\.worktrees\unified-development-20261020`。取り込み元・採否・検証と公開保留の範囲は [一本化記録](docs/UNIFIED-DEVELOPMENT-2026-10-20.md) に記載する。元の作業コピーは履歴保全用であり、この統合版を今後の変更の土台にする。
+この文書は人間（管理者・後任）向けの入口。AIへの作業規則は [AGENTS.md](AGENTS.md)。
 
-開発ルールと完了条件は [AGENTS.md](AGENTS.md)、運用は [PC本番運用](ops/laptop/PC-PRODUCTION-HANDOFF.md)、文書全体は [文書案内](docs/README.md) を参照する。
+---
 
-## 開発環境
+## 1. 全体の構成
 
-ルートディレクトリが現行アプリ。新アプリは `D:\TUAT_TF_NEXT_PAUSED` へ移して休止中。オーナーの明示指示なしに再開せず、現行アプリのビルド・lint・テストへ混ぜない。
+```
+部員のスマホ
+   │
+Cloudflare（公開URL・入口）
+   │  Tunnelでつなぐ
+本番PC（このWindows PC）
+   └─ WSL（Ubuntu）の暗号化された領域 /var/lib/tuat-local
+        ├─ アプリ（Next.js）
+        ├─ DB（PostgreSQL）・ログイン（Supabase Auth）・DB API
+        ├─ 画像
+        └─ 定期処理（Jobs）・毎日のバックアップ
+                 │
+           Google Drive（部活アカウント）に暗号化して保存
+```
 
-1. Node.js 22.12以降（この変更は24系で検証）を用意する。
-2. `npm ci` でロックファイルに合わせて依存を導入する。
-3. [.env.example](.env.example) を参照して、開発先に対応した `.env.local` を用意する。Supabase、Googleログイン、画像、通知、同期の設定は別々で、最初の4変数だけで全機能が動く構成ではない。秘密値はGitやログへ出さない。
-4. `npm run dev` を実行し、`http://localhost:3000` を開く。
+- データの正本は**この本番PCの中だけ**。ほかのPCの同名フォルダやDBは本番ではない。
+- 本番用のDocker・DBは、通常のDockerとは別の専用のもの（`unix:///run/tuat-local/docker.sock`、DBコンテナは `tuat-local-db`）。
+- WSL内の主なサービス（systemd）:
 
-独立した検証DBを新規構築する場合、スキーマは `supabase/migrations/` の履歴を基に準備する。既存のCLIリンクや `.env.local` が現在の本番DBを指すとは限らない。DB変更は対象接続先・バックアップ・dry-run・適用履歴を確認してから行う。現在のPC本番に対する手順を、新規クラウドプロジェクト向けコマンドで代用しない。
+  | サービス | 役割 |
+  |---|---|
+  | `tuat-local-app` | アプリ本体 |
+  | `tuat-local-jobs` | 定期処理（記録・大会・通知など） |
+  | `tuat-local-backup.timer` | 毎日1回のバックアップ |
+  | `tuat-local-tunnel` | Cloudflareとの接続 |
+  | `tuat-local-docker` / `tuat-local-containerd` | 本番専用のDocker |
 
-GoogleログインにはAuthプロバイダーとコールバック設定が必要。権限は `roles` と `profile_roles` の複数ロール方式で、アプリのロール管理とDBのRLSにより制御する。
+- Windows起動時は、タスクスケジューラの「TUAT Local Runtime」がWSLと上のサービスを起動する。
+- 旧Vercel URLは案内用に残っているが、本番ではない。旧クラウドSupabase・旧R2・旧中継は停止済みで、再開しない。
+- Googleスプレッドシート連携はGAS（`gas/`）経由。現役は `gas/sync-clasp/Code.js`。`gas/combined.gs`（旧合体版）は使われている可能性があるため消さない。
 
-## 確認コマンド
+## 2. 日常の運用
+
+コマンドはすべて**本番PCのPowerShell**で実行する（管理者権限は不要）。
+
+### 本番で動いている版を確かめる
+
+https://app.tuat-tf.workers.dev/api/version を開く。`version` がGitのcommit SHA。
+
+### 本番を更新する（本番反映）
+
+1. 変更を `master` に入れてGitHubへpushする。
+2. そのcommitのSHA（40桁）を確かめる: `git rev-parse HEAD`
+3. 反映する:
+
+```powershell
+wsl -d Ubuntu -u root -- python3 -I -B /mnt/d/TUAT_TF/ops/pc-host/pc-release.py release <40桁のSHA>
+```
+
+ビルド・切替・起動確認まで自動で行い、起動しなければ元の版に戻す。終わったら `/api/version` が新しいSHAになっていることを確かめる。
+
+- 計画だけ見る: `... pc-release.py switch <SHA>`（何も変えない）
+- 古い版を片付ける: `... pc-release.py prune --keep 2`（確認のみ）→ `--execute` を付けて実行
+- `package-lock.json` が変わった版は、PCにnpmがないため `--node-modules <Linux用node_modulesのdir>` が必要。
+- 反映が済んだ版のフォルダ内で `git` コマンドを打たない（中身の照合が崩れ、次回起動を拒否する）。
+
+### バックアップが動いているか確かめる
+
+```powershell
+wsl -d Ubuntu -u root -- systemctl show tuat-local-backup.service -p Result -p ExecMainExitTimestamp
+```
+
+`Result=success` と最近の日時が出ればよい。毎日1回、DB・ログイン情報・画像を暗号化してGoogle Driveへ保存し、読み戻しと別DBへの復元まで確認している。
+
+### DBの中身を見る（読み取りのみ）
+
+```powershell
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
+"BEGIN READ ONLY; SELECT count(*) FROM profiles; ROLLBACK;" | wsl -d Ubuntu -u root -- docker --host unix:///run/tuat-local/docker.sock exec -i tuat-local-db psql --host=/tmp --port=18304 -U supabase_admin -d postgres -X -q -P pager=off
+```
+
+- `BEGIN READ ONLY; ... ROLLBACK;` で囲むと、間違ってもデータは変わらない。
+- Windows PowerShellでは、SQLに日本語を入れると文字化けする。列の別名などは英字にする。
+- 予定を誰が作ったかは `practice_schedules.created_by`（`profiles.id`）で分かる。編集した人は記録されていない。
+
+## 3. 止まったとき
+
+1. `/api/version` が開くか確かめる。
+2. 開かなければ、サービスの状態を見る:
+
+```powershell
+wsl -d Ubuntu -u root -- systemctl list-units --all --no-pager 'tuat-local*'
+```
+
+3. PCを再起動したあとなら、タスクスケジューラで「TUAT Local Runtime」が動いているか確かめる。
+
+**過去に起きたこと**
+- 再起動後、前回の `backup-owner.lock` が残っていて起動に失敗したことがある。前のプロセスがもういないことを確かめてから外す必要がある。
+- アプリを止めると監視がWSLのサービスやmountまで落としたことがある。計画的に止めるときは注意する。
+- 暗号化領域が開いているかは、作業用のシェルではなくsystemd側（`nsenter -t 1 -m`）で確かめる。
+
+**やってはいけないこと**
+- WSLの全停止（`wsl --shutdown`）、Nodeの全終了、Docker volumeの削除を、試しにやらない。
+- `D:\TUAT_TF\node_modules` を消さない。
+- 新しいDBや別のストレージを作って「直す」ことをしない。
+
+PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/handoff/README.md)。
+
+## 4. 鍵とアカウント
+
+詳しい一覧は [ops/handoff/KEYS-MAP.md](ops/handoff/KEYS-MAP.md)（値は書いていない）。要点:
+
+- **バックアップの鍵**がいちばん大事。これがあればDriveのバックアップから、データもほかの鍵もすべて戻せる。ないと何も戻せない。PCの中と、管理者のiPhoneの「パスワード」に控えがある。
+- アプリが使うそのほかの鍵（ログイン、DB、Cloudflare接続、Drive送信など）はPCの中にあり、バックアップにも含まれている。人が控える必要はない。
+- サービスの管理は部活アカウントで行う: 部活Google（Drive・Google Cloud・GAS）、GitHub `tuat-tf`、Cloudflare。後任へはこれらのログイン手段とバックアップの鍵を渡す。
+- 秘密の値はGit・チャット・ログに出さない。
+
+**未整理:** `D:\TUAT_TF\.env.local` と `D:\TUAT_TF\.contingency\` に、移行作業中の秘密の平文コピーが残っている（Gitには入っていない）。有効なものと失効済みのものを仕分けて片付ける必要がある。
+
+## 5. 開発
+
+1. Node.js 24 を使う。
+2. `npm ci`
+3. `.env.example` を見て `.env.local` を用意する（本番の値を入れない）。
+4. `npm run dev` → http://localhost:3000
 
 | コマンド | 用途 |
-| --- | --- |
-| `npm run dev` | ローカル開発 |
-| `npm run check:environment` | Node.js・直接依存の実バージョンをロックファイルと照合（読取のみ） |
-| `npm test` | 現行アプリのVitest |
-| `npm run test:tooling` | 開発環境診断の合成テスト |
-| `npm run test:ops` | バックアップ・予備同期・GAS・ガラス描画の合成テスト |
-| `npm run test:ops:integration` | ループバックHTTPを使う中継・定期処理の合成テスト |
+|---|---|
+| `npm run check:environment` | Node・依存の版がロックファイルと合っているか |
 | `npx tsc --noEmit` | 型検査 |
-| `npx eslint <変更ファイル>` | 変更箇所のlint |
-| `npm run lint` | リポジトリのlint（既存の指摘も含む） |
-| `npm run build` | 現在の環境設定でビルド |
-| `npm start` | ビルドしたアプリを起動 |
+| `npx eslint <変更ファイル>` | lint |
+| `npx vitest run` | テスト |
+| `npm run test:ops` | 運用スクリプトのテスト（Windowsで動く分） |
+| `npm run build` | ビルド |
 
-検証前に `npm run check:environment` を実行する。package.jsonが新しくても、実行中のNode.jsや既存node_modulesが古い場合がある。診断は自動インストールや本番への通信を行わない。運用の実行スクリプトをテスト代わりに起動しない。
+- DBの変更は `supabase/migrations/` に新しい時刻のファイルとして追加する。本番への適用前に、対象表の退避とdryRunで差分を確かめる。
+- 権限は複数ロール方式（`roles`・`profile_roles`）。画面は `permissionsOf`、DBはRLSで守る。詳しくは [docs/PERMISSIONS.md](docs/PERMISSIONS.md)。
+- 画面の作りと文言は [docs/UI-UNIFICATION.md](docs/UI-UNIFICATION.md)・[docs/WORDING-GUIDELINES.md](docs/WORDING-GUIDELINES.md)。
+- 練習記録とスプレッドシートの同期の設計は [docs/SHEETS-SYNC-PLAN.md](docs/SHEETS-SYNC-PLAN.md)。
 
-本番のrelease作成・起動は [PC hostの手順](ops/pc-host/README.md) と最新の運用記録に従う。古いビルドスクリプトや同名フォルダを、本番と同じ構成だと判断して起動しない。
+## 6. 資料の場所
 
-## 本番反映
+| 場所 | 中身 |
+|---|---|
+| この README | 構成・運用・止まったとき・鍵 |
+| [AGENTS.md](AGENTS.md) | AIへの作業規則 |
+| `docs/` | 画面・文言・権限・同期の仕様 |
+| [ops/handoff/](ops/handoff/README.md) | 別PCへの復旧手順、鍵の地図 |
+| `ops/` の各README | 運用スクリプトの説明 |
 
-全体品質改善の公開保留を維持する。公開時は [完了の定義](docs/DEVELOPMENT-RULES.md#完了の定義) に従い、最新masterへ統合してbuild・pushし、PC releaseと公開 `/api/version` の対象SHA一致まで確認する。Vercelも更新する場合は同じSHAのProduction READYを確認する。Vercelの設定変更には別途具体的な承認が必要。東京リージョン `hnd1` を維持する。
+2026-11-08までの作業記録・計画書（約180本）は削除した。必要なら Git の履歴から取り出せる（例: `git log --all -- docs/` で探し、`git show <commit>:<path>` で読む）。
 
-一般Previewへ本番のDB/管理キーを複製しない。デプロイ・DB・環境変数の同時変更を複数担当で行わない。
+## 7. 未確認のこと
 
-## 実装の要点
-
-- 初期取得はServer Componentから `@/lib/queries` を呼ぶ。実体は `src/lib/queries/` の機能別モジュール。
-- 互いに依存しない取得は並列化する。自分のIDだけで引けるデータはプロフィール取得を待たない。
-- ホームは見出しと共通スケルトンを先に出し、本文を一括表示する。外部シートのメニューは予定を開いたときに取得する。
-- 軽い操作はローカルstateで即時反映し、保存後の整合はサーバーの取得結果と合わせる。
-- `cacheComponents` と `experimental.staleTimes` は再導入しない。過去のiOS PWAフリーズの経緯はAGENTSと `next.config.ts` のコメントを参照する。
-- UI・文言の詳細は [UI統一](docs/UI-UNIFICATION.md) と [文言規約](docs/WORDING-GUIDELINES.md) に集約する。
+- PCの再起動からの自動復旧は、最後の修正後にまだ試していない。
+- 別のPCへの全体の復旧は、まだ試していない（バックアップの読み戻しと別DBへの復元は毎日確認している）。
+- `TUAT_TF_NEXT_PAUSED`（D:ドライブ）は休止中の新アプリ。指示があるまで再開しない。
