@@ -43,8 +43,13 @@
 
 ## 4. 整理が必要なところ（見つかった問題）
 
-1. **暗号化領域の外に本番の秘密の平文コピーがある。**
-   `D:\TUAT_TF\.env.local`（service role key、R2の秘密、Vercelトークン）と `D:\TUAT_TF\.contingency\`（約3,800ファイル。本番env、Auth関連トークン、Cloudflare Tunnelトークン、旧クラウドDBの接続情報などを含む）。Gitには入っていないが、WSL暗号化領域の保護の外にある。まだ有効なものと失効済みのものが混在しており、区別されていない。
+1. **暗号化領域の外に秘密の平文コピーがある。** 2026-11-08に指紋（SHA-256）だけで本番の現行の秘密と照合して仕分けた。`D:\TUAT_TF\.contingency\` は約7.2万ファイル・約14GB。
+   - **現行の本番の秘密が入っている（28ファイル）**: `.contingency/backend/config.json`（**バックアップ復号鍵**）、`backend/pc-jobs-*.env`（`CRON_SECRET`・`SHEET_SYNC_SECRET`・`GOOGLE_TOKEN_ENCRYPTION_KEY`）、`backend/google-oauth.env`・`compose.auth.json`（Googleログインの秘密）、`backend/push.env`（通知の秘密鍵）、`local-app.env`、`backend/gas-before-*.json`・`*/secret.js`（シート連携の合言葉）ほか。本番は自分のコピーを暗号化領域に持っているので、これらは不要。
+   - **旧サービスの秘密（まだ有効な可能性あり）**: 旧クラウドSupabaseの `SUPABASE_SERVICE_ROLE_KEY`・DBパスワード（`data-dump-command.sh` など）、個人側R2の `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`（`.env.local` にも）。サービス側で失効させるまで有効。`VERCEL_OIDC_TOKEN` は短命で失効済みとみてよい。`cloudflared-token*.txt`・`tunnel-transfer-private.pem` は削除済みの旧Tunnelのもの。
+   - **部員の個人データの平文（約17ファイル）**: `pc-auth-source-private-20261012/`（ログイン利用者・identityの書き出し、`cloud-auth-snapshot-*.csv`）、`backend/all-member-cloud-data-*.json`、`backend/rls-*-snapshot-*.json`、`backend/sheet-visibility-admin-*.stdout.txt` など。
+   - **秘密を含まない大きなもの**: `retired-releases-20261022`（7.9GB）、`upstream`（Supabaseのソース、1.5GB）、`pc-jobs-*`（旧版のコピー）、各種ログ・旧スクリプト。
+   - **⚠ 消してはいけないもの**: `pc-auth-source-private-20261012/linux-storage-20261013/windows-bootstrap-20261014/`。Windows起動タスク「TUAT Local Runtime」がここの `windows-boot.mjs`・`windows-boot.json` を実行し、暗号化領域の解錠鍵（`luks-key.machine.dpapi`）もここにある。消すとPCを再起動したときに本番が起動しない。**`.contingency` を丸ごと消さない。** 安定した場所（例: `C:\ProgramData\TUAT-TF\`）へ移すのは、管理者権限でのタスク再登録が要る別作業。
+   - タスク「TUAT PC Jobs」は旧Jobsの設定（`.contingency/backend/pc-jobs-production.json`）を指したまま「準備完了」状態で、無効化されていない。
 2. **同じ鍵のコピーが大量にある。** 本番反映のたびに複製され、`installation-*` が73世代、`recovery-backup.key` が73個、アプリのenvが172個。暗号化領域内なので直ちに漏れるわけではないが、どれが現行か分かりにくい。
 3. ~~復号鍵のPCの外の控えが旧R2に依存~~ → 2026-11-08に直接の控えを作成済み。
 
@@ -53,6 +58,9 @@
 - [x] バックアップ復号鍵そのものの控えを作る（2026-11-08、iPhone）。鍵を作り直してはいけない。控えを作り直すときも下のスクリプトを使う。
   本番PCのPowerShellで `powershell -NoProfile -ExecutionPolicy Bypass -File D:\TUAT_TF\ops\handoff\show-backup-key.ps1` を本人が実行する。鍵は画面にだけ表示され、保存後に控えを入力し直して一致を確認する。ファイルやチャットには残さない。
 - [ ] 後任へバックアップの鍵を渡す方法を決める（iPhoneだけに置かない）。
-- [ ] `.env.local` と `.contingency` の中の秘密を「有効・失効済み」に分け、有効なものは失効させるか暗号化領域へ移し、不要なものは削除する。
+- [x] `.env.local` と `.contingency` の中の秘密を仕分ける（2026-11-08、上の1）。
+- [ ] 仕分けた不要物を削除する（起動に使うフォルダは残す）。
+- [ ] 旧クラウドSupabaseと個人側R2を使い続けるか決め、使わないならサービス側で鍵を失効・削除する。
+- [ ] 起動用のファイルを `.contingency` から安定した場所へ移す（管理者権限が必要）。
 - [ ] 古い `installation-*` 世代を `pc-release.py prune` で片付けられる範囲を確認する。
 - [ ] 各サービス管理アカウントの復旧手段を後任へ渡す方法を決める。
