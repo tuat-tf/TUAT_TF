@@ -119,7 +119,7 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 - サービスの管理は部活アカウントで行う: 部活Google（Drive・Google Cloud・GAS）、GitHub `tuat-tf`、Cloudflare。後任へはこれらのログイン手段とバックアップの鍵を渡す。
 - 秘密の値はGit・チャット・ログに出さない。
 
-**未整理:** `D:\TUAT_TF\.env.local` と `D:\TUAT_TF\.contingency\` に、移行作業中の秘密・個人データの平文コピーが残っている（Gitには入っていない）。仕分け結果は鍵の地図の4章。**`.contingency` は丸ごと消さない。** Windowsの起動タスクが中の `windows-bootstrap-20261014` フォルダを使っており、消すと再起動後に本番が起動しない。
+**`D:\TUAT_TF\.contingency\` を消さない。** 移行作業中の秘密・個人データの平文コピーは2026-11-09に削除し、残っているのはWindowsの起動に使うフォルダ（`pc-auth-source-private-20261012\linux-storage-20261013\`）だけ。起動タスクがここを使っており、消すと再起動後に本番が起動しない。詳しくは鍵の地図の4章。
 
 ## 5. 開発
 

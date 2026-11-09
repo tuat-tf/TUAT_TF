@@ -43,13 +43,15 @@
 
 ## 4. 整理が必要なところ（見つかった問題）
 
-1. **暗号化領域の外に秘密の平文コピーがある。** 2026-11-08に指紋（SHA-256）だけで本番の現行の秘密と照合して仕分けた。`D:\TUAT_TF\.contingency\` は約7.2万ファイル・約14GB。
-   - **現行の本番の秘密が入っている（28ファイル）**: `.contingency/backend/config.json`（**バックアップ復号鍵**）、`backend/pc-jobs-*.env`（`CRON_SECRET`・`SHEET_SYNC_SECRET`・`GOOGLE_TOKEN_ENCRYPTION_KEY`）、`backend/google-oauth.env`・`compose.auth.json`（Googleログインの秘密）、`backend/push.env`（通知の秘密鍵）、`local-app.env`、`backend/gas-before-*.json`・`*/secret.js`（シート連携の合言葉）ほか。本番は自分のコピーを暗号化領域に持っているので、これらは不要。
-   - **旧サービスの秘密（まだ有効な可能性あり）**: 旧クラウドSupabaseの `SUPABASE_SERVICE_ROLE_KEY`・DBパスワード（`data-dump-command.sh` など）、個人側R2の `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`（`.env.local` にも）。サービス側で失効させるまで有効。`VERCEL_OIDC_TOKEN` は短命で失効済みとみてよい。`cloudflared-token*.txt`・`tunnel-transfer-private.pem` は削除済みの旧Tunnelのもの。
-   - **部員の個人データの平文（約17ファイル）**: `pc-auth-source-private-20261012/`（ログイン利用者・identityの書き出し、`cloud-auth-snapshot-*.csv`）、`backend/all-member-cloud-data-*.json`、`backend/rls-*-snapshot-*.json`、`backend/sheet-visibility-admin-*.stdout.txt` など。
-   - **秘密を含まない大きなもの**: `retired-releases-20261022`（7.9GB）、`upstream`（Supabaseのソース、1.5GB）、`pc-jobs-*`（旧版のコピー）、各種ログ・旧スクリプト。
-   - **⚠ 消してはいけないもの**: `pc-auth-source-private-20261012/linux-storage-20261013/windows-bootstrap-20261014/`。Windows起動タスク「TUAT Local Runtime」がここの `windows-boot.mjs`・`windows-boot.json` を実行し、暗号化領域の解錠鍵（`luks-key.machine.dpapi`）もここにある。消すとPCを再起動したときに本番が起動しない。**`.contingency` を丸ごと消さない。** 安定した場所（例: `C:\ProgramData\TUAT-TF\`）へ移すのは、管理者権限でのタスク再登録が要る別作業。
-   - タスク「TUAT PC Jobs」は旧Jobsの設定（`.contingency/backend/pc-jobs-production.json`）を指したまま「準備完了」状態で、無効化されていない。
+1. **暗号化領域の外の平文コピーは削除済み（2026-11-09）。** 2026-11-08に指紋（SHA-256）だけで本番の現行の秘密と照合して仕分け、次を削除した（約7.3万ファイル・約13GB）。
+   - 現行の本番の秘密の平文コピー28ファイル（バックアップ復号鍵を含む `backend/config.json` など）。
+   - 部員の個人データの平文（ログイン利用者の書き出し、部員データ、権限の書き出しなど）。
+   - 旧版のコピー・旧スクリプト・ログ（`retired-releases-20261022`、`upstream` など）。
+   - `D:\TUAT_TF\.env.local` と `.worktrees\pc-folders-20261008\.env.local`（中身はすべて旧クラウドSupabase・個人側R2・旧Vercel用）。
+   - **残っているもの**: `.contingency/pc-auth-source-private-20261012/linux-storage-20261013/`（約0.5MB）。中の `windows-bootstrap-20261014/` はWindows起動タスク「TUAT Local Runtime」が `windows-boot.mjs`・`windows-boot.json` を実行する場所で、暗号化領域の解錠鍵（`luks-key.machine.dpapi`）もある。消すとPCを再起動したときに本番が起動しない。同じ階層の `luks-key.dpapi`・`luks-key.recovery.enc` は解錠鍵の別の控えなので一緒に残した。
+   - **管理者権限がなく消せなかったもの（3ファイル）**: `.contingency/backend/ob-access-pc-before.json`、`.contingency/backend/ob-resilience-pc-before.json`、`.contingency/import-timeline-20261005/workspace-before.patch`。読み取りも拒否される権限設定。
+   - **旧サービスの秘密は、ファイルを消しても鍵そのものは有効なまま**: 旧クラウドSupabaseの管理キー・DBパスワード、個人側R2のアクセスキー。サービス側で失効させるまで使える。
+   - タスク「TUAT PC Jobs」（旧Jobs）は「準備完了」のまま。設定ファイルを削除したので旧Jobsは起動できないが、無効化には管理者権限が要る。
 2. **同じ鍵のコピーが大量にある。** 本番反映のたびに複製され、`installation-*` が73世代、`recovery-backup.key` が73個、アプリのenvが172個。暗号化領域内なので直ちに漏れるわけではないが、どれが現行か分かりにくい。
 3. ~~復号鍵のPCの外の控えが旧R2に依存~~ → 2026-11-08に直接の控えを作成済み。
 
@@ -59,7 +61,8 @@
   本番PCのPowerShellで `powershell -NoProfile -ExecutionPolicy Bypass -File D:\TUAT_TF\ops\handoff\show-backup-key.ps1` を本人が実行する。鍵は画面にだけ表示され、保存後に控えを入力し直して一致を確認する。ファイルやチャットには残さない。
 - [ ] 後任へバックアップの鍵を渡す方法を決める（iPhoneだけに置かない）。
 - [x] `.env.local` と `.contingency` の中の秘密を仕分ける（2026-11-08、上の1）。
-- [ ] 仕分けた不要物を削除する（起動に使うフォルダは残す）。
+- [x] 仕分けた不要物を削除する（2026-11-09、起動に使うフォルダは残した）。
+- [ ] 消せなかった3ファイルの削除と、タスク「TUAT PC Jobs」の無効化（管理者のPowerShellで行う）。
 - [ ] 旧クラウドSupabaseと個人側R2を使い続けるか決め、使わないならサービス側で鍵を失効・削除する。
 - [ ] 起動用のファイルを `.contingency` から安定した場所へ移す（管理者権限が必要）。
 - [ ] 古い `installation-*` 世代を `pc-release.py prune` で片付けられる範囲を確認する。
