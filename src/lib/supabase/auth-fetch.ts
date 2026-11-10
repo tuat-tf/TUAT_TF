@@ -1,6 +1,6 @@
 /** Per-client, confirmed refresh-rate-limit protection. Never shares successful POSTs. */
-export function createCloudAuthFetch(fetcher: typeof fetch, cloudUrl: string): typeof fetch {
-  const base = new URL(cloudUrl);
+export function createAuthRefreshFetch(fetcher: typeof fetch, baseUrl: string): typeof fetch {
+  const base = new URL(baseUrl);
   const tokenPath = `${base.pathname.replace(/\/$/, "")}/auth/v1/token`;
   const origin = base.origin;
   let failure: { key: string; until: number; response: Response } | undefined;

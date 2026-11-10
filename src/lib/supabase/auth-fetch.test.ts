@@ -1,6 +1,6 @@
 import { createBrowserClient, createServerClient } from "@supabase/ssr";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
-import { createCloudAuthFetch } from "./auth-fetch";
+import { createAuthRefreshFetch } from "./auth-fetch";
 
 const subject = "00000000-0000-4000-8000-000000000001";
 let keys: CryptoKeyPair, jwk: JsonWebKey, fixtureNumber = 0;
@@ -34,7 +34,7 @@ async function fixture(mode: "server" | "browser", adapted = true, expired = tru
     return Response.json({ message: "Synthetic refresh failure", code: state.status === 429 ? "over_request_rate_limit" : "refresh_token_not_found" },
       { status: state.status, headers: { "retry-after": "60", "x-supabase-api-version": "2024-01-01" } });
   });
-  const options = { cookieOptions: { name: cookieName }, global: { fetch: adapted ? createCloudAuthFetch(dispatch, base) : dispatch },
+  const options = { cookieOptions: { name: cookieName }, global: { fetch: adapted ? createAuthRefreshFetch(dispatch, base) : dispatch },
     cookies: { getAll: () => [{ name: cookieName, value: `base64-${encode(session)}` }], setAll: cookieWrites }, auth: { autoRefreshToken: false } };
   const client = mode === "server" ? createServerClient(base, "synthetic-anon", options) : createBrowserClient(base, "synthetic-anon", { ...options, isSingleton: false });
   return { client, dispatch, cookieWrites, state };
@@ -91,7 +91,7 @@ it("maps only confirmed cloud refresh429, preserves headers/body, and keeps clie
   const origin = "https://auth-response.example.invalid", endpoint = `${origin}/auth/v1/token?grant_type=refresh_token`;
   const dispatch = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ message: "Synthetic refusal", code: "over_request_rate_limit" },
     { status: 429, headers: { "retry-after": "120", "x-supabase-api-version": "2024-01-01" } }));
-  const first = createCloudAuthFetch(dispatch, origin), second = createCloudAuthFetch(dispatch, origin), init = { method: "POST", body: '{"refresh_token":"synthetic"}' };
+  const first = createAuthRefreshFetch(dispatch, origin), second = createAuthRefreshFetch(dispatch, origin), init = { method: "POST", body: '{"refresh_token":"synthetic"}' };
   const response = await first(endpoint, init); expect(response.status).toBe(503); expect(response.headers.get("retry-after")).toBe("120");
   expect(response.headers.get("x-supabase-api-version")).toBe("2024-01-01"); expect(await response.json()).toMatchObject({ code: "over_request_rate_limit" });
   expect((await first(endpoint, init)).status).toBe(503); expect(dispatch).toHaveBeenCalledOnce();
@@ -105,7 +105,7 @@ it("bounds a stalled confirmed429 body and suppresses another provider dispatch"
   const cancel = vi.fn(), origin = "https://auth-stall.example.invalid";
   const dispatch = vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ start() {}, cancel }),
     { status: 429, headers: { "retry-after": "60", "content-length": "900", "content-encoding": "gzip" } }));
-  const fetcher = createCloudAuthFetch(dispatch, origin), init = { method: "POST", body: '{"refresh_token":"synthetic"}' };
+  const fetcher = createAuthRefreshFetch(dispatch, origin), init = { method: "POST", body: '{"refresh_token":"synthetic"}' };
   const promise = fetcher(`${origin}/auth/v1/token?grant_type=refresh_token`, init);
   await vi.advanceTimersByTimeAsync(3000);
   const response = await promise;

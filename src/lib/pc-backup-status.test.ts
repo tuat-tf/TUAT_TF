@@ -13,8 +13,7 @@ const mocks = vi.hoisted(() => ({ runtime: true, synthetic: false, local: false,
   lstat: vi.fn(), realpath: vi.fn(), open: vi.fn(), dispatch: vi.fn(), r2: vi.fn() }));
 vi.mock("./pc-app-runtime", () => ({ getPcAppRuntime: () => mocks.runtime ? {
   publicOrigin: "https://pc-app.example.test", internalUrl: "http://127.0.0.1:18180", synthetic: mocks.synthetic,
-  cloud: { url: "http://127.0.0.1:18181", anonKey: "synthetic-cloud-key" },
-  ...(mocks.local ? { local: { authUrl: "http://127.0.0.1:18001", restUrl: "http://127.0.0.1:18002" } } : {}),
+  local: { authUrl: "http://127.0.0.1:18001", restUrl: "http://127.0.0.1:18002" },
 } : undefined }));
 vi.mock("node:fs/promises", () => ({ lstat: mocks.lstat, realpath: mocks.realpath, open: mocks.open }));
 vi.mock("@aws-sdk/client-s3", async original => {
@@ -127,7 +126,7 @@ describe("operational status conformance", () => {
 describe("all PC business transports fail closed once, then recover", () => {
   it.each([
     ["/rest/v1/practice_records", "PATCH", { memo: "synthetic" }], ["/rest/v1/rpc/save_practice_menu", "POST", {}],
-    ["/storage/v1/object/avatars/synthetic.webp", "POST", {}], ["/auth/v1/admin/users", "POST", { id }],
+    ["/storage/v1/object/avatars/synthetic.webp", "POST", {}],
     ["/functions/v1/unknown", "GET", undefined], ["/rest/v1/rpc/unknown", "GET", undefined],
   ])("protects %s %s without dispatch", async (api, method, body) => {
     mocks.status = null;
@@ -135,8 +134,8 @@ describe("all PC business transports fail closed once, then recover", () => {
     expect(response.status).toBe(503); expect(await response.json()).toMatchObject({ code: "PC_BACKUP_UNAVAILABLE" });
     expect(mocks.dispatch).not.toHaveBeenCalled();
   });
-  it("allows normal REST/RPC/storage writes, stops during maintenance, and recovers", async () => {
-    for (const api of ["/rest/v1/practice_records", "/rest/v1/rpc/save_practice_menu", "/storage/v1/object/avatars/synthetic.webp"]) {
+  it("allows normal REST/RPC writes, stops during maintenance, and recovers", async () => {
+    for (const api of ["/rest/v1/practice_records", "/rest/v1/rpc/save_practice_menu", "/rest/v1/tweets"]) {
       expect((await pcBackendFetch(request(api, "POST", {}))).status).toBe(200);
     }
     mocks.status = { ...snapshot(), heartbeat: { ...snapshot().heartbeat, maintenance: true } };
@@ -144,27 +143,25 @@ describe("all PC business transports fail closed once, then recover", () => {
     expect(mocks.dispatch).toHaveBeenCalledTimes(3);
     mocks.status = snapshot(); expect((await pcBackendFetch(request("/rest/v1/practice_records", "POST", {}))).status).toBe(200);
     expect(mocks.dispatch).toHaveBeenCalledTimes(4);
-    expect(mocks.dispatch.mock.calls.every(([target]) => String(target).startsWith("http://127.0.0.1:18180/"))).toBe(true);
+    expect(mocks.dispatch.mock.calls.every(([target]) => String(target).startsWith("http://127.0.0.1:18002/"))).toBe(true);
   });
   it("guards session Actions and service-role operations at their shared fetch", async () => {
     mocks.status = null;
     const options = sessionClientConfig().options as { global: { fetch: typeof fetch } };
-    const response = await options.global.fetch("http://127.0.0.1:18181/rest/v1/practice_records", { method: "POST", body: "{}" });
+    const response = await options.global.fetch(`${base}/rest/v1/practice_records`, { method: "POST", body: "{}" });
     expect(response.status).toBe(503);
     const admin = createAdminClient();
     expect((await admin.from("profiles").update({ approved: true }).eq("id", id)).error?.code).toBe("PC_BACKUP_UNAVAILABLE");
-    expect((await admin.auth.admin.createUser({ id, email: "synthetic@example.invalid" })).error?.status).toBe(503);
     expect(mocks.dispatch).not.toHaveBeenCalled();
   });
-  it("keeps REST reads, exact read RPC and cloud Auth dispatch available while protected", async () => {
+  it("keeps REST reads, exact read RPC and Auth dispatch available while protected", async () => {
     mocks.status = null;
     for (const req of [request("/rest/v1/profiles", "GET"), request("/rest/v1/rpc/login_access_allowed", "POST", {}),
       request("/rest/v1/rpc/get_feed_social_state", "POST", { record_ids: [id], tweet_ids: [] }),
-      request("/rest/v1/rpc/google_sheet_creation_status", "POST", {}),
-      request("/storage/v1/object/sign/avatars/synthetic.webp", "POST", { expiresIn: 300 })]) expect((await pcBackendFetch(req)).status).toBe(200);
+      request("/rest/v1/rpc/google_sheet_creation_status", "POST", {})]) expect((await pcBackendFetch(req)).status).toBe(200);
     const options = sessionClientConfig().options as { global: { fetch: typeof fetch } };
-    expect((await options.global.fetch("http://127.0.0.1:18181/auth/v1/token?grant_type=refresh_token", { method: "POST", body: "{}" })).status).toBe(200);
-    expect(mocks.open).not.toHaveBeenCalled(); expect(mocks.dispatch).toHaveBeenCalledTimes(6);
+    expect((await options.global.fetch(`${base}/auth/v1/token?grant_type=refresh_token`, { method: "POST", body: "{}" })).status).toBe(200);
+    expect(mocks.open).not.toHaveBeenCalled(); expect(mocks.dispatch).toHaveBeenCalledTimes(5);
   });
   it("does not accept extra/malformed RPC arguments, alternate schemas or unknown paths as reads", async () => {
     for (const [api, body] of [["login_access_allowed", { surprise: true }], ["get_feed_social_state", { record_ids: ["invalid"], tweet_ids: [] }],

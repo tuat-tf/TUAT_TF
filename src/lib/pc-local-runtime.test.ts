@@ -10,8 +10,8 @@ beforeEach(() => {
   for (const [name,value] of Object.entries({ PC_APP_RUNTIME: "true", NEXT_PUBLIC_PC_APP_RUNTIME: "true", PC_LOCAL_RUNTIME: "true", NEXT_PUBLIC_PC_LOCAL_RUNTIME: "true",
     PC_BACKEND_ENABLED: "true", NEXT_PUBLIC_PC_BACKEND: "true", APP_PUBLIC_ORIGIN: origin, NEXT_PUBLIC_SUPABASE_URL: base,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "synthetic-local-anon", PC_LOCAL_AUTH_URL: "http://127.0.0.1:18001", PC_LOCAL_REST_URL: "http://127.0.0.1:18002",
-    IMAGE_STORAGE_DRIVER: "local", R2_READ_ENABLED: "false", R2_WRITE_ENABLED: "false", NEXT_PUBLIC_CLOUD_AUTH_URL: "", NEXT_PUBLIC_CLOUD_AUTH_ANON_KEY: "",
-    NEXT_PUBLIC_CLOUD_AUTH_MODE: "", PC_BACKEND_INTERNAL_URL: "", NEXT_PUBLIC_PC_REST_RELAY_ORIGIN: "", VERCEL: "", VERCEL_ENV: "" })) vi.stubEnv(name,value);
+    IMAGE_STORAGE_DRIVER: "local", R2_READ_ENABLED: "false", R2_WRITE_ENABLED: "false",
+    PC_BACKEND_INTERNAL_URL: "", NEXT_PUBLIC_PC_REST_RELAY_ORIGIN: "", VERCEL: "", VERCEL_ENV: "" })) vi.stubEnv(name,value);
   vi.stubEnv("PC_APP_SYNTHETIC_REVIEW","true");vi.stubEnv("NEXT_PUBLIC_PC_APP_SYNTHETIC_REVIEW","true");vi.stubEnv("SHEET_SYNC_ENABLED","false");
   vi.stubEnv("LOCAL_IMAGE_STORAGE_ROOT",resolve("..","synthetic-images"));vi.stubEnv("LOCAL_IMAGE_SIGNING_KEY","synthetic-key-only".repeat(3));vi.stubEnv("LOCAL_IMAGE_MAX_STORAGE_BYTES","1000");
 });
@@ -23,7 +23,7 @@ it("rejects a privileged public key before local deployment startup", () => {
   expect(() => getPcAppRuntime()).toThrow("server-only");
 });
 it("selects a single local issuer and routes token refresh to private GoTrue without backup bypass for business writes", async () => {
-  expect(getPcAppRuntime()?.cloud).toBeNull();
+  expect(getPcAppRuntime()?.local).toEqual({ authUrl: "http://127.0.0.1:18001", restUrl: "http://127.0.0.1:18002" });
   expect(sessionClientConfig()).toMatchObject({ url: base, key: "synthetic-local-anon", options: { cookieOptions: { name: "sb-pc-backend-auth" } } });
   const dispatch = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ refreshed: true })); vi.stubGlobal("fetch",dispatch);
   const response = await pcBackendFetch(`${base}/auth/v1/token?grant_type=refresh_token`, { method: "POST", body: '{"refresh_token":"synthetic"}' });
@@ -47,7 +47,7 @@ it("exposes public JWKS/Google exchanges while refusing admin keys/endpoints and
   expect((await POST(new Request(`${base}/auth/v1/token?grant_type=password`, { method: "POST", headers: { origin } }))).status).toBe(403);
   expect(dispatch).toHaveBeenCalledOnce();
 });
-it.each([{ NEXT_PUBLIC_CLOUD_AUTH_URL: "https://issuer.supabase.co" },{ R2_SECRET_ACCESS_KEY: "synthetic" },{ PC_LOCAL_AUTH_URL: "http://0.0.0.0:18001" },
+it.each([{ R2_SECRET_ACCESS_KEY: "synthetic" },{ PC_LOCAL_AUTH_URL: "http://0.0.0.0:18001" },
   { PC_LOCAL_REST_URL: "http://127.0.0.1:18001" },{ NEXT_PUBLIC_PC_LOCAL_RUNTIME: "false" },{ R2_READ_ENABLED: "true" },
   { LOCAL_IMAGE_STORAGE_ROOT: resolve(process.cwd(), "..private/images") }])("rejects mixed or externally exposed deployment before any IO: %j", settings => {
   for (const [name,value] of Object.entries(settings)) vi.stubEnv(name,value);

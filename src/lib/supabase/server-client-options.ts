@@ -1,75 +1,16 @@
-import { pcAvailable, pcBackendFetch } from "../pc-backend";
-import { pcServerOptions } from "./pc-server-options";
+import { pcBackendFetch } from "../pc-backend";
 import { getPcAppRuntime } from "../pc-app-runtime";
-import { createPcAppDataFetch } from "../pc-app-transport";
-import { CLOUD_AUTH_COOKIE, cloudAuthConfig, isCloudDataUrl, pcServerHeaders, routeDataToPc, type CloudAuth } from "./cloud-auth";
-import { createCloudAuthFetch } from "./auth-fetch";
-
-/**
- * クラウドの URL あての呼び出しのうち、データの API はPCへ（pcBackendFetch で PC の入口へ届ける）、
- * ログインはそのままクラウドへ送る fetch。PCが止まっているときは、データもクラウドへそのまま送る
- * （クラウドには名簿などの全件と直近3日分の投稿を写してあり、そこへの書き込みはPCの復帰後に書き戻す）。
- */
-function pcRoutedFetch(cloud: CloudAuth): typeof fetch {
-  const pcOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
-  const toPc = routeDataToPc(
-    (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : String(input));
-      return url.origin === pcOrigin ? pcBackendFetch(input, init) : fetch(input, init);
-    },
-    cloud,
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    pcServerHeaders(cloud, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!),
-  );
-  return async (input, init) => {
-    const url = new URL(input instanceof Request ? input.url : String(input));
-    if (isCloudDataUrl(url, cloud) && !(await pcAvailable())) return fetch(input, init);
-    return toPc(input, init);
-  };
-}
+import { createAuthRefreshFetch } from "./auth-fetch";
 
 /**
  * サーバー側（Server Component・Route Handler・proxy）でログイン中の部員として使う Supabase クライアントの設定。
- * server.ts と middleware.ts で同じものを使う。
+ * server.ts と middleware.ts で同じものを使う。本番（PC）ではログインもデータもPC内のAPIへ送る。
  */
-export function sessionClientConfig(testOptIn = false): { url: string; key: string; options: Record<string, unknown> } {
-  const app = getPcAppRuntime();
-  if (app?.local) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    return { url, key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, options: {
-      cookieOptions: { name: "sb-pc-backend-auth" }, global: { fetch: createCloudAuthFetch(pcBackendFetch, url) },
-    } };
-  }
-  if (app) {
-    const pcOrigin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
-    const transport: typeof fetch = (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : String(input));
-      return url.origin === pcOrigin ? pcBackendFetch(input, init) : fetch(input, init);
-    };
-    return {
-      url: app.cloud.url,
-      key: app.cloud.anonKey,
-      options: { cookieOptions: { name: CLOUD_AUTH_COOKIE }, global: { fetch:
-        createCloudAuthFetch(createPcAppDataFetch(transport, app.cloud, process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          pcServerHeaders(app.cloud, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)), app.cloud.url) } },
-    };
-  }
-  const cloud = cloudAuthConfig(testOptIn);
-  if (cloud) {
-    return {
-      url: cloud.url,
-      key: cloud.anonKey,
-      options: { cookieOptions: { name: CLOUD_AUTH_COOKIE }, global: { fetch: createCloudAuthFetch(pcRoutedFetch(cloud), cloud.url) } },
-    };
-  }
-  // 従来どおり（ログインもデータもPC）
-  return {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    options: {
-      ...pcServerOptions(),
-      ...(process.env.NEXT_PUBLIC_PC_BACKEND === "true" ? { cookieOptions: { name: "sb-pc-backend-auth" } } : {}),
-      ...(process.env.NEXT_PUBLIC_PC_TRIAL === "true" ? { cookieOptions: { name: "sb-pc-trial-auth" } } : {}),
-    },
-  };
+export function sessionClientConfig(): { url: string; key: string; options: Record<string, unknown> } {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  if (!getPcAppRuntime()) return { url, key, options: {} };
+  return { url, key, options: {
+    cookieOptions: { name: "sb-pc-backend-auth" }, global: { fetch: createAuthRefreshFetch(pcBackendFetch, url) },
+  } };
 }

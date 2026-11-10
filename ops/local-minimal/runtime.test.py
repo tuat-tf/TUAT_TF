@@ -396,7 +396,7 @@ class RuntimeBehaviour(unittest.TestCase):
         manifest = dict(version=1, nodeVersion='v24.19.0', sourceCommit='a'*40, releaseId='synthetic-release', publicOrigin=env['APP_PUBLIC_ORIGIN'],
             appEnvironmentSha256=runtime.digest(b'synthetic'), nodeSha256='b'*64, files={name:'c'*64 for name in
                 ('.next/BUILD_ID','.next/required-server-files.json','ops/pc-host/run.mjs','ops/pc-host/linux-launch.py','ops/pc-host/runner-lock.mjs','ops/pc-host/release.mjs',
-                 'ops/pc-jobs/run.mjs','ops/pc-jobs/shared-pc.mjs','src/lib/supabase/cloud-auth.ts','ops/local-minimal/pc/compose.yaml',runtime.PC_HBA_SOURCE)}, links={})
+                 'ops/pc-jobs/run.mjs','ops/pc-jobs/shared-pc.mjs','ops/local-minimal/pc/compose.yaml',runtime.PC_HBA_SOURCE)}, links={})
         for key in ('hostConfigPath','jobsConfig','backupConfigPath'): manifest[key+'Sha256'] = runtime.digest(b'synthetic')
         host = dict(releaseDirectory=c['releaseDirectory'], environmentFile=c['appEnvironmentFile'], releaseCommit=manifest['sourceCommit'],
             releaseId=manifest['releaseId'], publicOrigin=env['APP_PUBLIC_ORIGIN'], appPort=18200, applicationUid=65530, applicationGid=65530, enabled=False,

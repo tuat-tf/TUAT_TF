@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 import { sessionClientConfig } from "./server-client-options";
-import { CLOUD_AUTH_TEST_COOKIE } from "./cloud-auth";
 
 /**
  * サーバー（Server Component / Route Handler / Server Action）用 Supabase クライアント。
@@ -10,7 +9,7 @@ import { CLOUD_AUTH_TEST_COOKIE } from "./cloud-auth";
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  const session = sessionClientConfig(cookieStore.get(CLOUD_AUTH_TEST_COOKIE)?.value === "1");
+  const session = sessionClientConfig();
 
   return createServerClient<Database>(
     session.url,

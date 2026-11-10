@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 import { sessionClientConfig } from "./server-client-options";
-import { CLOUD_AUTH_TEST_COOKIE } from "./cloud-auth";
 import { loginAccessStatus } from "./login-access";
 import { getAppPublicOrigin } from "@/lib/app-public-origin";
 
@@ -13,7 +12,7 @@ import { getAppPublicOrigin } from "@/lib/app-public-origin";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const session = sessionClientConfig(request.cookies.get(CLOUD_AUTH_TEST_COOKIE)?.value === "1");
+  const session = sessionClientConfig();
   const supabase = createServerClient<Database>(
     session.url,
     session.key,
@@ -37,8 +36,6 @@ export async function updateSession(request: NextRequest) {
   );
 
   // セッションの確認と更新（重要）。getClaims は期限切れならトークンを更新し、署名を公開鍵で確かめる。
-  // 公開鍵方式（クラウドのログイン、ES256）ではログインサーバーへ問い合わせずに済む（公開鍵は10分ごとに取得）。
-  // 共通鍵のトークン（PCのログイン）は従来どおり getUser で確かめる。
   let user: { id: string; email: string } | null = null;
   try {
     const { data } = await supabase.auth.getClaims();

@@ -61,7 +61,7 @@ export async function pcBackendFetch(input: RequestInfo | URL, init?: RequestIni
   if (!/^\/(auth|rest|storage|functions)\/v1(?:\/|$)/.test(path)) throw new Error("Invalid backend API");
   const app = getPcAppRuntime();
   // Token refresh/logout must remain possible while business writes are protected.
-  if (app && !(app.local && path.startsWith("/auth/v1/")) && await pcBackendRequestNeedsProtection(request, path)) {
+  if (app && !path.startsWith("/auth/v1/") && await pcBackendRequestNeedsProtection(request, path)) {
     const protectedResponse = await pcAppWriteProtectionResponse();
     if (protectedResponse) return protectedResponse;
   }
@@ -75,8 +75,7 @@ export async function pcBackendFetch(input: RequestInfo | URL, init?: RequestIni
     for (const name of Array.from(headers.keys())) if (name.startsWith("x-forwarded-")) headers.delete(name);
   } else headers.set("x-pc-backend-key", process.env.PC_BACKEND_BRIDGE_KEY!);
   const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
-  const target = app?.local ? pcLocalApiTarget(app.local, path, source.search)
-    : app ? `${app.internalUrl}${path}${source.search}` : `${endpoint!.origin}/backend${path}${source.search}`;
+  const target = app ? pcLocalApiTarget(app.local, path, source.search) : `${endpoint!.origin}/backend${path}${source.search}`;
   return fetch(target, {
     method: request.method, headers, body, cache: "no-store", redirect: "manual",
     signal: AbortSignal.any([request.signal, AbortSignal.timeout(25_000)]),

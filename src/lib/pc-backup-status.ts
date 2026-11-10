@@ -108,7 +108,7 @@ export async function assertPcAppWriteAllowed(): Promise<void> {
     } finally { await file.close(); }
     const identity = { instanceId: process.env.PC_APP_BACKUP_INSTANCE_ID, generation: process.env.PC_APP_BACKUP_GENERATION,
       startedAt: process.env.PC_APP_BACKUP_STARTED_AT, databaseSystemIdentifier: process.env.PC_APP_BACKUP_DATABASE_SYSTEM_IDENTIFIER, databaseName: process.env.PC_APP_BACKUP_DATABASE_NAME };
-    if (!(app.local ? runtimeStatusReady(status, identity) : backupStatusReady(status, identity))) throw new PcBackupProtectionError();
+    if (!runtimeStatusReady(status, identity)) throw new PcBackupProtectionError();
   } catch { throw new PcBackupProtectionError(); }
 }
 

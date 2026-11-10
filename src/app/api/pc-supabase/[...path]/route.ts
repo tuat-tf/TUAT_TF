@@ -1,5 +1,4 @@
-import { pcAvailable, pcBackendFetch } from "@/lib/pc-backend";
-import { BACKEND_MODE_HEADER, cloudAuthConfig } from "@/lib/supabase/cloud-auth";
+import { pcBackendFetch } from "@/lib/pc-backend";
 import { allowedPcBrowserApi, isMemberBearer } from "@/lib/pc-browser-api";
 import { getPcAppRuntime } from "@/lib/pc-app-runtime";
 import { getAppPublicOrigin } from "@/lib/app-public-origin";
@@ -12,9 +11,8 @@ async function handle(request: Request) {
   if (process.env.PC_BACKEND_ENABLED !== "true") return new Response(null, { status: 404 });
   const url = new URL(request.url);
   const path = url.pathname.slice("/api/pc-supabase".length);
-  const app = getPcAppRuntime();
-  // Only the explicit local deployment exposes member Auth; admin endpoints stay private.
-  if (app && !app.local && !path.startsWith("/rest/v1/")) return Response.json({ error: "Operation denied" }, { status: 403 });
+  if (!getPcAppRuntime()) return new Response(null, { status: 404 });
+  // Member Auth and REST only; admin endpoints stay private.
   if (!allowedPcBrowserApi(path, request.method, url.searchParams)) return Response.json({ error: "Operation denied" }, { status: 403 });
   const read = ["GET", "HEAD"].includes(request.method);
   // Google uses GET for this callback. All client POSTs must originate from this app.
@@ -45,16 +43,9 @@ async function handle(request: Request) {
     }
     body = Buffer.concat(chunks);
   }
-  // PCが止まっている間は、データをクラウドSupabaseから読み書きする（ログインがクラウドのときだけ）。
-  const cloud = cloudAuthConfig();
-  const toCloud = !app && !!cloud && /^\/(rest|storage|functions)\/v1\//.test(path) && !(await pcAvailable());
   try {
-    if (toCloud) headers.set("apikey", cloud.anonKey);
-    const result = toCloud
-      ? await fetch(`${cloud.url}${path}${url.search}`, { method: request.method, headers, body: body as BodyInit | undefined, cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(25_000) })
-      : await pcBackendFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}${path}${url.search}`, { method: request.method, headers, body: body as BodyInit | undefined });
+    const result = await pcBackendFetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}${path}${url.search}`, { method: request.method, headers, body: body as BodyInit | undefined });
     const out = new Headers({ "cache-control": "private, no-store", "x-content-type-options": "nosniff", "referrer-policy": "same-origin" });
-    if (toCloud) out.set(BACKEND_MODE_HEADER, "cloud");
     for (const name of ["content-type", "content-range", "range-unit", "preference-applied", "retry-after", "www-authenticate"]) {
       const value = result.headers.get(name); if (value) out.set(name, value);
     }

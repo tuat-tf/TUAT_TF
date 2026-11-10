@@ -656,7 +656,7 @@ def pc_configuration_gate(c):
             manifest.get('appEnvironmentSha256') == digest(private_bytes(c['appEnvironmentFile'])) and
             manifest.get('releaseId') == env.get('PC_APP_RELEASE_ID'), 'pc-release-env')
     required = ('.next/BUILD_ID', '.next/required-server-files.json', 'ops/pc-host/run.mjs', 'ops/pc-host/linux-launch.py', 'ops/pc-host/runner-lock.mjs',
-        'ops/pc-host/release.mjs', 'ops/pc-jobs/run.mjs', 'ops/pc-jobs/shared-pc.mjs', 'src/lib/supabase/cloud-auth.ts', periodic.installation_profile(c)['composeSource'], PC_HBA_SOURCE)
+        'ops/pc-host/release.mjs', 'ops/pc-jobs/run.mjs', 'ops/pc-jobs/shared-pc.mjs', periodic.installation_profile(c)['composeSource'], PC_HBA_SOURCE)
     require(isinstance(manifest.get('files'), dict) and set(required).issubset(manifest['files']) and isinstance(manifest.get('links'), dict), 'pc-release-files')
     require(release_inventory(c['releaseDirectory'], uid, gid) == {'files': manifest['files'], 'links': manifest['links']}, 'release-inventory')
     pc_db_hba(c, manifest); pc_db_vault(c, manifest)
