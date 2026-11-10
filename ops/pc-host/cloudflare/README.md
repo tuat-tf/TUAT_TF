@@ -10,7 +10,7 @@ The path is a fixed HTTPS
 `<worker>.<account-subdomain>.workers.dev` address, one Worker `PC_APP` VPC Service
 binding, a persistent named Cloudflare Tunnel, and this PC's loopback app gateway.
 Next, Auth, REST and private images run on the PC. Encrypted offsite backup uses
-R2 through its separate backup owner; R2 is not the current image data path.
+the club Google Drive (R2 is no longer used for anything).
 Keep the retired cloud source fences and writers disabled. No Quick Tunnel,
 endpoint lease/discovery, fallback, retry, or
 second data path is involved.

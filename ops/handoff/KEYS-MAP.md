@@ -12,7 +12,7 @@
 | Auth/RESTのJWT署名鍵（`GOTRUE_JWT_SECRET`、`PGRST_JWT_SECRET`、`local-jwks.json`） | `auth.env`、`rest.env`、`/var/lib/tuat-local/rest-private/local-jwks.json` | 暗号化した復旧支援パック（Drive）の中 | 作り直すと全員のログインが切れる。復旧パックが開ければ戻せる |
 | DB Vault鍵（`pgsodium_root.key`） | `/var/lib/tuat-local/db-private/pgsodium_root.key` | 同上 | DB内で暗号化して保存している値が読めなくなる |
 
-→ PCを失ったときの復旧経路は「iPhoneのマスター鍵 → 旧R2の復旧パック `20d29a1e` を復号 → バックアップ復号鍵 → Driveのバックアップを復号」の三段。旧R2は個人側の保存先で、部活へ移していない。2026-11-08からはバックアップ復号鍵そのものの控えもiPhoneにあるので、この遠回りは予備の経路。
+→ PCを失ったときの復旧経路は「iPhoneにあるバックアップ復号鍵の控え → Driveのバックアップを復号」の一段。以前の予備経路（iPhoneのマスター鍵 → 旧R2の復旧パック）は、旧R2を2026-11-11に削除したので、もう使えない。
 
 ## 2. 現在使われている設定ファイル
 
