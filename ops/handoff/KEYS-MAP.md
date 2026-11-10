@@ -37,7 +37,7 @@
 | Google（部活Gmail） | 部活 | Drive（バックアップ保存先）、Google Cloud（ログイン用OAuth）、GAS |
 | GitHub `tuat-tf` | 部活 | ソースコード |
 | Cloudflare | 部活（アカウントID `f08f553737bd866b3a6f4ce1f94a8be3`、部活Googleでログイン） | 公開URL `app.tuat-tf.workers.dev`・Tunnel |
-| Vercel（管理者の個人アカウント） | 個人 | `tuat-tf.vercel.app`（最初の旧URL）が新URLへ転送している。`tuat-tf-pc-preview` は404で使われていない。ほかに部活以外かもしれない `shinkan2026`・`menu20260404`・`article` がある。整理は所有者の承認が要る。 |
+| Vercel（管理者の個人アカウント） | 個人 | `tuat-tf.vercel.app`（最初の旧URL）は2026-11-11から、`tuat-pc-app` と同じ「11月18日で使えなくなります」の案内を出す（静的ページの本番デプロイ `dpl_FG2H25B88EDnf9XWkbzxVrnbaD1W`。戻すときは前の本番 `dpl_DCT2J9KWSm5zUqjTU4QT5C11uhxD`）。`tuat-tf-pc-preview` は404で使われていない。ほかに部活以外かもしれない `shinkan2026`・`menu20260404`・`article` がある。 |
 | Cloudflare（管理者の個人アカウント） | 個人 | 旧URL `tuat-pc-app.track-app.workers.dev` だけが残る。2026-11-11から、開くと「URLが変わりました。11月18日で使えなくなります」の案内と新URLへのボタンを出す（画面以外の読み込みは新URLへ転送）。**2026-11-18に削除する。**ほかの旧Worker 3つは2026-11-11に削除した。秘密は持っていない。同じログインで見える「TUAT TF」アカウント（`a0088e…`）は空。 |
 
 各アカウントのパスワード・2段階認証の復旧手段は、本人回答では「復号鍵以外は取り出せる見込み」。後任へ渡したことはない。
@@ -69,4 +69,4 @@
 - [ ] 起動用のファイルを `.contingency` から安定した場所へ移す（管理者権限が必要）。
 - [x] 古い世代を `pc-release.py prune` で片付ける（2026-11-11、42世代・約47GB）。
 - [ ] 各サービス管理アカウントの復旧手段を後任へ渡す方法を決める。
-- [ ] 2026-11-18に個人Cloudflareの `tuat-pc-app`（旧URLの案内）を削除する。
+- [ ] 2026-11-18に旧URLを止める: 個人Cloudflareの `tuat-pc-app` を削除し、個人Vercelの `tuat-tf` を止める（リマインダー設定済み）。
