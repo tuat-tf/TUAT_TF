@@ -96,7 +96,7 @@ $OutputEncoding = New-Object System.Text.UTF8Encoding $false
 wsl -d Ubuntu -u root -- systemctl list-units --all --no-pager 'tuat-local*'
 ```
 
-3. PCを再起動したあとなら、タスクスケジューラで「TUAT Local Runtime」が動いているか確かめる。
+3. PCを再起動したあとなら、タスクスケジューラで「TUAT Local Runtime」が動いているか確かめる。再起動後は手で何も起動しなくても本番が戻る（2026-11-11に確認。起動の数秒後にタスクが始まり、サービスがすべて立ち上がった）。
 
 **過去に起きたこと**
 - 再起動後、前回の `backup-owner.lock` が残っていて起動に失敗したことがある。前のプロセスがもういないことを確かめてから外す必要がある。
@@ -160,6 +160,5 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 
 ## 7. 未確認のこと
 
-- PCの再起動からの自動復旧は、最後の修正後にまだ試していない。
 - 別のPCへの全体の復旧は、まだ試していない（バックアップの読み戻しと別DBへの復元は毎日確認している）。
 - `TUAT_TF_NEXT_PAUSED`（D:ドライブ）は休止中の新アプリ。指示があるまで再開しない。
