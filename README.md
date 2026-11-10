@@ -39,7 +39,7 @@ Cloudflare（公開URL・入口）
   | `tuat-local-docker` / `tuat-local-containerd` | 本番専用のDocker |
 
 - Windows起動時は、タスクスケジューラの「TUAT Local Runtime」がWSLと上のサービスを起動する。
-- 旧Vercel URLは案内用に残っているが、本番ではない。旧クラウドSupabase・旧R2・旧中継は停止済みで、再開しない。
+- 旧Vercel URLは案内用に残っているが、本番ではない。旧クラウドSupabaseは削除済み（2026-11-11）。旧R2はアクセスキーを削除済みで、バケットの削除が残っている。旧中継は停止済み。どれも再開しない。
 - Googleスプレッドシート連携はGAS（`gas/`）経由。現役は `gas/sync-clasp/Code.js`。`gas/combined.gs`（旧合体版）は使われている可能性があるため消さない。
 
 ## 2. 日常の運用
