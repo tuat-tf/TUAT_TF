@@ -20,6 +20,7 @@ import { Linkify } from "@/components/common/Linkify";
 import { MenuCard } from "./schedule/PracticeMenuCard";
 import { ScheduleAttendance } from "./schedule/ScheduleAttendance";
 import { seedAttendees, menuCompare } from "./schedule/schedule-card-data";
+import { safeHttpUrl } from "@/lib/safe-url";
 import type { ScheduleWithMenus, Attendee, AttendanceStatusOrNone, AuthorMini, Block, PracticeMenu } from "@/types";
 
 /** 展開式の練習予定カード */
@@ -360,8 +361,8 @@ export function ScheduleCard({
               </dl>
             </Disclosure>
           )}
-          {schedule.venue_url && (
-            <a data-ui-action="text" data-ui-tone="primary" href={schedule.venue_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent pressable">
+          {safeHttpUrl(schedule.venue_url) && (
+            <a data-ui-action="text" data-ui-tone="primary" href={safeHttpUrl(schedule.venue_url)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent pressable">
               <MapPin size={14} /> 地図を開く <ExternalLink size={12} className="opacity-50" />
             </a>
           )}

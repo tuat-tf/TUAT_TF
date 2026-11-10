@@ -41,7 +41,7 @@ test('only Next static files and explicit branding are public; receipt and sourc
   assert.equal(result.files.some(file => /env|map$|server|private|sw\.js|manifest\.json/.test(file.path)), false);
   assert.equal(await readFile(join(output, 'assets/_headers'), 'utf8'), ASSET_HEADERS);
   assert.match(ASSET_HEADERS, /max-age=31536000, immutable/);
-  for (const header of ['X-Content-Type-Options: nosniff', 'X-Frame-Options: DENY', "Content-Security-Policy: frame-ancestors 'none'"]) {
+  for (const header of ['X-Content-Type-Options: nosniff', 'X-Frame-Options: DENY', "Content-Security-Policy: frame-ancestors 'none'", 'Referrer-Policy: strict-origin-when-cross-origin', 'Strict-Transport-Security: max-age=31536000']) {
     assert.equal(ASSET_HEADERS.split(header).length - 1, 3);
   }
   await assert.rejects(readFile(join(output, 'assets/manifest.json')), { code: 'ENOENT' });

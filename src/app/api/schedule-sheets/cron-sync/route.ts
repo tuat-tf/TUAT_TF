@@ -11,6 +11,7 @@ import {
 } from "@/lib/schedule-import";
 import { timingSafeEqualString } from "@/lib/timing-safe";
 import { forwardPcCron } from "@/lib/pc-cron-forward";
+import { fetchGoogleCsv } from "@/lib/google-csv-fetch";
 
 export async function GET(request: Request) { return forwardPcCron(request, POST); }
 import type { PracticeSchedule, ScheduleSheet, VenueRow } from "@/types";
@@ -43,7 +44,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "対象シートを取得できませんでした" }, { status: 500 });
   }
 
-  const { data: venueData } = await admin.from("venues").select("*");
+  const { data: venueData, error: venuesError } = await admin.from("venues").select("*");
+  if (venuesError) {
+    console.error("cron-sync: failed to read venues", venuesError);
+    return NextResponse.json({ error: "会場を取得できませんでした" }, { status: 500 });
+  }
   const venues = (venueData ?? []) as VenueRow[];
 
   const results: Record<string, unknown>[] = [];
@@ -70,9 +75,7 @@ async function syncOneSheet(
   dryRun = false,
 ) {
   const csvUrl = googleSheetCsvUrl(sheet.csv_url!);
-  const response = await fetch(csvUrl, { cache: "no-store" });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const csv = await response.text();
+  const csv = await fetchGoogleCsv(csvUrl, { timeoutMs: 15_000, maxBytes: 5 * 1024 * 1024 });
 
   const rawParsed = Papa.parse<string[]>(csv, { skipEmptyLines: false });
   const rawRows = rawParsed.data;
@@ -100,6 +103,7 @@ async function syncOneSheet(
   let inserted = 0;
   let updated = 0;
   let menuUpserts = 0;
+  let writeErrors = 0;
 
   for (const row of [...preview.additions, ...preview.updates]) {
     let scheduleId = row.id ?? null;
@@ -125,7 +129,11 @@ async function syncOneSheet(
         })
         .select("id")
         .single();
-      if (error || !data) continue;
+      if (error || !data) {
+        console.error("cron-sync: schedule insert failed", error);
+        writeErrors++;
+        continue;
+      }
       scheduleId = data.id as string;
       inserted++;
     } else {
@@ -147,7 +155,11 @@ async function syncOneSheet(
           source_sheet_id: sheet.id,
         })
         .eq("id", scheduleId);
-      if (error) continue;
+      if (error) {
+        console.error("cron-sync: schedule update failed", error);
+        writeErrors++;
+        continue;
+      }
       updated++;
     }
 
@@ -158,20 +170,31 @@ async function syncOneSheet(
     ) {
       const applied = await upsertScheduleMenu(admin, sheet, scheduleId, row.target_blocks[0], row);
       if (applied) menuUpserts++;
+      else writeErrors++;
     }
   }
 
-  await admin
-    .from("schedule_sheets")
-    .update({ last_imported_at: new Date().toISOString() })
-    .eq("id", sheet.id);
-
-  return {
+  const summary = {
     scheduleInserted: inserted,
     scheduleUpdated: updated,
     menuUpserts,
     scheduleErrors: preview.errors.length,
+    writeErrors,
   };
+  if (writeErrors > 0) {
+    return { ...summary, error: `${writeErrors}件の書き込みに失敗しました` };
+  }
+
+  const { error: stampError } = await admin
+    .from("schedule_sheets")
+    .update({ last_imported_at: new Date().toISOString() })
+    .eq("id", sheet.id);
+  if (stampError) {
+    console.error("cron-sync: last_imported_at update failed", stampError);
+    return { ...summary, error: "取込日時を更新できませんでした" };
+  }
+
+  return summary;
 }
 
 async function upsertScheduleMenu(
@@ -181,12 +204,14 @@ async function upsertScheduleMenu(
   targetBlock: string,
   row: { menu_content?: string | null; menu_pace?: string | null; menu_remark?: string | null; menu_supplement?: string | null },
 ): Promise<boolean> {
-  const { data: existingMenus } = await admin
+  const { data: existingMenus, error: existingError } = await admin
     .from("practice_menus")
     .select("id, targets:practice_menu_targets(user_id)")
     .eq("schedule_id", scheduleId)
     .eq("target_block", targetBlock);
-  const existing = ((existingMenus ?? []) as { id: string; targets: { user_id: string }[] }[]).find(
+  // 読み取り失敗を「メニューなし」と扱うと二重に作ってしまう。
+  if (existingError) return false;
+  const existing =((existingMenus ?? []) as { id: string; targets: { user_id: string }[] }[]).find(
     (menu) => (menu.targets?.length ?? 0) === 0,
   );
 
@@ -233,6 +258,7 @@ async function loadExistingSchedules(
       .gte("schedule_date", toDateStr(prevMonthDate))
       .lt("schedule_date", toDateStr(nextMonthDate));
   }
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) throw new Error("既存の予定を取得できませんでした");
   return (data ?? []) as PracticeSchedule[];
 }

@@ -40,6 +40,9 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .select("record_fields_version")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("record-form-config: update failed", error);
+    return NextResponse.json({ error: "保存できませんでした。もう一度お試しください" }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, version: data.record_fields_version });
 }

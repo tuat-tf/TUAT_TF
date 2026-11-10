@@ -21,8 +21,14 @@ export async function POST(request: Request) {
   const endpoint = body.endpoint;
   const p256dh = body.keys?.p256dh;
   const auth = body.keys?.auth;
-  if (!endpoint || !p256dh || !auth) {
+  if (
+    typeof endpoint !== "string" || typeof p256dh !== "string" || typeof auth !== "string" ||
+    !endpoint || !p256dh || !auth
+  ) {
     return NextResponse.json({ error: "購読情報が足りません" }, { status: 400 });
+  }
+  if (!endpoint.startsWith("https://") || endpoint.length > 4096) {
+    return NextResponse.json({ error: "購読情報が正しくありません" }, { status: 400 });
   }
 
   const { error } = await supabase.rpc("register_push_subscription", {
@@ -31,7 +37,8 @@ export async function POST(request: Request) {
     subscription_auth: auth,
   });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("push/register: rpc failed", error);
+    return NextResponse.json({ error: "通知の登録に失敗しました" }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

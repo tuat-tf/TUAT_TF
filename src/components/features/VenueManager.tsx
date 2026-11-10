@@ -17,6 +17,7 @@ import { Linkify } from "@/components/common/Linkify";
 import { safeUpdate, safeUpdateMessage } from "@/lib/safe-update";
 import type { VenueRow } from "@/types";
 import type { Database } from "@/types/database";
+import { safeHttpUrl } from "@/lib/safe-url";
 
 /** 練習場所の管理（追加・編集・削除・選択リスト表示の切替） */
 export function VenueManager({ initial }: { initial: VenueRow[] }) {
@@ -239,6 +240,10 @@ function VenueForm({
     try {
       if (!name.trim()) {
         setError("会場名を入力してください");
+        return;
+      }
+      if (url.trim() && !safeHttpUrl(url)) {
+        setError("地図のURLは http:// または https:// から始まるアドレスを入力してください");
         return;
       }
       setSaving(true);

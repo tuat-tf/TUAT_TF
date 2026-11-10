@@ -37,7 +37,8 @@ export async function POST(request: Request) {
     .eq("id", user.id)
     .maybeSingle();
   if (pErr) {
-    return NextResponse.json({ error: pErr.message }, { status: 500 });
+    console.error("push-record: profile read failed", pErr);
+    return NextResponse.json({ error: "プロフィールを取得できませんでした" }, { status: 500 });
   }
   if (!profile?.sheet_name) {
     return NextResponse.json({ ok: true, skipped: true });
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
     .eq("id", recordId)
     .maybeSingle();
   if (rErr) {
-    return NextResponse.json({ error: rErr.message }, { status: 500 });
+    console.error("push-record: record read failed", rErr);
+    return NextResponse.json({ error: "練習記録を取得できませんでした" }, { status: 500 });
   }
   if (!rec || rec.user_id !== user.id) {
     return NextResponse.json({ error: "記録が見つかりません" }, { status: 404 });

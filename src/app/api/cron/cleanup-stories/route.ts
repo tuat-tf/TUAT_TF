@@ -26,7 +26,12 @@ export async function GET(request: Request) {
     .not("expires_at", "is", null)
     .lte("expires_at", new Date().toISOString())
     .limit(500);
-  if (error) return pcBackupProtectionResponse(error) ?? NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const protection = pcBackupProtectionResponse(error);
+    if (protection) return protection;
+    console.error("cleanup-stories: read failed", error);
+    return NextResponse.json({ error: "期限切れストーリーを取得できませんでした" }, { status: 500 });
+  }
   if (!stories?.length) return NextResponse.json({ deleted: 0 });
 
   const imagePaths = stories.flatMap((story) => story.image_path ? [story.image_path] : []);

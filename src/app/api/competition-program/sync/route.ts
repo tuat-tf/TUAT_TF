@@ -91,7 +91,8 @@ export async function POST(request: Request) {
   if (onlyCompetitionId) query = query.eq("id", onlyCompetitionId);
   const { data: competitions, error: competitionsError } = await query;
   if (competitionsError) {
-    return NextResponse.json({ ok: false, error: competitionsError.message }, { status: 500 });
+    console.error("competition-program/sync: competitions read failed", competitionsError);
+    return NextResponse.json({ ok: false, error: "大会を取得できませんでした" }, { status: 500 });
   }
 
   const results: { competitionId: string; ok: boolean; rows?: number; entries?: number; error?: string }[] = [];

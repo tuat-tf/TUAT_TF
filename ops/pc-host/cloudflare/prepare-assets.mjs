@@ -20,16 +20,22 @@ export const ASSET_HEADERS = `/_next/static/*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
 /branding/*
   Cache-Control: public, max-age=3600, must-revalidate
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
 /favicon.ico
   Cache-Control: public, max-age=3600, must-revalidate
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
 `;
 const extensions = new Set(['.js', '.css', '.woff', '.woff2', '.ttf', '.otf', '.eot', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.svg', '.ico', '.wasm']);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');

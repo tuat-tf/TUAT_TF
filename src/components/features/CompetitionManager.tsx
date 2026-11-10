@@ -19,6 +19,7 @@ import { isCompetitionArchived, selectHomeCompetition } from "@/lib/competition-
 import { saveCompetitionOrder } from "@/lib/competition-order";
 import { atomicSave, atomicSaveMessage } from "@/lib/atomic-save";
 import type { CompetitionRow } from "@/types";
+import { safeHttpUrl } from "@/lib/safe-url";
 
 /**
  * 部で統一している大会（対抗戦など）の一覧。
@@ -328,6 +329,10 @@ function CompetitionForm({
     }
     if (endsOn && endsOn < startsOn) {
       setError("最終日は初日より後にしてください");
+      return;
+    }
+    if (programSourceUrl.trim() && !safeHttpUrl(programSourceUrl)) {
+      setError("プログラムのURLは http:// または https:// から始まるアドレスを入力してください");
       return;
     }
     setSaving(true);

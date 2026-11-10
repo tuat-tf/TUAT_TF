@@ -22,7 +22,10 @@ export async function POST() {
     .select("id, sheet_name, record_fields")
     .eq("id", user.id)
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("clear-deleted: profile read failed", error);
+    return NextResponse.json({ error: "プロフィールを取得できませんでした" }, { status: 500 });
+  }
   if (!profile?.sheet_name) return NextResponse.json({ ok: true, skipped: true });
 
   try {

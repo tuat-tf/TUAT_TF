@@ -16,6 +16,7 @@ import type { CompetitionProgramEntryRow, CompetitionRow } from "@/types";
 import { CompetitionInProgress } from "./CompetitionInProgress";
 import { CompetitionResults } from "./CompetitionResults";
 import { useCompetitionProgram } from "./useCompetitionProgram";
+import { safeHttpUrl } from "@/lib/safe-url";
 
 /** 大会プログラム（速報サイトから取り込んだ農工大の出場種目・出場選手と、その結果）。 */
 export function CompetitionProgramView({
@@ -80,7 +81,7 @@ export function CompetitionProgramView({
       </div>
 
       <p className="text-micro text-muted2">{isCompetitionArchived(competition) ? "自動取得は終了しています。記録は最終取得時点の情報です。" : "開催期間は約5分ごとに公式情報を取得します。記録は速報値です。"}</p>
-      {competition.program_source_url && <a data-ui-action="text" data-ui-tone="primary" href={competition.program_source_url} target="_blank" rel="noopener noreferrer" className="text-caption text-accent underline">大会公式のプログラムを見る</a>}
+      {safeHttpUrl(competition.program_source_url) && <a data-ui-action="text" data-ui-tone="primary" href={safeHttpUrl(competition.program_source_url)!} target="_blank" rel="noopener noreferrer" className="text-caption text-accent underline">大会公式のプログラムを見る</a>}
       <CompetitionResults rows={rows} />
     </div>
   );

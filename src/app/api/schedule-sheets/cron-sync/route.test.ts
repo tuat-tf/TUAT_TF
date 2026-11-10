@@ -40,4 +40,27 @@ describe('scheduled import preflight', () => {
     expect((await POST(request(false))).status).toBe(401);
     expect(mocks.from).not.toHaveBeenCalled();
   });
+  it('fails the sheet and skips the timestamp when an insert fails', async () => {
+    const failing: Record<string, unknown> = {};
+    for (const name of ['select', 'single']) failing[name] = () => failing;
+    failing.then = (resolve: (v: unknown) => unknown) => Promise.resolve(resolve({ data: null, error: { message: 'db' } }));
+    mocks.writes.mockReturnValue(failing);
+    const body = JSON.stringify({});
+    const response = await POST(new Request('http://localhost/api/schedule-sheets/cron-sync', {
+      method: 'POST', headers: { authorization: 'Bearer test-secret' }, body,
+    }));
+    const result = await response.json();
+    expect(result).toMatchObject({ ok: false, results: [{ writeErrors: 1, error: expect.any(String) }] });
+    expect(mocks.writes).toHaveBeenCalledTimes(1);
+  });
+  it('fails the request when venues cannot be read', async () => {
+    const base = mocks.from.getMockImplementation()!;
+    mocks.from.mockImplementation((table: string) => {
+      if (table !== 'venues') return base(table);
+      const q: Record<string, unknown> = { select: () => q };
+      q.then = (resolve: (v: unknown) => unknown) => Promise.resolve(resolve({ data: null, error: { message: 'db' } }));
+      return q;
+    });
+    expect((await POST(request())).status).toBe(500);
+  });
 });
