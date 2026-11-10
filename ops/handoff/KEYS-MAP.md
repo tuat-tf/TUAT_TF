@@ -49,9 +49,9 @@
    - 旧版のコピー・旧スクリプト・ログ（`retired-releases-20261022`、`upstream` など）。
    - `D:\TUAT_TF\.env.local` と `.worktrees\pc-folders-20261008\.env.local`（中身はすべて旧クラウドSupabase・個人側R2・旧Vercel用）。
    - **残っているもの**: `.contingency/pc-auth-source-private-20261012/linux-storage-20261013/`（約0.5MB）。中の `windows-bootstrap-20261014/` はWindows起動タスク「TUAT Local Runtime」が `windows-boot.mjs`・`windows-boot.json` を実行する場所で、暗号化領域の解錠鍵（`luks-key.machine.dpapi`）もある。消すとPCを再起動したときに本番が起動しない。同じ階層の `luks-key.dpapi`・`luks-key.recovery.enc` は解錠鍵の別の控えなので一緒に残した。
-   - **管理者権限がなく消せなかったもの（3ファイル）**: `.contingency/backend/ob-access-pc-before.json`、`.contingency/backend/ob-resilience-pc-before.json`、`.contingency/import-timeline-20261005/workspace-before.patch`。読み取りも拒否される権限設定。
+   - 読み取りも拒否される権限だった3ファイル（`backend/ob-*-pc-before.json` 2つ、`import-timeline-20261005/workspace-before.patch`）は、2026-11-11に管理者のPowerShellで権限を戻して削除した。
    - **旧サービスの秘密は、ファイルを消しても鍵そのものは有効なまま**: 旧クラウドSupabaseの管理キー・DBパスワード、個人側R2のアクセスキー。サービス側で失効させるまで使える。
-   - タスク「TUAT PC Jobs」（旧Jobs）は「準備完了」のまま。設定ファイルを削除したので旧Jobsは起動できないが、無効化には管理者権限が要る。
+   - タスク「TUAT PC Jobs」（旧Jobs）は2026-11-11に無効化した。
 2. **同じ鍵のコピーが大量にある。** 本番反映のたびに複製され、`installation-*` が73世代、`recovery-backup.key` が73個、アプリのenvが172個。暗号化領域内なので直ちに漏れるわけではないが、どれが現行か分かりにくい。
 3. ~~復号鍵のPCの外の控えが旧R2に依存~~ → 2026-11-08に直接の控えを作成済み。
 
@@ -62,7 +62,7 @@
 - [ ] 後任へバックアップの鍵を渡す方法を決める（iPhoneだけに置かない）。
 - [x] `.env.local` と `.contingency` の中の秘密を仕分ける（2026-11-08、上の1）。
 - [x] 仕分けた不要物を削除する（2026-11-09、起動に使うフォルダは残した）。
-- [ ] 消せなかった3ファイルの削除と、タスク「TUAT PC Jobs」の無効化（管理者のPowerShellで行う）。
+- [x] 消せなかった3ファイルの削除と、タスク「TUAT PC Jobs」の無効化（2026-11-11、管理者のPowerShell）。
 - [ ] 旧クラウドSupabaseと個人側R2を使い続けるか決め、使わないならサービス側で鍵を失効・削除する。
 - [ ] 起動用のファイルを `.contingency` から安定した場所へ移す（管理者権限が必要）。
 - [ ] 古い `installation-*` 世代を `pc-release.py prune` で片付けられる範囲を確認する。
