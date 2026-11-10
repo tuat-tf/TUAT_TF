@@ -343,9 +343,10 @@ def build(commit, node_modules=None):
         verify_node_modules(prepared, release / 'package-lock.json')
         subprocess.run(['cp', '-a', str(prepared), str(release / 'node_modules')], check=True)
     else:
-        for name in ('package-lock.json', 'package.json'):
-            need((release / name).read_bytes() == (previous / name).read_bytes(),
-                 f'{name} changed since {previous.name}; pass --node-modules with a tree prepared for this lockfile')
+        # Only the lockfile decides what is installed; a package.json edit that leaves it unchanged (e.g. scripts)
+        # needs no new tree.
+        need((release / 'package-lock.json').read_bytes() == (previous / 'package-lock.json').read_bytes(),
+             f'package-lock.json changed since {previous.name}; pass --node-modules with a tree prepared for this lockfile')
         subprocess.run(['cp', '-a', str(previous / 'node_modules'), str(release / 'node_modules')], check=True)
 
     records.mkdir(mode=0o700)

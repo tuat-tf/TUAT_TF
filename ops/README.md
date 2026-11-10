@@ -1,45 +1,36 @@
-# PC運用コードと検証の入口
+# ops — 本番PCの運用コード
 
-主系はPC内のアプリ・DB・Auth・画像。稼働状態と未確認は
-[本番引継ぎ](../README.md)の最新追記を優先する。
-この一覧や試験の成功を、本番の再起動・復元・実機操作の証拠にはしない。
+全体の構成と日常の手順は [README](../README.md)。食い違ったら README が正しい。
 
-| 範囲 | 現在の入口 |
-| --- | --- |
-| アプリ・gateway・共有Next | [pc-host](pc-host/README.md) |
-| 定期処理・既存journal | [pc-jobs](pc-jobs/README.md) |
-| PC起動・単一backup owner・combined snapshot | `local-minimal/pc/bootstrap.py`、`local-minimal/backup.py`、`local-minimal/periodic.py` |
-| backup状態・復元/暗号化保存の照合 | [pc-backup](pc-backup/README.md)、`local-minimal/offsite.mjs` |
-| Cloudflare入口 | [pc-host/cloudflare](pc-host/cloudflare/README.md) |
+| フォルダ | 中身 |
+|---|---|
+| [pc-host](pc-host/README.md) | アプリの起動、反映（`pc-release.py`）、Cloudflare の入口 |
+| `local-minimal` | WSL 内の起動（`runtime.py`）、毎日のバックアップ（`backup.py`・`periodic.py`）、Drive への保存（`offsite.mjs`） |
+| [pc-backup](pc-backup/README.md) | バックアップの状態管理と、古いバックアップの整理 |
+| [pc-jobs](pc-jobs/README.md) | 定期処理（記録・大会・通知など） |
+| [handoff](handoff/README.md) | 別のPCへ移す手順、鍵の地図 |
+| [laptop](laptop/README.md) | 旧Windowsバックエンドの残り。バックアップが使う数ファイルと省電力の設定だけ |
+| `pc-image-cleanup`、`review`、`pc-host/db-review`、`pc-host/backup-review` | 移行のときに使った確認用。今は使っていない |
 
-## 合成試験
+本番が実際に動かしているのは `local-minimal`・`pc-backup`・`pc-host`・`pc-jobs`。ここを変えたら、反映後に次のバックアップが成功したことまで確かめる（確かめ方は README）。
 
-Nodeは24を使う。`npm test`はアプリのVitestだけを実行するため、運用コードの変更では次も実行する。
+## バックアップの動き
 
-- `npm run test:ops`: Windowsでも実行できるNode群。これだけでは運用検証全体の完了にはならない。
-- `npm run test:ops:integration`: LinuxとNode 24が必須。現在のbackup/host/Jobs/入口と旧互換契約を含む。owner・mode・symlinkを確認する`backup-codec`/`import-images`の検査はWindowsでは成立しないため、入口で非0終了する。Linux用依存とPOSIX権限を扱える一時領域を使い、共有Windows用node_modulesを書き換えない。
-- `npm run test:ops:windows`: WindowsとNode 24が必須。旧Windows wrapper mutex/launchを検証する`backup-lifecycle.test.mjs`と`runner-lock.test.mjs`を実行する。この2本だけをLinux integrationから固定リストで除外する。さらに`account-preflight.test.mjs`と`release.test.mjs`を両OSで実行し、WindowsのACL・Git CRLF・固定tool確認とLinuxのnpm link確認を補完する。Linuxの実FLOCK・非特権起動は下記Python群で確認する。両OSの確認を必要とし、除外やOS別skipを検証成功として数えない。
-- `npm run test:ops:node`: 上記2群を順に実行するLinux用入口。Windowsで前半が成功しても全体成功にはならない。
-- `npm run test:cloudflare`: Cloudflare入口のNode試験。
-- `npm run test:ops:linux`: Linux/rootとPATH上のNode 24が必須。7本のPython試験を個別processで実行し、FLOCK・所有者・private namespaceを合成fixtureで確認する。前提不足やskipは非0終了とし、成功に含めない。
-- `npm run test:ops:db:cloud-fence -- --image sha256:<cached-image-id> --socket <isolated-docker-socket>` と `test:ops:db:final-fence`: 旧移行fenceの復旧用DB合成試験。明示する既存imageと分離Dockerが必要なので通常のNode/Linux試験とは別に実行する。未実行は未確認として記録する。
+1日1回、DB・ログイン情報・画像をまとめて暗号化し、Google Drive へ保存する。保存したものを読み戻し、別のDBへ復元できることまで毎回確かめる。古いバックアップの整理は、消す候補があるときだけ、残すものと消すものを全部確かめてから行う。取得に失敗したときは「0件」として進めず、止まる。
 
-Linux試験は本番と分離した使い捨て環境で行う。既存WSLのサービス/mountやDBを変更して試験環境を用意しない。Node試験内のOS別skipも報告し、Linux専用試験をWindowsの成功で代替しない。
+## 試験
 
-## 旧構成と保管物
+`npm test` はアプリのテストだけ。運用コードを変えたら次も走らせる。Windows と Linux の両方が必要で、片方の成功をもう片方の代わりにしない。
 
-`laptop`には現在の引継ぎと旧backend/mirrorの実装が同居する。旧コードの存在を稼働中という意味に取らず、旧writer・cron・queueの停止を維持する。`pc-retirement`から旧mirrorの表定義を参照する部分などがあるため、directory全体を削除しない。
+| コマンド | 必要な環境 | 中身 |
+|---|---|---|
+| `npm run test:ops` | Node 22 以上（Windows可） | Windows でも動く分 |
+| `npm run test:ops:windows` | Windows と Node 24 | ロックと起動まわり |
+| `npm run test:ops:integration` | Linux と Node 24 | バックアップ・起動・Jobs・入口 |
+| `npm run test:ops:linux` | Linux の root と Node 24 | ロック・所有者・隔離（Python） |
+| `npm run test:cloudflare` | Node 24 | Cloudflare の入口 |
 
-Jobsの旧専用Next準備は[legacy](pc-jobs/legacy/prepare-dedicated.mjs)に保管する。既定の`prepare-production.mjs`は旧設定を読まず停止する。現行配置ではhostの固定release/envと既存Jobsの`stateDirectory`・`activateAt`を引き継ぎ、`run.mjs --check`を使う。旧準備処理は現在のPC内構成の再配置には使わない。
-
-旧ガラス生成物とライセンスは[glass/vendor](glass/README.md)に保管する。現在の直接透過UIとは別で、公開assetsには含めない。
-
-## Backup整理の読戻し
-
-15分ごとのbackupは暗号化転送後の全量読戻し・復元検証を維持する。
-その直後の自動整理は、単一writer・現在のgeneration・完全なinventory・独立復旧鍵を確認し、
-local/remote/metadataの削除候補がすべて0なら`inspected`で終了する。
-この状態は追加のarchive検証成功を意味せず、削除を承認するdry-runとしても使えない。
-削除候補がある場合と明示的なdry-runは、従来どおり保持archiveと削除対象の全量検証を行う。
-取得失敗・未解決intent・owner変更は0件に変換せず`held`にする。
-配置全体のhash検査は改ざん検出のため継続し、mtimeだけのcacheには置き換えない。
+- このPCの開発用 Node は 22.14 なので、Node 24 が要る試験はそのままでは走らない。
+- Linux の試験は、本番と別の使い捨て環境で走らせる。本番の WSL のサービスや DB を試験のために変えない。
+- 環境が足りずに走らなかった試験は「未確認」と報告する。
+- `test:ops:db:cloud-fence`・`test:ops:db:final-fence` は旧クラウドからの移行用で、移行が終わった今は走らせる場面がない。

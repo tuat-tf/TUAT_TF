@@ -54,8 +54,7 @@ composeは必ず4ファイルを揃えて実行する（2026-09-10に1ファイ�
 docker compose -f docker-compose.yml -f compose.local.yml -f compose.rehearsal.yml -f compose.auth.json up -d
 ```
 
-**バックアップの間隔**: 15分ごとのダンプ＋暗号化＋R2送信は、数秒とはいえCPUとHDDを動かす。
-ただしこれはデータを失わないための仕組みなので、電力のために延ばさない。
+**バックアップの間隔**: 現在は1日1回（ダンプ＋暗号化＋Google Driveへの保存）。データを失わないための仕組みなので、電力のために延ばさない。
 
 **WSLのメモリ上限**: 既定で物理メモリの50%（約15.6GB）を割り当てている。`.wslconfig` で絞れるが、
 電力への影響はほとんどない。

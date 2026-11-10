@@ -64,7 +64,7 @@ wsl -d Ubuntu -u root -- python3 -I -B /mnt/d/TUAT_TF/ops/pc-host/pc-release.py 
 
 - 計画だけ見る: `... pc-release.py switch <SHA>`（何も変えない）
 - 古い版を片付ける: `... pc-release.py prune --keep 2`（確認のみ）→ `--execute` を付けて実行
-- `package-lock.json` が変わった版は、PCにnpmがないため `--node-modules <Linux用node_modulesのdir>` が必要。
+- `package-lock.json` が変わった版は、本番PCにnpmを入れていないため `--node-modules <Linux用node_modulesのdir>` が必要（`package.json` だけの変更なら不要）。
 - 反映が済んだ版のフォルダ内で `git` コマンドを打たない（中身の照合が崩れ、次回起動を拒否する）。
 
 ### バックアップが動いているか確かめる
@@ -123,7 +123,7 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 
 ## 5. 開発
 
-1. Node.js 24 を使う。
+1. Node.js 22.12 以上を使う（このPCの開発用は mise の 22.14。本番は WSL 内の 24.19 で、開発用とは別）。
 2. `npm ci`
 3. `.env.example` を見て `.env.local` を用意する（本番の値を入れない）。
 4. `npm run dev` → http://localhost:3000
@@ -137,7 +137,11 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 | `npm run test:ops` | 運用スクリプトのテスト（Windowsで動く分） |
 | `npm run build` | ビルド |
 
-- DBの変更は `supabase/migrations/` に新しい時刻のファイルとして追加する。本番への適用前に、対象表の退避とdryRunで差分を確かめる。
+- DBの変更は `supabase/migrations/` に新しい時刻のファイルとして追加する。本番へは自動では入らないので、反映の前に手で適用する。上の「DBの中身を見る」と同じ `docker ... exec -i tuat-local-db psql ...` に `-v ON_ERROR_STOP=1` を足し、migration のファイルを流し込む。
+  1. 変わる表を退避する（`CREATE TABLE backup_<表>_<日付> AS SELECT * FROM <表>;` など）。
+  2. dryRun: `BEGIN;` ＋ migration ＋ 確認用の `SELECT` ＋ `ROLLBACK;` を流して、差分が想定どおりか見る。
+  3. 本適用: migration のファイルだけを流す。そのあとアプリを反映する。
+- AIに頼むときは、1つの依頼が公開まで済んだら新しい会話で次を始める。長い会話は1手ごとに全文を読み直すので、同じ作業でも何倍もトークンを使う（2026-11時点で消費の大半がこれだった）。
 - 権限は複数ロール方式（`roles`・`profile_roles`）。画面は `permissionsOf`、DBはRLSで守る。詳しくは [docs/PERMISSIONS.md](docs/PERMISSIONS.md)。
 - 画面の作りと文言は [docs/UI-UNIFICATION.md](docs/UI-UNIFICATION.md)・[docs/WORDING-GUIDELINES.md](docs/WORDING-GUIDELINES.md)。
 - 練習記録とスプレッドシートの同期の設計は [docs/SHEETS-SYNC-PLAN.md](docs/SHEETS-SYNC-PLAN.md)。
