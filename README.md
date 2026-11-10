@@ -114,9 +114,9 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 
 詳しい一覧は [ops/handoff/KEYS-MAP.md](ops/handoff/KEYS-MAP.md)（値は書いていない）。要点:
 
-- **バックアップの鍵**がいちばん大事。これがあればDriveのバックアップから、データもほかの鍵もすべて戻せる。ないと何も戻せない。PCの中と、管理者のiPhoneの「パスワード」に控えがある。
+- **バックアップの鍵**がいちばん大事。これがあればDriveのバックアップから、データもほかの鍵もすべて戻せる。ないと何も戻せない。PCの中のほか、部活Googleアカウントのパスワードマネージャー（https://passwords.google.com、名前「TUAT TF backup decryption key」）と管理者のiPhoneの「パスワード」に控えがある。Driveのバックアップと同じ場所（Driveのファイル）には置かない。
 - アプリが使うそのほかの鍵（ログイン、DB、Cloudflare接続、Drive送信など）はPCの中にあり、バックアップにも含まれている。人が控える必要はない。
-- サービスの管理は部活アカウントで行う: 部活Google（Drive・Google Cloud・GAS）、GitHub `tuat-tf`、Cloudflare。後任へはこれらのログイン手段とバックアップの鍵を渡す。
+- サービスの管理は部活アカウントで行う: 部活Google（Drive・Google Cloud・GAS）、GitHub `tuat-tf`、Cloudflare。後任へはこれらのログイン手段を渡せば、バックアップの鍵も部活アカウントと一緒に引き継がれる。
 - 秘密の値はGit・チャット・ログに出さない。
 
 **`D:\TUAT_TF\.contingency\` を消さない。** 移行作業中の秘密・個人データの平文コピーは2026-11-09に削除し、残っているのはWindowsの起動に使うフォルダ（`pc-auth-source-private-20261012\linux-storage-20261013\`）だけ。起動タスクがここを使っており、消すと再起動後に本番が起動しない。詳しくは鍵の地図の4章。

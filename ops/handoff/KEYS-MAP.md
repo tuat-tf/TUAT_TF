@@ -7,7 +7,7 @@
 
 | もの | 本番PC上の場所 | PCの外の控え | なくすと |
 |---|---|---|---|
-| バックアップ復号鍵（32byte、`PC_BACKUP_ENCRYPTION_KEY`） | `/var/lib/tuat-local/private/installation-<現行>/recovery-backup.key` ほか（`runtime-backup.key` と同じ値。2026-10-14以降変わっていない） | 管理者のiPhoneの「パスワード」（2026-11-08に本人が保存）。ほかに、下の「iPhoneのマスター鍵」で暗号化した復旧パック `20d29a1e`（旧R2）にも入っている | Google Driveの暗号化バックアップが**すべて開けなくなる**。PCが壊れたら復旧不能 |
+| バックアップ復号鍵（32byte、`PC_BACKUP_ENCRYPTION_KEY`） | `/var/lib/tuat-local/private/installation-<現行>/recovery-backup.key` ほか（`runtime-backup.key` と同じ値。2026-10-14以降変わっていない） | 部活Googleアカウントのパスワードマネージャー（2026-11-11）、管理者のiPhoneの「パスワード」（2026-11-08）。ほかに、下の「iPhoneのマスター鍵」で暗号化した復旧パック `20d29a1e`（旧R2）にも入っている | Google Driveの暗号化バックアップが**すべて開けなくなる**。PCが壊れたら復旧不能 |
 | iPhoneのマスター鍵（2026-10-12作成、64文字、iPhoneの「パスワード」に保存） | PCには置いていない | iPhoneだけ | 復旧パック `20d29a1e` などが開けなくなり、上の復号鍵をPCの外から取り戻す手段がなくなる |
 | Auth/RESTのJWT署名鍵（`GOTRUE_JWT_SECRET`、`PGRST_JWT_SECRET`、`local-jwks.json`） | `auth.env`、`rest.env`、`/var/lib/tuat-local/rest-private/local-jwks.json` | 暗号化した復旧支援パック（Drive）の中 | 作り直すと全員のログインが切れる。復旧パックが開ければ戻せる |
 | DB Vault鍵（`pgsodium_root.key`） | `/var/lib/tuat-local/db-private/pgsodium_root.key` | 同上 | DB内で暗号化して保存している値が読めなくなる |
@@ -59,7 +59,7 @@
 
 - [x] バックアップ復号鍵そのものの控えを作る（2026-11-08、iPhone）。鍵を作り直してはいけない。控えを作り直すときも下のスクリプトを使う。
   本番PCのPowerShellで `powershell -NoProfile -ExecutionPolicy Bypass -File D:\TUAT_TF\ops\handoff\show-backup-key.ps1` を本人が実行する。鍵は画面にだけ表示され、保存後に控えを入力し直して一致を確認する。ファイルやチャットには残さない。
-- [ ] 後任へバックアップの鍵を渡す方法を決める（iPhoneだけに置かない）。
+- [x] 後任へバックアップの鍵を渡す方法を決める（2026-11-11、部活Googleアカウントのパスワードマネージャーに保存。Driveのファイルには置かない）。
 - [x] `.env.local` と `.contingency` の中の秘密を仕分ける（2026-11-08、上の1）。
 - [x] 仕分けた不要物を削除する（2026-11-09、起動に使うフォルダは残した）。
 - [x] 消せなかった3ファイルの削除と、タスク「TUAT PC Jobs」の無効化（2026-11-11、管理者のPowerShell）。
