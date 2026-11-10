@@ -10,10 +10,8 @@ import {
   type SubmittedScheduleRow,
 } from "@/lib/schedule-import";
 import { timingSafeEqualString } from "@/lib/timing-safe";
-import { forwardPcCron } from "@/lib/pc-cron-forward";
 import { fetchGoogleCsv } from "@/lib/google-csv-fetch";
 
-export async function GET(request: Request) { return forwardPcCron(request, POST); }
 import type { PracticeSchedule, ScheduleSheet, VenueRow } from "@/types";
 
 export const maxDuration = 60;

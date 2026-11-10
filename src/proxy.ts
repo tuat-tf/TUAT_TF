@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const nativeOrigin = "https://app.tuat-tf.workers.dev";
-// Match the previous static exclusions after the old production cutover guard.
 const staticPath = /^\/(?:api|_next\/static|_next\/image|favicon.ico|sw.js|apple-icon|icon|manifest.webmanifest)|\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/;
 
 // Next.js 16 では middleware.ts は proxy.ts に改称された（機能は同じ）。

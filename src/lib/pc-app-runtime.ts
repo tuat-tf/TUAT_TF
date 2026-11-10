@@ -3,15 +3,14 @@ import { getPcLocalRuntime, type PcLocalRuntime } from "./pc-local-runtime";
 
 export type PcAppRuntime = { publicOrigin: string; internalUrl: string; synthetic: boolean; local: PcLocalRuntime };
 
-/** Explicit server deployment only. Existing production routing stays unchanged when disabled. */
+/** The production (PC) runtime. Undefined only for unconfigured development and tests. */
 export function getPcAppRuntime(): PcAppRuntime | undefined {
   const server = process.env.PC_APP_RUNTIME === "true";
   const browser = process.env.NEXT_PUBLIC_PC_APP_RUNTIME === "true";
   if (!server && !browser) return undefined;
-  if (!server || !browser || typeof window !== "undefined" || process.env.VERCEL || process.env.VERCEL_ENV ||
-      process.env.PC_BACKEND_ENABLED !== "true" || process.env.NEXT_PUBLIC_PC_BACKEND !== "true" ||
-      process.env.NEXT_PUBLIC_PC_REST_RELAY_ORIGIN) {
-    throw new Error("PC app requires its explicit independent runtime");
+  if (!server || !browser || typeof window !== "undefined" ||
+      process.env.PC_BACKEND_ENABLED !== "true" || process.env.NEXT_PUBLIC_PC_BACKEND !== "true") {
+    throw new Error("PC app requires its complete runtime flags");
   }
   const publicOrigin = configuredAppPublicOrigin();
   if (!publicOrigin || process.env.NEXT_PUBLIC_SUPABASE_URL !== `${publicOrigin}/api/pc-supabase`) {

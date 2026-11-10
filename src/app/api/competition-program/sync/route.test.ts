@@ -4,7 +4,6 @@ const fixture = vi.hoisted(() => ({ competition: { id: "test-meet", starts_on: "
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: vi.fn() }));
 vi.mock("node:dns/promises", () => ({ lookup: async () => ({ address: "192.0.2.1", family: 4 }) }));
-vi.mock("@/lib/pc-cron-forward", () => ({ forwardPcCron: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
   from: () => {
     const query = { select: () => query, not: () => query, eq: () => query,

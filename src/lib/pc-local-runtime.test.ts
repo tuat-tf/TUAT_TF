@@ -11,7 +11,7 @@ beforeEach(() => {
     PC_BACKEND_ENABLED: "true", NEXT_PUBLIC_PC_BACKEND: "true", APP_PUBLIC_ORIGIN: origin, NEXT_PUBLIC_SUPABASE_URL: base,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "synthetic-local-anon", PC_LOCAL_AUTH_URL: "http://127.0.0.1:18001", PC_LOCAL_REST_URL: "http://127.0.0.1:18002",
     IMAGE_STORAGE_DRIVER: "local", R2_READ_ENABLED: "false", R2_WRITE_ENABLED: "false",
-    PC_BACKEND_INTERNAL_URL: "", NEXT_PUBLIC_PC_REST_RELAY_ORIGIN: "", VERCEL: "", VERCEL_ENV: "" })) vi.stubEnv(name,value);
+    })) vi.stubEnv(name,value);
   vi.stubEnv("PC_APP_SYNTHETIC_REVIEW","true");vi.stubEnv("NEXT_PUBLIC_PC_APP_SYNTHETIC_REVIEW","true");vi.stubEnv("SHEET_SYNC_ENABLED","false");
   vi.stubEnv("LOCAL_IMAGE_STORAGE_ROOT",resolve("..","synthetic-images"));vi.stubEnv("LOCAL_IMAGE_SIGNING_KEY","synthetic-key-only".repeat(3));vi.stubEnv("LOCAL_IMAGE_MAX_STORAGE_BYTES","1000");
 });

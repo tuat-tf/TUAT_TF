@@ -8,7 +8,7 @@ export function getPcLocalRuntime(): PcLocalRuntime | undefined {
   const server = process.env.PC_LOCAL_RUNTIME === "true";
   const browser = pcAppLocalAuthEnabled();
   if (!server && !browser) return undefined;
-  if (!server || !browser || process.env.PC_BACKEND_INTERNAL_URL || typeof window !== "undefined" ||
+  if (!server || !browser || typeof window !== "undefined" ||
       process.env.IMAGE_STORAGE_DRIVER !== "local" || process.env.R2_READ_ENABLED !== "false" || process.env.R2_WRITE_ENABLED !== "false" ||
       ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME"].some(name => process.env[name])) {
     throw new Error("Local runtime requires private Auth/REST and local images without image-provider credentials");

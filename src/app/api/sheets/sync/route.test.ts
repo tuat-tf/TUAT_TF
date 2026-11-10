@@ -26,7 +26,6 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({
 vi.mock("@/lib/supabase/auth", () => ({ fetchRolesByProfileIds: async () => new Map() }));
 vi.mock("@/lib/permissions", () => ({ permissionsOf: () => ({ manageMembers: state.canManage }) }));
 vi.mock("@/lib/sheet-sync", () => ({ runSheetSync: state.sync }));
-vi.mock("@/lib/pc-cron-forward", () => ({ forwardPcCron: vi.fn() }));
 import { POST } from "./route";
 
 function request(cron: boolean, dryRun = false) {

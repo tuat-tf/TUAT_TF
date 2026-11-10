@@ -5,14 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchRolesByProfileIds } from "@/lib/supabase/auth";
 import { permissionsOf } from "@/lib/permissions";
 import { timingSafeEqualString } from "@/lib/timing-safe";
-import { forwardPcCron } from "@/lib/pc-cron-forward";
 import { decodeShiftJisHtml, parseCompetitionProgram, reconcileProgramEntries, validateProgramImport, fromStoredProgramRow, type ParsedProgramRow } from "@/lib/competition-program";
 import { isNansProgramPage, nansRounds, nansRoundUrl, parseNansProgram } from "@/lib/competition-program-nans";
 import type { CompetitionProgramEntryRow } from "@/types";
 import type { Json } from "@/types/database";
 import { isCompetitionArchived } from "@/lib/competition-lifecycle";
 
-export async function GET(request: Request) { return forwardPcCron(request, POST); }
 
 export const maxDuration = 180;
 

@@ -9,14 +9,6 @@ if (releaseId && (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/.test(releaseId) || release
   throw new Error("PC_APP_RELEASE_ID must be at most 32 characters and cannot start with dpl_");
 }
 
-if (!pcApp && (process.env.PC_BACKEND_ENABLED === "true" || process.env.NEXT_PUBLIC_PC_BACKEND === "true")) {
-  if (process.env.PC_BACKEND_ENABLED !== "true" || process.env.NEXT_PUBLIC_PC_BACKEND !== "true" ||
-      !/^https:\/\/[a-z0-9.-]+\.vercel\.app\/api\/pc-supabase$/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "") ||
-      (process.env.PC_BACKEND_BRIDGE_KEY?.length ?? 0) < 32 || !process.env.PC_BACKEND_INSTANCE_ID) {
-    throw new Error("PC production backend requires its dedicated Vercel API configuration");
-  }
-}
-
 const nextConfig: NextConfig = {
   ...(publicOrigin ? { experimental: { serverActions: { allowedOrigins: [new URL(publicOrigin).host] } } } : {}),
   ...(pcApp && releaseId ? { deploymentId: releaseId } : {}),
