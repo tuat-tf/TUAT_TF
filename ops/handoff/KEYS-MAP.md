@@ -37,7 +37,7 @@
 | Google（部活Gmail） | 部活 | Drive（バックアップ保存先）、Google Cloud（ログイン用OAuth）、GAS |
 | GitHub `tuat-tf` | 部活 | ソースコード |
 | Cloudflare | 部活（アカウントID `f08f553737bd866b3a6f4ce1f94a8be3`、部活Googleでログイン） | 公開URL `app.tuat-tf.workers.dev`・Tunnel |
-| Vercel | 未整理 | 旧URL。主系ではない |
+| Vercel（管理者の個人アカウント） | 個人 | `tuat-tf.vercel.app`（最初の旧URL）が新URLへ転送している。`tuat-tf-pc-preview` は404で使われていない。ほかに部活以外かもしれない `shinkan2026`・`menu20260404`・`article` がある。整理は所有者の承認が要る。 |
 | Cloudflare（管理者の個人アカウント） | 個人 | 旧URL `tuat-pc-app.track-app.workers.dev` だけが残る。2026-11-11から、開くと「URLが変わりました。11月18日で使えなくなります」の案内と新URLへのボタンを出す（画面以外の読み込みは新URLへ転送）。**2026-11-18に削除する。**ほかの旧Worker 3つは2026-11-11に削除した。秘密は持っていない。同じログインで見える「TUAT TF」アカウント（`a0088e…`）は空。 |
 
 各アカウントのパスワード・2段階認証の復旧手段は、本人回答では「復号鍵以外は取り出せる見込み」。後任へ渡したことはない。
@@ -53,7 +53,7 @@
    - 読み取りも拒否される権限だった3ファイル（`backend/ob-*-pc-before.json` 2つ、`import-timeline-20261005/workspace-before.patch`）は、2026-11-11に管理者のPowerShellで権限を戻して削除した。
    - **旧サービス（2026-11-11）**: 旧クラウドSupabaseのプロジェクト（`snbgxocgdhqtuywrlqrs`、個人アカウント）を削除した。個人側R2のアクセスキー `tuat-tf-images-production` とバケット `tuat-tf-images`（古い画像と復旧パック）を削除した。削除前に、今のDBが使う画像72件がすべてPCにあることを確かめた。これで復旧パック `20d29a1e` と「iPhoneのマスター鍵」は使い道がなくなった。
    - タスク「TUAT PC Jobs」（旧Jobs）は2026-11-11に無効化した。
-2. **同じ鍵のコピーが大量にある。** 本番反映のたびに複製され、`installation-*` が73世代、`recovery-backup.key` が73個、アプリのenvが172個。暗号化領域内なので直ちに漏れるわけではないが、どれが現行か分かりにくい。
+2. **同じ鍵のコピーが多い。** 本番反映のたびに複製される。2026-11-11に `pc-release.py prune --keep 2 --execute` で古い版42世代（約47GB）を片付け、`installation-*` は34世代に減った（残りはpruneの対象外）。暗号化領域内なので直ちに漏れるわけではない。
 3. ~~復号鍵のPCの外の控えが旧R2に依存~~ → 2026-11-08に直接の控えを作成済み。
 
 ## 5. 次にやること（候補）
@@ -67,6 +67,6 @@
 - [x] 旧クラウドSupabaseを削除、個人側R2のアクセスキーを削除（2026-11-11）。
 - [x] 個人側R2のバケット `tuat-tf-images` を削除する（2026-11-11、本人が実施）。
 - [ ] 起動用のファイルを `.contingency` から安定した場所へ移す（管理者権限が必要）。
-- [ ] 古い `installation-*` 世代を `pc-release.py prune` で片付けられる範囲を確認する。
+- [x] 古い世代を `pc-release.py prune` で片付ける（2026-11-11、42世代・約47GB）。
 - [ ] 各サービス管理アカウントの復旧手段を後任へ渡す方法を決める。
 - [ ] 2026-11-18に個人Cloudflareの `tuat-pc-app`（旧URLの案内）を削除する。
