@@ -31,8 +31,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Suspense fallback={<FabPlaceholder />}><AuthenticatedFab /></Suspense>
             <BottomNav />
             <VersionWatcher />
-            {process.env.NEXT_PUBLIC_PC_TRIAL !== "true" && <PushSubscriptionSync />}
-            {process.env.NEXT_PUBLIC_PC_TRIAL !== "true" && <Suspense fallback={null}><AuthenticatedSheetHeaderGuard /></Suspense>}
+            <PushSubscriptionSync />
+            <Suspense fallback={null}><AuthenticatedSheetHeaderGuard /></Suspense>
           </div>
         </div>
       </div>

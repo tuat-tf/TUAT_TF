@@ -10,7 +10,7 @@
 | [pc-jobs](pc-jobs/README.md) | 定期処理（記録・大会・通知など） |
 | [handoff](handoff/README.md) | 別のPCへ移す手順、鍵の地図 |
 | [laptop](laptop/README.md) | 旧Windowsバックエンドの残り。バックアップが使う数ファイルと省電力の設定だけ |
-| `pc-image-cleanup`、`review`、`pc-host/db-review`、`pc-host/backup-review` | 移行のときに使った確認用。今は使っていない |
+| `pc-image-cleanup`、`pc-host/db-review`、`pc-host/backup-review` | 移行のときに使った確認用。今は使っていない |
 
 本番が実際に動かしているのは `local-minimal`・`pc-backup`・`pc-host`・`pc-jobs`。ここを変えたら、反映後に次のバックアップが成功したことまで確かめる（確かめ方は README）。
 

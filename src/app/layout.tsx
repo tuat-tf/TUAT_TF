@@ -8,11 +8,8 @@ import { SPLASH_COVER_ID, splashCoverScript } from "@/lib/splash-countdown";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { configuredAppPublicOrigin } from "@/lib/app-public-origin";
 
-const independentReview = process.env.NEXT_PUBLIC_PC_TRIAL === "true" && process.env.NEXT_PUBLIC_SUPABASE_URL === "http://127.0.0.1:18000";
 export const metadata: Metadata = {
-  metadataBase: new URL(independentReview
-    ? process.env.TUAT_REVIEW_PUBLIC_ORIGIN ?? "http://127.0.0.1:18000"
-    : configuredAppPublicOrigin() ?? "https://tuat-tf.vercel.app"),
+  metadataBase: new URL(configuredAppPublicOrigin() ?? "https://app.tuat-tf.workers.dev"),
   icons: {
     icon: [
       { url: "/branding/summer-favicon.ico", sizes: "any" },
@@ -34,7 +31,7 @@ export const metadata: Metadata = {
     title: APP_NAME,
     description: APP_DESCRIPTION,
     images: ["/branding/summer-og-1200x630.jpg"],
-  },  title: independentReview ? `${APP_NAME} 検証版` : APP_NAME,
+  },  title: APP_NAME,
   description: APP_DESCRIPTION,
   applicationName: APP_NAME,
   appleWebApp: {
@@ -71,9 +68,8 @@ export default function RootLayout({
         */}
         <div id={SPLASH_COVER_ID} aria-hidden="true" />
         <script dangerouslySetInnerHTML={{ __html: splashCoverScript }} />
-        {process.env.NEXT_PUBLIC_PC_TRIAL === "true" && <div className="bg-amber-100 px-4 py-2 text-center text-xs text-amber-950"><p role="status">{independentReview ? "検証版・合成データ｜検証DBだけに保存。外部同期・通知・画像変更は停止中" : "PC試験版・本人限定｜変更はPC内のみ。スプシ同期・Push通知・画像変更・リアルタイム配信は停止中"}</p><form method="post" action="/_pc/logout"><button type="submit" className="mt-1 underline">検証版からログアウト</button></form></div>}
         {children}
-        {process.env.NEXT_PUBLIC_PC_TRIAL !== "true" && <ServiceWorkerRegistrar />}
+        <ServiceWorkerRegistrar />
         <SplashCountdown />
       </body>
     </html>

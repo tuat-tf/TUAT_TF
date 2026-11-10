@@ -12,7 +12,7 @@
     "check:environment": "node scripts/check-environment.mjs",
     "test:tooling": "node --test scripts/check-environment.test.mjs",
     "test:ops": "node --test ops/laptop/*.test.mjs ops/pc-jobs/*.test.mjs",
-    "test:ops:integration": "node scripts/test-ops-integration.mjs linux ops/local-minimal/*.test.mjs ops/pc-host/*.test.mjs ops/pc-host/backup-review/*.test.mjs ops/pc-host/db-review/*.test.mjs ops/pc-host/cloudflare/*.test.mjs ops/pc-backup/*.test.mjs ops/pc-image-cleanup/*.test.mjs ops/review/*.test.mjs ops/review/cloudflare/*.test.mjs",
+    "test:ops:integration": "node scripts/test-ops-integration.mjs linux ops/local-minimal/*.test.mjs ops/pc-host/*.test.mjs ops/pc-host/backup-review/*.test.mjs ops/pc-host/db-review/*.test.mjs ops/pc-host/cloudflare/*.test.mjs ops/pc-backup/*.test.mjs ops/pc-image-cleanup/*.test.mjs",
     "test:ops:windows": "node scripts/test-ops-integration.mjs win32",
     "test:ops:node": "npm run test:ops && npm run test:ops:integration",
     "test:ops:linux": "python3 -I -B scripts/test-linux-ops.py",

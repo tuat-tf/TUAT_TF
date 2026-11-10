@@ -9,33 +9,17 @@ if (releaseId && (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/.test(releaseId) || release
   throw new Error("PC_APP_RELEASE_ID must be at most 32 characters and cannot start with dpl_");
 }
 
-const vercelPcTrial = process.env.PC_TRIAL_VERCEL === "true";
 if (!pcApp && (process.env.PC_BACKEND_ENABLED === "true" || process.env.NEXT_PUBLIC_PC_BACKEND === "true")) {
   if (process.env.PC_BACKEND_ENABLED !== "true" || process.env.NEXT_PUBLIC_PC_BACKEND !== "true" ||
-      process.env.NEXT_PUBLIC_PC_TRIAL === "true" || vercelPcTrial ||
       !/^https:\/\/[a-z0-9.-]+\.vercel\.app\/api\/pc-supabase$/.test(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "") ||
       (process.env.PC_BACKEND_BRIDGE_KEY?.length ?? 0) < 32 || !process.env.PC_BACKEND_INSTANCE_ID) {
     throw new Error("PC production backend requires its dedicated Vercel API configuration");
   }
 }
-if (process.env.NEXT_PUBLIC_PC_TRIAL === "true") {
-  if (vercelPcTrial) {
-    const bridge = process.env.PC_TRIAL_BRIDGE_URL ?? "";
-    if (process.env.VERCEL_ENV !== "preview" || !/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/_pc\/bridge$/.test(bridge) || process.env.NEXT_PUBLIC_SUPABASE_URL !== `${bridge}/_pc/supabase` || (process.env.PC_TRIAL_BRIDGE_KEY?.length ?? 0) < 32 || process.env.IMAGE_STORAGE_READ_ONLY !== "true") throw new Error("Vercel PC trial requires an isolated Preview and private PC bridge");
-  } else if (process.env.VERCEL || process.env.NEXT_PUBLIC_SUPABASE_URL !== "http://127.0.0.1:18000"
-    || process.env.IMAGE_STORAGE_READ_ONLY !== "true" || process.env.NEXT_PUBLIC_CLOUD_AUTH_URL
-    || process.env.NEXT_PUBLIC_PC_BACKEND === "true" || process.env.PC_BACKEND_ENABLED === "true"
-    || (process.env.PC_TRIAL_BRIDGE_KEY?.length ?? 0) < 32) {
-    throw new Error("PC trial requires its independent loopback review API, disabled cloud Auth and read-only images");
-  }
-} else if (vercelPcTrial) {
-  throw new Error("Vercel PC trial requires trial protections");
-}
 
 const nextConfig: NextConfig = {
   ...(publicOrigin ? { experimental: { serverActions: { allowedOrigins: [new URL(publicOrigin).host] } } } : {}),
   ...(pcApp && releaseId ? { deploymentId: releaseId } : {}),
-  ...(process.env.NEXT_PUBLIC_PC_TRIAL === "true" && !vercelPcTrial ? { distDir: ".next-pc-trial" } : {}),
   // 注意: cacheComponents(PPR) は有効化しない。
   // 2026-07-12 00:14 に「タブ復元の高速化」目的で有効化した直後から、実機iOS PWAで
   // 「別タブ→ホームで毎回完全フリーズ」「予定/タイムラインのフリーズ」「リロード時の

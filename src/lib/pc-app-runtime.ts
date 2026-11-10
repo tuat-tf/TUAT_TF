@@ -9,7 +9,6 @@ export function getPcAppRuntime(): PcAppRuntime | undefined {
   const browser = process.env.NEXT_PUBLIC_PC_APP_RUNTIME === "true";
   if (!server && !browser) return undefined;
   if (!server || !browser || typeof window !== "undefined" || process.env.VERCEL || process.env.VERCEL_ENV ||
-      process.env.PC_TRIAL_VERCEL === "true" || process.env.NEXT_PUBLIC_PC_TRIAL === "true" ||
       process.env.PC_BACKEND_ENABLED !== "true" || process.env.NEXT_PUBLIC_PC_BACKEND !== "true" ||
       process.env.NEXT_PUBLIC_PC_REST_RELAY_ORIGIN) {
     throw new Error("PC app requires its explicit independent runtime");

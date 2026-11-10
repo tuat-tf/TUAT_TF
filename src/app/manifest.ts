@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { APP_NAME, APP_DESCRIPTION } from "@/lib/app";
 
 export default function manifest(): MetadataRoute.Manifest {
-  const name = process.env.NEXT_PUBLIC_PC_TRIAL === "true" ? `${APP_NAME} 検証版` : APP_NAME;
+  const name = APP_NAME;
   return {
     name,
     short_name: name,

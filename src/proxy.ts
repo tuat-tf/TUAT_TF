@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
-import { pcVercelProxy } from "@/lib/pc-vercel-proxy";
 
 const nativeOrigin = "https://app.tuat-tf.workers.dev";
 // Match the previous static exclusions after the old production cutover guard.
@@ -24,14 +23,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(target, { status: 307, headers });
   }
   if (path !== "/api" && !path.startsWith("/api/") && path !== "/sw.js" && staticPath.test(path)) return NextResponse.next();
-  if (process.env.PC_TRIAL_VERCEL === "true") {
-    try {
-      const gate = await pcVercelProxy(request);
-      if (gate) return gate;
-    } catch {
-      return NextResponse.json({ error: "PC試験版に接続できません" }, { status: 503 });
-    }
-  }
   // Normal API handlers retain their own authentication without duplicate Auth calls.
   if (request.nextUrl.pathname.startsWith("/api/") || request.nextUrl.pathname === "/sw.js") return NextResponse.next();
   return await updateSession(request);

@@ -3,9 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { unstable_doesMiddlewareMatch as unstable_doesProxyMatch } from "next/experimental/testing/server";
 import { config, proxy } from "./proxy";
 
-const mocks = vi.hoisted(() => ({ session: vi.fn(), trial: vi.fn() }));
+const mocks = vi.hoisted(() => ({ session: vi.fn() }));
 vi.mock("@/lib/supabase/middleware", () => ({ updateSession: mocks.session }));
-vi.mock("@/lib/pc-vercel-proxy", () => ({ pcVercelProxy: mocks.trial }));
 
 const canonical = "https://app.tuat-tf.workers.dev";
 const legacy = "https://tuat-tf.vercel.app";
@@ -13,14 +12,11 @@ const request = (path: string, method = "GET", headers: HeadersInit = {}) => new
 beforeEach(() => {
   vi.stubEnv("VERCEL_ENV", "production");
   vi.stubEnv("PC_APP_RELEASE_ID", "");
-  vi.stubEnv("PC_TRIAL_VERCEL", "false");
   mocks.session.mockResolvedValue(NextResponse.next());
-  mocks.trial.mockResolvedValue(null);
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
 it("moves old production reads to the fixed origin without forwarding query, cookies or host", async () => {
-  vi.stubEnv("PC_TRIAL_VERCEL", "true");
   for (const method of ["GET", "HEAD"]) {
     const response = await proxy(request("/records/member?access_token=private-token&next=https://evil.invalid", method, {
       host: "evil.invalid", "x-forwarded-host": "evil.invalid", cookie: "old-session=private-cookie",
@@ -33,7 +29,6 @@ it("moves old production reads to the fixed origin without forwarding query, coo
     expect(await response.text()).not.toContain("private-");
   }
   expect(mocks.session).not.toHaveBeenCalled();
-  expect(mocks.trial).not.toHaveBeenCalled();
 });
 
 it("sends old login and OAuth callbacks to a new login without copying credentials", async () => {
@@ -44,8 +39,7 @@ it("sends old login and OAuth callbacks to a new login without copying credentia
   }
 });
 
-it("refuses every non-read method before any API, session or trial dispatch", async () => {
-  vi.stubEnv("PC_TRIAL_VERCEL", "true");
+it("refuses every non-read method before any API or session dispatch", async () => {
   for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "PROPFIND"]) {
     for (const path of ["/api/pc-supabase/rest/v1/records", "/api/version", "/sw.js", "/icon.png", "/_next/static/chunk.js"]) {
       const input = request(path, method, { authorization: "Bearer private-key" });
@@ -59,7 +53,6 @@ it("refuses every non-read method before any API, session or trial dispatch", as
     }
   }
   expect(mocks.session).not.toHaveBeenCalled();
-  expect(mocks.trial).not.toHaveBeenCalled();
 });
 
 it("preserves old production version reads for deployment SHA verification", async () => {
@@ -89,21 +82,10 @@ it("keeps native, development and preview authentication on the existing session
   expect(mocks.session).toHaveBeenCalledTimes(4);
 });
 
-it("keeps the previous static exclusions without triggering preview authentication or trial fetches", async () => {
+it("keeps the previous static exclusions without triggering preview authentication", async () => {
   vi.stubEnv("VERCEL_ENV", "preview");
-  vi.stubEnv("PC_TRIAL_VERCEL", "true");
   for (const path of ["/_next/static/chunk.js", "/_next/image", "/favicon.ico", "/icon.png", "/apple-icon", "/manifest.webmanifest", "/image.webp"]) {
     expect((await proxy(request(path))).headers.get("x-middleware-next")).toBe("1");
   }
-  expect(mocks.session).not.toHaveBeenCalled();
-  expect(mocks.trial).not.toHaveBeenCalled();
-});
-
-it("retains preview trial gates", async () => {
-  vi.stubEnv("VERCEL_ENV", "preview");
-  vi.stubEnv("PC_TRIAL_VERCEL", "true");
-  const gate = NextResponse.json({ error: "trial" }, { status: 401 });
-  mocks.trial.mockResolvedValue(gate);
-  expect(await proxy(request("/api/records", "POST"))).toBe(gate);
   expect(mocks.session).not.toHaveBeenCalled();
 });
