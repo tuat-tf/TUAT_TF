@@ -38,7 +38,7 @@
 | GitHub `tuat-tf` | 部活 | ソースコード |
 | Cloudflare | 部活（アカウントID `f08f553737bd866b3a6f4ce1f94a8be3`、部活Googleでログイン） | 公開URL `app.tuat-tf.workers.dev`・Tunnel |
 | Vercel | 未整理 | 旧URL。主系ではない |
-| Cloudflare（個人 `rainbowrdayo@gmail.com` でログイン） | 個人 | 旧URLの転送だけが残る。`tuat-pc-app.track-app.workers.dev` は新URLへ転送しており、古いホーム画面アプリから今も使われている。ほか `tuat-pc-rest-relay`（「URLが変わりました」と返すだけ）、`tuat-review`・`tuat-pc-rest-relay-synthetic`（もう動いていない）。どれも秘密は持っていない。同じログインで見える「TUAT TF」アカウント（`a0088e…`）は空。 |
+| Cloudflare（管理者の個人アカウント） | 個人 | 旧URLの転送だけが残る。`tuat-pc-app.track-app.workers.dev` は新URLへ転送しており、古いホーム画面アプリから今も使われている。ほか `tuat-pc-rest-relay`（「URLが変わりました」と返すだけ）、`tuat-review`・`tuat-pc-rest-relay-synthetic`（もう動いていない）。どれも秘密は持っていない。同じログインで見える「TUAT TF」アカウント（`a0088e…`）は空。 |
 
 各アカウントのパスワード・2段階認証の復旧手段は、本人回答では「復号鍵以外は取り出せる見込み」。後任へ渡したことはない。
 
