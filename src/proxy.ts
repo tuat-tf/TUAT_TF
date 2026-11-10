@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { pcVercelProxy } from "@/lib/pc-vercel-proxy";
-import { isMaintenanceWindow } from "@/lib/maintenance";
 
 const nativeOrigin = "https://app.tuat-tf.workers.dev";
 // Match the previous static exclusions after the old production cutover guard.
@@ -35,12 +34,6 @@ export async function proxy(request: NextRequest) {
   }
   // Normal API handlers retain their own authentication without duplicate Auth calls.
   if (request.nextUrl.pathname.startsWith("/api/") || request.nextUrl.pathname === "/sw.js") return NextResponse.next();
-  // サーバー切替の計画メンテナンス中は、バックエンドが不安定なため updateSession
-  // （DBを読みに行く）自体を呼ばず、時刻だけで判定してメンテナンス画面を返す。
-  if (isMaintenanceWindow()) {
-    if (request.nextUrl.pathname === "/maintenance") return NextResponse.next();
-    return NextResponse.rewrite(new URL("/maintenance", request.url));
-  }
   return await updateSession(request);
 }
 

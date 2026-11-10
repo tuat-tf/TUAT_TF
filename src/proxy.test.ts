@@ -3,10 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { unstable_doesMiddlewareMatch as unstable_doesProxyMatch } from "next/experimental/testing/server";
 import { config, proxy } from "./proxy";
 
-const mocks = vi.hoisted(() => ({ session: vi.fn(), trial: vi.fn(), maintenance: vi.fn() }));
+const mocks = vi.hoisted(() => ({ session: vi.fn(), trial: vi.fn() }));
 vi.mock("@/lib/supabase/middleware", () => ({ updateSession: mocks.session }));
 vi.mock("@/lib/pc-vercel-proxy", () => ({ pcVercelProxy: mocks.trial }));
-vi.mock("@/lib/maintenance", () => ({ isMaintenanceWindow: mocks.maintenance }));
 
 const canonical = "https://app.tuat-tf.workers.dev";
 const legacy = "https://tuat-tf.vercel.app";
@@ -17,13 +16,11 @@ beforeEach(() => {
   vi.stubEnv("PC_TRIAL_VERCEL", "false");
   mocks.session.mockResolvedValue(NextResponse.next());
   mocks.trial.mockResolvedValue(null);
-  mocks.maintenance.mockReturnValue(false);
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
 it("moves old production reads to the fixed origin without forwarding query, cookies or host", async () => {
   vi.stubEnv("PC_TRIAL_VERCEL", "true");
-  mocks.maintenance.mockReturnValue(true);
   for (const method of ["GET", "HEAD"]) {
     const response = await proxy(request("/records/member?access_token=private-token&next=https://evil.invalid", method, {
       host: "evil.invalid", "x-forwarded-host": "evil.invalid", cookie: "old-session=private-cookie",
@@ -37,7 +34,6 @@ it("moves old production reads to the fixed origin without forwarding query, coo
   }
   expect(mocks.session).not.toHaveBeenCalled();
   expect(mocks.trial).not.toHaveBeenCalled();
-  expect(mocks.maintenance).not.toHaveBeenCalled();
 });
 
 it("sends old login and OAuth callbacks to a new login without copying credentials", async () => {
@@ -103,14 +99,11 @@ it("keeps the previous static exclusions without triggering preview authenticati
   expect(mocks.trial).not.toHaveBeenCalled();
 });
 
-it("retains preview trial gates and normal maintenance handling", async () => {
+it("retains preview trial gates", async () => {
   vi.stubEnv("VERCEL_ENV", "preview");
   vi.stubEnv("PC_TRIAL_VERCEL", "true");
   const gate = NextResponse.json({ error: "trial" }, { status: 401 });
   mocks.trial.mockResolvedValue(gate);
   expect(await proxy(request("/api/records", "POST"))).toBe(gate);
-  vi.stubEnv("PC_TRIAL_VERCEL", "false");
-  mocks.maintenance.mockReturnValue(true);
-  expect((await proxy(request("/home"))).headers.get("x-middleware-rewrite")).toBe(legacy + "/maintenance");
   expect(mocks.session).not.toHaveBeenCalled();
 });
