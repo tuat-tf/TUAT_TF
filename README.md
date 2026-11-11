@@ -65,7 +65,7 @@ wsl -d Ubuntu -u root -- python3 -I -B /mnt/d/TUAT_TF/ops/pc-host/pc-release.py 
 
 - 計画だけ見る: `... pc-release.py switch <SHA>`（何も変えない）
 - 古い版を片付ける: `... pc-release.py prune --keep 2`（確認のみ）→ `--execute` を付けて実行
-- `package-lock.json` が変わった版は、本番PCにnpmを入れていないため `--node-modules <Linux用node_modulesのdir>` が必要（`package.json` だけの変更なら不要）。
+- `package-lock.json` が変わった版は、本番PCにnpmを入れていないため `--node-modules <Linux用node_modulesのdir>` が必要（`package.json` だけの変更なら不要）。2026-11-11の用意の仕方: WSLの一般ユーザー（`ubuntu`）のホームに使い捨てフォルダを作り、その commit の `package.json` と `package-lock.json` だけを置いて、WSL の Node 24 で Windows 側の npm（`.../mise/installs/node/22.14.0/node_modules/npm/bin/npm-cli.js`）を `ci --ignore-scripts` で動かす。反映が済んだらそのフォルダは消してよい。
 - 反映が済んだ版のフォルダ内で `git` コマンドを打たない（中身の照合が崩れ、次回起動を拒否する）。
 
 ### バックアップが動いているか確かめる
@@ -102,7 +102,7 @@ wsl -d Ubuntu -u root -- systemctl list-units --all --no-pager 'tuat-local*'
 **過去に起きたこと**
 - 再起動後、前回の `backup-owner.lock` が残っていて起動に失敗したことがある。前のプロセスがもういないことを確かめてから外す必要がある。
 - アプリを止めると監視がWSLのサービスやmountまで落としたことがある。計画的に止めるときは注意する。
-- バックアップが失敗したままの状態で本番反映をしたら、反映の最後にバックアップがすぐ走り、定期処理（Jobs）の起動と重なって両方とも止まった（2026-11-11）。Jobs はバックアップのサービスが `failed` の間は起動しない。直し方: `systemctl reset-failed tuat-local-backup.service` → `systemctl start tuat-local-jobs.service`。そのあとバックアップが `periodic-prior-unknown-hold` で止まる場合は、中断が撮影の前だったこと（`/var/lib/tuat-local/backup-stage` が空、アプリと Jobs が動いている）を確かめてから、`/var/lib/tuat-local/backup/periodic-attempt.json` を `private/installation-<版>/reviewed-<理由>-<attemptId>/` へ移し（消さない）、`systemctl start tuat-local-backup.service` で1回走らせる。本番反映の前に、バックアップが `Result=success` であることを確かめておくと起きない。
+- バックアップが失敗したままの状態で本番反映をしたら、反映の最後にバックアップがすぐ走り、定期処理（Jobs）の起動と重なって両方とも止まった（2026-11-11）。Jobs はバックアップのサービスが `failed` の間は起動しない。直し方: `systemctl reset-failed tuat-local-backup.service` → `systemctl start tuat-local-jobs.service`。そのあとバックアップが `periodic-prior-unknown-hold` で止まる場合は、中断が撮影の前だったこと（`/var/lib/tuat-local/backup-stage` が空、アプリと Jobs が動いている）を確かめてから、`/var/lib/tuat-local/backup/periodic-attempt.json` を `/var/lib/tuat-local/private/reviewed-backup-attempt-<日付>-<attemptId>/` へ移し（消さない。`installation-<版>` の中には置かない。次の本番反映が「想定外のファイル」として止まる）、`systemctl start tuat-local-backup.service` で1回走らせる。本番反映の最後には毎回バックアップが1回走る。反映の前にバックアップが `Result=success` であることを確かめておくと、この重なりは起きにくい。
 - 暗号化領域が開いているかは、作業用のシェルではなくsystemd側（`nsenter -t 1 -m`）で確かめる。
 
 **やってはいけないこと**
