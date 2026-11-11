@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
     const path=`${user.id}/${crypto.randomUUID()}.webp`;
     try {
-      await uploadImage(supabase,TWEET_IMAGE_BUCKET,path,output);
+      await uploadImage(TWEET_IMAGE_BUCKET,path,output);
       return NextResponse.json({ path },{ headers: { "Cache-Control": "no-store" } });
     } catch {
       logImageFailure("tweet-image-upload");
@@ -76,7 +76,7 @@ export async function DELETE(request: Request) {
     if(error) return NextResponse.json({ error: "画像の参照を確認できませんでした" },{ status: 503 });
     if(data?.length) return NextResponse.json({ error: "Image is in use" },{ status: 409 });
     try {
-      await removeImages(supabase,TWEET_IMAGE_BUCKET,[path]);
+      await removeImages(TWEET_IMAGE_BUCKET,[path]);
       return NextResponse.json({ ok: true });
     } catch {
       return NextResponse.json({ error: "Image cleanup failed" },{ status: 503 });

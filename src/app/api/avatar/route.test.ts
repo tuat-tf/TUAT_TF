@@ -93,7 +93,7 @@ describe("avatar save result reconciliation", () => {
     expect(state.remove).not.toHaveBeenCalled();
     expect(response.status).toBe(200);
     expect((await response.json()).avatarUrl).toBe(state.avatar);
-    expect(state.avatar).toBe(state.upload.mock.calls[0][2]);
+    expect(state.avatar).toBe(state.upload.mock.calls[0][1]);
     expect(state.updateCount).toBe(1);
   });
 
@@ -109,7 +109,7 @@ describe("avatar save result reconciliation", () => {
     expect((await POST(request())).status).toBe(503);
     expect(state.avatar).toBe("verified-member/old.webp");
     // Model the still-running original update committing after the negative reread.
-    state.avatar = state.upload.mock.calls[0][2];
+    state.avatar = state.upload.mock.calls[0][1];
     expect(state.remove).not.toHaveBeenCalled();
     expect(state.updateCount).toBe(1);
   });

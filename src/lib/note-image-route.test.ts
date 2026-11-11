@@ -59,7 +59,7 @@ describe("private note images", () => {
     rpc.mockResolvedValue({ data: true,error: null });
     const request=new Request(`https://app.example/api/note-image?articleId=${article.toUpperCase()}&uploadId=${upload.toUpperCase()}`,{ method: "POST",headers: { "Content-Type": "image/webp" },body: "RIFF0000WEBPsynthetic" });
     expect((await POST(request)).status).toBe(200);
-    expect(mocks.upload.mock.calls[0][2]).toBe(image.path);
+    expect(mocks.upload.mock.calls[0][1]).toBe(image.path);
     expect(query.eq).toHaveBeenCalledWith("id",article);
     expect(query.eq).toHaveBeenCalledWith("article_id",article);
   });
@@ -126,7 +126,7 @@ describe("private note images", () => {
     );
     expect(response.status).toBe(307);
     expect(response.headers.get("Cache-Control")).toBe("private, max-age=240");
-    expect(mocks.signed.mock.calls[0].slice(1)).toEqual([
+    expect(mocks.signed.mock.calls[0]).toEqual([
       "note-images",
       "allowed",
       300,

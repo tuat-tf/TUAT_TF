@@ -48,8 +48,8 @@ export async function authorizedImageResponse(
       throw error;
     }
   }
-  // Retain cloud storage's direct transfer and bounded signed URLs for its existing mode.
-  const url = await signedImageUrl(supabase, bucket, path, remainingTtl());
+  // Without the local driver signedImageUrl refuses; nothing is served from another provider.
+  const url = await signedImageUrl(bucket, path, remainingTtl());
   remainingTtl();
   headers.set("location", new URL(url, getAppPublicOrigin(request.url)).href);
   return new Response(null, { status: 307, headers });

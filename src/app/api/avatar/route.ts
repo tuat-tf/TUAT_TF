@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         .catch(() => { throw new ImageUploadError(400, "画像を読み込めませんでした"); });
 
     const uploadedPath = `${user.id}/${crypto.randomUUID()}.webp`;
-    await uploadImage(supabase, AVATAR_BUCKET, uploadedPath, output);
+    await uploadImage(AVATAR_BUCKET, uploadedPath, output);
     const outcome = await changeAvatar(supabase, user.id, profile.avatar_url, uploadedPath);
     if (outcome === "conflict") {
       return NextResponse.json({ error: "画像が別の画面で変更されました。画面を開き直して確認してください" }, { status: 409, headers: NO_STORE });

@@ -72,7 +72,7 @@ describe("avatar image login and membership authorization", () => {
     expect(response.headers.get("vary")).toBe("Cookie");
     expect(state.loginAccess).toHaveBeenCalledWith("login_access_allowed");
     expect(state.identityFilter).toHaveBeenCalledWith("id", "verified-member");
-    expect(state.sign).toHaveBeenCalledWith(expect.anything(), "avatars", path, 604800);
+    expect(state.sign).toHaveBeenCalledWith("avatars", path, 604800);
   });
 
   it("rejects an anonymous request before checking membership or signing", async () => {

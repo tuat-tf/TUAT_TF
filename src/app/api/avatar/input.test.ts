@@ -27,7 +27,7 @@ describe("avatar image conversion limits", () => {
     const original = await sharp({ create: { width: 16, height: 12, channels: 3, background: "red" } }).webp().toBuffer();
     expect((await POST(request(original))).status).toBe(200);
     expect(upload).toHaveBeenCalledOnce();
-    const metadata = await sharp(upload.mock.calls[0][3]).metadata();
+    const metadata = await sharp(upload.mock.calls[0][2]).metadata();
     expect(metadata).toMatchObject({ format: "webp", width: 512, height: 512 });
   });
   it("rejects a small input that expands beyond the pixel limit before uploading", async () => {

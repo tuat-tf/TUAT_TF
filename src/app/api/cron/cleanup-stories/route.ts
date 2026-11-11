@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const imagePaths = stories.flatMap((story) => story.image_path ? [story.image_path] : []);
   if (imagePaths.length) {
     try {
-      await removeImages(supabase, TWEET_IMAGE_BUCKET, imagePaths);
+      await removeImages(TWEET_IMAGE_BUCKET, imagePaths);
     } catch (error) {
       const protection = pcBackupProtectionResponse(error);
       if (protection) return protection;

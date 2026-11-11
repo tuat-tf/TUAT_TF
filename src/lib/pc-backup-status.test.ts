@@ -10,16 +10,12 @@ import { uploadImage, removeImages } from "./image-storage";
 import { gasPost } from "./sheet-sync/gas-client";
 
 const mocks = vi.hoisted(() => ({ runtime: true, synthetic: false, local: false, status: null as unknown,
-  lstat: vi.fn(), realpath: vi.fn(), open: vi.fn(), dispatch: vi.fn(), r2: vi.fn() }));
+  lstat: vi.fn(), realpath: vi.fn(), open: vi.fn(), dispatch: vi.fn() }));
 vi.mock("./pc-app-runtime", () => ({ getPcAppRuntime: () => mocks.runtime ? {
   publicOrigin: "https://pc-app.example.test", internalUrl: "http://127.0.0.1:18180", synthetic: mocks.synthetic,
   local: { authUrl: "http://127.0.0.1:18001", restUrl: "http://127.0.0.1:18002" },
 } : undefined }));
 vi.mock("node:fs/promises", () => ({ lstat: mocks.lstat, realpath: mocks.realpath, open: mocks.open }));
-vi.mock("@aws-sdk/client-s3", async original => {
-  const actual = await original<typeof import("@aws-sdk/client-s3")>();
-  return { ...actual, S3Client: class { send = mocks.r2; destroy() {} } };
-});
 const path = resolve("synthetic-backup-status.json"), golden = vectors[0];
 const base = "https://pc-app.example.test/api/pc-supabase", id = "11111111-1111-4111-8111-111111111111";
 const request = (api: string, method = "POST", body?: unknown) => new Request(`${base}${api}`, {
@@ -40,7 +36,6 @@ beforeEach(() => {
   mocks.open.mockReset().mockImplementation(async () => ({ stat: async () => ({ isFile: () => true }),
     read: async (buffer: Buffer) => { const bytesRead = buffer.write(JSON.stringify(mocks.status)); return { bytesRead, buffer }; }, close: async () => undefined }));
   mocks.dispatch.mockReset().mockResolvedValue(Response.json([])); vi.stubGlobal("fetch", mocks.dispatch);
-  mocks.r2.mockReset().mockResolvedValue({ Contents: [] });
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
@@ -187,30 +182,21 @@ describe("all PC business transports fail closed once, then recover", () => {
 });
 
 describe("direct provider mutation boundaries", () => {
-  const storage = { storage: { from: () => ({ upload: vi.fn(), remove: vi.fn() }) } } as unknown as Parameters<typeof uploadImage>[0];
   beforeEach(() => {
-    for (const [name, value] of Object.entries({ R2_ACCOUNT_ID: "a".repeat(32), R2_ACCESS_KEY_ID: "synthetic", R2_SECRET_ACCESS_KEY: "synthetic", R2_BUCKET_NAME: "synthetic", R2_READ_ENABLED: "true", R2_WRITE_ENABLED: "true", IMAGE_STORAGE_READ_ONLY: "false", SHEET_SYNC_GAS_URL: "https://gas.example.test" })) vi.stubEnv(name, value);
+    for (const [name, value] of Object.entries({ IMAGE_STORAGE_DRIVER: "local", IMAGE_STORAGE_READ_ONLY: "false", SHEET_SYNC_GAS_URL: "https://gas.example.test" })) vi.stubEnv(name, value);
   });
-  it("dispatches no R2/GAS request while protected", async () => {
+  it("dispatches no image/GAS write while protected", async () => {
     mocks.status = null;
-    for (const operation of [() => uploadImage(storage, "avatars", "synthetic/avatar.webp", Buffer.from("synthetic")),
-      () => removeImages(storage, "avatars", ["synthetic/avatar.webp"]), () => gasPost({ action: "writeCells" })]) await expect(operation()).rejects.toMatchObject({ status: 503, code: "PC_BACKUP_UNAVAILABLE" });
-    expect(mocks.r2).not.toHaveBeenCalled(); expect(mocks.dispatch).not.toHaveBeenCalled();
+    for (const operation of [() => uploadImage("avatars", "synthetic/avatar.webp", Buffer.from("synthetic")),
+      () => removeImages("avatars", ["synthetic/avatar.webp"]), () => gasPost({ action: "writeCells" })]) await expect(operation()).rejects.toMatchObject({ status: 503, code: "PC_BACKUP_UNAVAILABLE" });
+    expect(mocks.dispatch).not.toHaveBeenCalled();
   });
-  it("permits provider writes with a fresh pair and recovery after a protection interval", async () => {
+  it("permits GAS writes with a fresh status and recovery after a protection interval", async () => {
     mocks.dispatch.mockImplementation(async () => Response.json({ success: true }));
-    await uploadImage(storage, "avatars", "synthetic/avatar.webp", Buffer.from("synthetic"));
-    await removeImages(storage, "note-images", [`${id}/22222222-2222-4222-8222-222222222222.webp`]);
     await gasPost({ action: "writeCells" });
-    expect(mocks.r2.mock.calls.map(([command]) => command.constructor.name)).toEqual(["ListObjectsV2Command", "PutObjectCommand", "DeleteObjectsCommand"]);
     expect(mocks.dispatch).toHaveBeenCalledTimes(1);
     mocks.status = null; await expect(gasPost({ action: "writeCells" })).rejects.toMatchObject({ status: 503 });
     mocks.status = snapshot(); await gasPost({ action: "writeCells" }); expect(mocks.dispatch).toHaveBeenCalledTimes(2);
-  });
-  it("rechecks immediately before R2 PUT after capacity/auth work changes protection", async () => {
-    mocks.r2.mockImplementation(async () => { mocks.status = null; return { Contents: [] }; });
-    await expect(uploadImage(storage, "avatars", "synthetic/avatar.webp", Buffer.from("synthetic"))).rejects.toMatchObject({ status: 503 });
-    expect(mocks.r2.mock.calls.map(([command]) => command.constructor.name)).toEqual(["ListObjectsV2Command"]);
   });
   it("keeps the pure GAS fetch read available and never retries a failed mutation", async () => {
     mocks.status = null; mocks.dispatch.mockResolvedValueOnce(Response.json({ data: {} })); await gasPost({ action: "fetchMember" });

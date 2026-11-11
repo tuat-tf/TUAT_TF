@@ -9,11 +9,10 @@ import { ServiceStatusPanel } from "./ServiceStatusPanel";
 
 beforeEach(() => {
   state.data = {
-    runtime: "pc", checkedAt: "2026-10-22T00:00:00Z",
-    health: { cloudflare: { indicator: "none", incidents: [] }, supabase: { indicator: "unknown", incidents: [] }, vercel: { indicator: "unknown", incidents: [] } },
-    r2: { state: "ready", bytes: 123, objects: 2 },
-    vercel: { state: "unconfigured", from: "", to: "", usage: [] },
-    images: { backend: "pc", reads: true, writes: true, paused: false, limitBytes: 8000000000 },
+    checkedAt: "2026-10-22T00:00:00Z",
+    health: { cloudflare: { indicator: "none", incidents: [] } },
+    inventory: { state: "ready", bytes: 123, objects: 2 },
+    images: { paused: false, limitBytes: 8000000000 },
   };
 });
 const render = () => renderToStaticMarkup(createElement(ServiceStatusPanel));
@@ -32,20 +31,11 @@ it("gives the club operator the current storage and service administration desti
 });
 
 it("preserves capacity failures and the existing image write pause", () => {
-  state.data!.r2 = { state: "error", bytes: null, objects: null };
+  state.data!.inventory = { state: "error", bytes: null, objects: null };
   state.data!.images.paused = true;
   const html = render();
   expect(html).toContain("保存容量: 取得できませんでした");
   expect(html).toContain("一時停止中");
   expect(html).not.toContain("<progress");
   expect(html).not.toContain("0ファイル");
-});
-
-it("keeps non-PC provider views available without hard-coded personal account links", () => {
-  state.data!.runtime = "cloud";
-  const html = render();
-  expect(html).toContain('href="https://supabase.com/dashboard"');
-  expect(html).toContain('href="https://vercel.com/dashboard"');
-  expect(html).not.toContain("paimondayos");
-  expect(html).not.toContain("cctqtlkeltdpjkyyjmfl");
 });

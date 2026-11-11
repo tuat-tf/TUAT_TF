@@ -73,7 +73,7 @@ describe("private image routes", () => {
     maybeSingle.mockResolvedValue({ data: { expires_at: "2026-09-06T00:00:45Z" } });
     const response = await story(new Request(`https://app.example/api/tweet-image?path=${path}`));
     expect(response.status).toBe(307);
-    expect(mocks.signed.mock.calls[0][3]).toBe(45);
+    expect(mocks.signed.mock.calls[0][2]).toBe(45);
     expect(response.headers.get("Cache-Control")).toBe("private, max-age=15");
   });
   it("never signs an expired story even if a stale query returned it", async () => {
@@ -107,7 +107,7 @@ describe("private image routes", () => {
     mocks.upload.mockResolvedValue(undefined);
     const response = await upload(new Request("https://app.example/api/tweet-image/upload", { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: new Uint8Array(jpeg) }));
     expect(response.status).toBe(200);
-    expect(mocks.upload.mock.calls[0][1]).toBe("tweet-images");
-    expect(detectUploadImageFormat(mocks.upload.mock.calls[0][3])).toBe("webp");
+    expect(mocks.upload.mock.calls[0][0]).toBe("tweet-images");
+    expect(detectUploadImageFormat(mocks.upload.mock.calls[0][2])).toBe("webp");
   });
 });

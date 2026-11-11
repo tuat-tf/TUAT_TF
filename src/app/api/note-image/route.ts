@@ -135,7 +135,7 @@ export async function POST(request: Request) {
         { status: 413 },
       );
     try {
-      await uploadImage(sb,"note-images",path,output);
+      await uploadImage("note-images",path,output);
     } catch {
       return NextResponse.json(
         { error: "画像を保存できませんでした" },

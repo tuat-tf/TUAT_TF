@@ -11,7 +11,7 @@ function configured() {
     PC_LOCAL_AUTH_URL: "http://127.0.0.1:18001", PC_LOCAL_REST_URL: "http://127.0.0.1:18002",
     IMAGE_STORAGE_DRIVER: "local", LOCAL_IMAGE_STORAGE_ROOT: resolve("..", "synthetic-images"),
     LOCAL_IMAGE_SIGNING_KEY: "synthetic-key-only".repeat(3), LOCAL_IMAGE_MAX_STORAGE_BYTES: "1000",
-    R2_READ_ENABLED: "false", R2_WRITE_ENABLED: "false",
+   
     PC_APP_SYNTHETIC_REVIEW: "true", NEXT_PUBLIC_PC_APP_SYNTHETIC_REVIEW: "true", SHEET_SYNC_ENABLED: "false",
     GOOGLE_DRIVE_CLIENT_SECRET: "", SHEET_SYNC_GAS_URL: "",
   })) vi.stubEnv(name, value);
