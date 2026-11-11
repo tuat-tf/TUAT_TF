@@ -40,6 +40,7 @@ Cloudflare（公開URL・入口）
 
 - Windows起動時は、タスクスケジューラの「TUAT Local Runtime」がWSLと上のサービスを起動する。
 - 旧Vercel URLは案内用に残っているが、本番ではない。旧クラウドSupabaseは削除済み（2026-11-11）。旧R2も削除済み（2026-11-11）。旧中継は停止済み。どれも再開しない。
+- アプリのコードは本番PCの構成だけに対応している（2026-11-11に、旧クラウドログイン・PC試験版・Vercel中継・R2画像の分岐を削除）。残してあるのは、旧Vercel URLで「URLが変わりました」と案内する分岐（`src/proxy.ts` の `VERCEL_ENV === "production"` と `vercel.json`）だけ。Vercel側のプロジェクトを消したら、この分岐も消してよい。
 - Googleスプレッドシート連携はGAS（`gas/`）経由。現役は `gas/sync-clasp/Code.js`。`gas/combined.gs`（旧合体版）は使われている可能性があるため消さない。
 
 ## 2. 日常の運用
@@ -101,6 +102,7 @@ wsl -d Ubuntu -u root -- systemctl list-units --all --no-pager 'tuat-local*'
 **過去に起きたこと**
 - 再起動後、前回の `backup-owner.lock` が残っていて起動に失敗したことがある。前のプロセスがもういないことを確かめてから外す必要がある。
 - アプリを止めると監視がWSLのサービスやmountまで落としたことがある。計画的に止めるときは注意する。
+- バックアップが失敗したままの状態で本番反映をしたら、反映の最後にバックアップがすぐ走り、定期処理（Jobs）の起動と重なって両方とも止まった（2026-11-11）。Jobs はバックアップのサービスが `failed` の間は起動しない。直し方: `systemctl reset-failed tuat-local-backup.service` → `systemctl start tuat-local-jobs.service`。そのあとバックアップが `periodic-prior-unknown-hold` で止まる場合は、中断が撮影の前だったこと（`/var/lib/tuat-local/backup-stage` が空、アプリと Jobs が動いている）を確かめてから、`/var/lib/tuat-local/backup/periodic-attempt.json` を `private/installation-<版>/reviewed-<理由>-<attemptId>/` へ移し（消さない）、`systemctl start tuat-local-backup.service` で1回走らせる。本番反映の前に、バックアップが `Result=success` であることを確かめておくと起きない。
 - 暗号化領域が開いているかは、作業用のシェルではなくsystemd側（`nsenter -t 1 -m`）で確かめる。
 
 **やってはいけないこと**
@@ -162,3 +164,6 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 
 - 別のPCへの全体の復旧は、まだ試していない（バックアップの読み戻しと別DBへの復元は毎日確認している）。
 - `TUAT_TF_NEXT_PAUSED`（D:ドライブ）は休止中の新アプリ。指示があるまで再開しない。
+- `ops/` の起動・Jobs のスクリプトには、旧構成の設定が混ざっていないことを確かめる検査（`NEXT_PUBLIC_CLOUD_AUTH*`・`PC_TRIAL*`・`R2_*` など）が残っている。本番の設定に `R2_READ_ENABLED=false`・`R2_WRITE_ENABLED=false` が必要なのもこのため。アプリ側はもうこれらを読まない。
+- `@aws-sdk/client-s3` と `@smithy/node-http-handler` は、バックアップのコード（`ops/local-minimal`・`ops/pc-backup`・`ops/laptop/backup-backend.mjs`）が読み込んでいるので消していない。
+- `npm audit` に `minimatch`（`eslint-config-next` 経由、開発用のみ）の指摘が残っている。直すには破壊的な更新（`npm audit fix --force`）が要るので見送った。このPCの npm 10 では `npm audit fix` が内部エラーで落ちる。`npx npm@11 audit fix` なら動く。
