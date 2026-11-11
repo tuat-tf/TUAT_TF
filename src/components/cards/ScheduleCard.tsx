@@ -250,7 +250,7 @@ export function ScheduleCard({
         {hasDetail && (
           <ChevronDown
             size={18}
-            className={cn("text-muted transition-transform shrink-0", open && "rotate-180")}
+            className={cn("text-muted transition-transform duration-200 motion-reduce:transition-none shrink-0", open && "rotate-180")}
           />
         )}
       </button>

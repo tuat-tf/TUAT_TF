@@ -202,9 +202,33 @@ h1, h2, h3, p {
 @media (prefers-reduced-motion: reduce) {
   .sheet-content[data-state],
   .fullscreen-content[data-state],
-  .sheet-overlay[data-state] {
+  .sheet-overlay[data-state],
+  .dialog-content[data-state] {
     animation-duration: 0.01ms;
   }
+}
+
+/* 中央ダイアログとトースト: 透明度＋わずかな縦ずれ。中央寄せは translate プロパティなので transform と干渉しない。 */
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dialog-content[data-state="open"] {
+  animation: dialog-in 0.18s ease-out;
+}
+.dialog-content[data-state="closed"] {
+  animation: sheet-fade 0.14s ease-in reverse;
+}
+.toast-in {
+  animation: dialog-in 0.18s ease-out;
+}
+
+/* スイッチのつまみは位置を切り替えず transform で滑らせる（移動量は幅違いのテーマが上書きする）。 */
+[data-ui-switch-thumb] {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+[data-ui-switch-track][data-checked] > [data-ui-switch-thumb] {
+  transform: translateX(var(--switch-travel, 16px));
 }
 
 /*
@@ -277,6 +301,18 @@ h1, h2, h3, p {
 .comment-pop {
   transform-origin: top center;
   animation: comment-pop 0.18s ease-out;
+}
+
+/* 動きを減らす設定では出現アニメーションを止める */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in,
+  .comment-pop,
+  .toast-in {
+    animation: none;
+  }
+  [data-ui-switch-thumb] {
+    transition: none;
+  }
 }
 
 /* iOS の日付/時刻入力は内容ぶんの最小幅を持ち width:100% を無視してはみ出す。

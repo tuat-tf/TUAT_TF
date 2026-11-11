@@ -41,12 +41,12 @@ export function Disclosure({
         <ChevronDown
           size={18}
           className={cn(
-            "shrink-0 text-muted transition-transform duration-200",
+            "shrink-0 text-muted transition-transform duration-200 motion-reduce:transition-none",
             expanded && "rotate-180",
           )}
         />
       </button>
-      {expanded && <div className="pb-3">{children}</div>}
+      {expanded && <div className="fade-in pb-3">{children}</div>}
     </div>
   );
 }

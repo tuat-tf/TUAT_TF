@@ -79,7 +79,7 @@ export function NoticeCard({
         <ChevronDown
           size={18}
           className={cn(
-            "mt-0.5 shrink-0 text-muted transition-transform",
+            "mt-0.5 shrink-0 text-muted transition-transform duration-200 motion-reduce:transition-none",
             expanded && "rotate-180",
           )}
         />

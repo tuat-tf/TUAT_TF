@@ -20,7 +20,7 @@ export function ImageLightbox({
   if (!open || typeof document === "undefined") return null;
   return <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/95" />
+      <Dialog.Overlay className="sheet-overlay fixed inset-0 z-[100] bg-black/95" />
       <Dialog.Content data-new-ui-surface aria-describedby={undefined}
         className="fixed inset-0 z-[100] flex items-center justify-center p-3 pt-[max(12px,env(safe-area-inset-top))] outline-none"
         onOpenAutoFocus={() => { opener.current = glassDialogOpener(); }}

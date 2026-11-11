@@ -42,10 +42,8 @@ export function Toggle({
       <span
         data-ui-switch-track
         className="h-6 w-10 rounded-full p-0.5 transition-colors flex shrink-0 ml-3"
-        style={{
-          backgroundColor: checked ? "#34c759" : "#e5e5ea",
-          justifyContent: checked ? "flex-end" : "flex-start",
-        }}
+        data-checked={checked || undefined}
+        style={{ backgroundColor: checked ? "var(--color-success)" : "var(--color-separator)" }}
       >
         <span data-ui-switch-thumb className="h-5 w-5 rounded-full bg-white shadow" />
       </span>
