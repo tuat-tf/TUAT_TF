@@ -625,6 +625,12 @@ export type Database = {
           },
         ]
       }
+      festival_stock_items: FestivalTable<{id:string;name:string;count:number;updated_by:string|null;updated_at:string;created_at:string}, "name", [FestivalProfileRef<"festival_stock_items_updated_by_fkey","updated_by">]>
+      festival_shopping_trips: FestivalTable<{id:string;title:string;note:string|null;status:string;created_by:string|null;created_at:string;updated_at:string}, "title", [FestivalProfileRef<"festival_shopping_trips_created_by_fkey","created_by">]>
+      festival_shopping_members: FestivalTable<{trip_id:string;user_id:string;joined_at:string}, "trip_id"|"user_id", [FestivalProfileRef<"festival_shopping_members_user_id_fkey","user_id">, {foreignKeyName:"festival_shopping_members_trip_id_fkey";columns:["trip_id"];isOneToOne:false;referencedRelation:"festival_shopping_trips";referencedColumns:["id"]}]>
+      festival_sales: FestivalTable<{id:string;quantity:number;amount:number;sold_at:string;recorded_by:string|null}, "quantity"|"amount", [FestivalProfileRef<"festival_sales_recorded_by_fkey","recorded_by">]>
+      festival_instructions: FestivalTable<{id:string;body:string;author_id:string|null;created_at:string;closed_at:string|null}, "body", [FestivalProfileRef<"festival_instructions_author_id_fkey","author_id">]>
+      festival_instruction_acks: FestivalTable<{instruction_id:string;user_id:string;acked_at:string}, "instruction_id"|"user_id", [FestivalProfileRef<"festival_instruction_acks_user_id_fkey","user_id">, {foreignKeyName:"festival_instruction_acks_instruction_id_fkey";columns:["instruction_id"];isOneToOne:false;referencedRelation:"festival_instructions";referencedColumns:["id"]}]>
       monthly_goals: {
         Row: {
           goal: string | null
@@ -2257,6 +2263,7 @@ export type Database = {
       }
     }
     Functions: {
+      festival_adjust_stock: {Args:{p_item_id:string;p_delta:number};Returns:number|null}
       get_competition_meet: {Args:{p_competition_id:string};Returns:Json}
       get_note_content_counts: {
         Args: { requested_note_ids: string[] }
@@ -2602,3 +2609,6 @@ export const Constants = {
 } as const
 
 type MeetReadTable<Row> = { Row: Row; Insert: never; Update: never; Relationships: [] }
+/** 学祭の試験機能の表。Required は INSERT で必須の列。 */
+type FestivalTable<Row, Required extends keyof Row, Relationships> = { Row: Row; Insert: Pick<Row, Required> & Partial<Row>; Update: Partial<Row>; Relationships: Relationships }
+type FestivalProfileRef<Name extends string, Column extends string> = { foreignKeyName: Name; columns: [Column]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }

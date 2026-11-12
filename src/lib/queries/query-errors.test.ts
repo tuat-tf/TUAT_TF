@@ -24,6 +24,7 @@ import { getCompetitions, getCompetitionEvents, getCompetitionById, getCompetiti
 import { getMembersList, getMemberDirectory, getAllRoles, getAllRoleCategories } from "./members";
 import { getNotices, getHomeNotices, getPersonalNotifications, getUnreadNotificationCount } from "./notices";
 import { getAllVenues } from "./venues";
+import { getFestivalBoard } from "./festival";
 import { getUserRecords, getPbRecords } from "./records";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuotedPosts } from "./internal";
@@ -37,7 +38,7 @@ const reads: [string, () => Promise<unknown>][] = [
   ["competitions", getCompetitions], ["event catalog", getCompetitionEvents],
   ["competition detail", () => getCompetitionById("competition")], ["program", () => getCompetitionProgramEntries("competition")],
   ["home competition", getHomeCompetition], ["competition goals", () => getCompetitionGoals("competition")],
-  ["goal hub", () => getGoalHub("viewer")], ["monthly goals", () => getMonthlyGoals("viewer")], ["members", getMembersList], ["member directory", getMemberDirectory],
+  ["goal hub", () => getGoalHub("viewer")], ["monthly goals", () => getMonthlyGoals("viewer")], ["festival board", getFestivalBoard], ["members", getMembersList], ["member directory", getMemberDirectory],
   ["roles", getAllRoles], ["role categories", getAllRoleCategories],
   ["notices", () => getNotices("viewer")], ["home notices", () => getHomeNotices("viewer")],
   ["notifications", () => getPersonalNotifications("viewer")], ["unread count", () => getUnreadNotificationCount("viewer")],

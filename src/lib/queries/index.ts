@@ -17,3 +17,4 @@ export * from "./admin-dashboard";
 export * from "./competition-meet";
 export * from "./club-records";
 export * from "./search";
+export * from "./festival";
