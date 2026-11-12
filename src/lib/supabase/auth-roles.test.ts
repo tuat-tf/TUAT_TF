@@ -10,7 +10,7 @@ function role(id: string, everyone = false, order = 0): AppRole {
     is_system: false, sort_order: order, created_at: "2026-01-01",
     can_manage_system: false, can_manage_members: false, can_create_notice: false,
     can_manage_ob_meet: false, can_moderate_comments: false, editable_menu_blocks: [],
-    can_create_menu: false, can_create_schedule: false, can_decide_practice: false };
+    can_create_menu: false, can_create_schedule: false, can_decide_practice: false, can_use_festival: false, can_manage_festival: false };
 }
 function client(assignments: {profile_id: string; role_id: string}[], catalog: AppRole[], fail = false) {
   const query = { in: vi.fn().mockResolvedValue({ data: assignments, error: fail ? new Error("unavailable") : null }) };

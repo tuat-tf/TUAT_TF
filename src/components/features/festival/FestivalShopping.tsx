@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Share2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,15 +17,14 @@ import { useToast } from "@/components/ui/toast";
 import { Linkify } from "@/components/common/Linkify";
 import { formatFestivalTime } from "@/lib/festival";
 import type { FestivalTrip } from "@/lib/queries";
-import { FestivalSaveButton, SAVE_ERROR, useFestivalShare } from "./shared";
+import { FestivalSaveButton, SAVE_ERROR } from "./shared";
 
 const STATUS_LABEL: Record<FestivalTrip["status"], string> = { open: "募集中", going: "買い出し中", done: "完了" };
 
-/** 買い出しの募集。行ける人が「行きます」を押し、出発・完了で状況を変える。 */
+/** 買い出しの募集。行ける人が「行きます」を押し、出発・完了で状況を変える。募集すると学祭の権限を持つ部員へ通知される。 */
 export function FestivalShopping({ trips, userId }: { trips: FestivalTrip[]; userId: string }) {
   const router = useRouter();
   const { showToast } = useToast();
-  const share = useFestivalShare();
   const [form, setForm] = useState<{ target: FestivalTrip | null } | null>(null);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
@@ -125,9 +124,6 @@ export function FestivalShopping({ trips, userId }: { trips: FestivalTrip[]; use
               </Button>
               <Button size="sm" variant="secondary" className="min-w-[92px]" disabled={busy === trip.id} onClick={() => setStatus(trip, trip.status === "open" ? "going" : "done")}>
                 {trip.status === "open" ? "出発する" : "完了にする"}
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => share(["【学祭・買い出し募集】", trip.title, trip.note, "行ける人はアプリで「行きます」を押してください"])}>
-                <Share2 size={15} />LINEなどで共有
               </Button>
             </div>
           </Card>

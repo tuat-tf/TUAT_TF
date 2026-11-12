@@ -17,14 +17,20 @@ import {
 } from "@/lib/festival";
 import type { FestivalSale } from "@/lib/queries";
 
-const QUANTITIES = Array.from({ length: FESTIVAL_MAX_QUANTITY }, (_, index) => index + 1);
+/** よく出る個数（大きく並べる）と、それ以上（「11個以上」を開いたときだけ出す） */
+const COMMON_QUANTITIES = Array.from({ length: 10 }, (_, index) => index + 1);
+const MORE_QUANTITIES = Array.from({ length: FESTIVAL_MAX_QUANTITY - 10 }, (_, index) => index + 11);
 const RECENT_COUNT = 10;
 
-/** 売上。個数を押すと価格と容器が出るので、確かめてから保存する（押し間違いをそのまま入れない）。 */
-export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId: string }) {
+/**
+ * 売上。個数を押すと価格と容器が出るので、確かめてから保存する（押し間違いをそのまま入れない）。
+ * 今日の売上・日ごとの集計は店長だけに出す。ほかの人に届く売上は直近1時間の分だけ（RLS）。
+ */
+export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[]; userId: string; manager: boolean }) {
   const router = useRouter();
   const { showToast } = useToast();
   const [quantity, setQuantity] = useState<number | null>(null);
+  const [showMore, setShowMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState<FestivalSale | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
@@ -48,6 +54,7 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
       }
       showToast(`${quantity}個 ${formatYen(amount)} を保存しました`, "success");
       setQuantity(null);
+      setShowMore(false);
     } catch {
       // 届いたかどうか分からないので、もう一度押す前に一覧で確かめてもらう。
       showToast("保存できたか分かりません。下の一覧を確かめてください");
@@ -82,33 +89,26 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
       <section className="space-y-2">
         <p className="section-label">個数を選ぶ</p>
         <div className="grid grid-cols-5 gap-2">
-          {QUANTITIES.map((value) => {
-            const active = value === quantity;
-            return (
-              <button
-                key={value}
-                type="button"
-                data-ui-action
-                aria-pressed={active}
-                onClick={() => setQuantity(active ? null : value)}
-                className={cn(
-                  "pressable flex h-16 flex-col items-center justify-center rounded-xl border tabular-nums",
-                  active ? "border-accent bg-accent text-white" : "border-separator/70 bg-card text-ink",
-                )}
-              >
-                <span className="text-[20px] font-bold leading-none">{value}</span>
-                <span className={cn("mt-1 text-[11px] leading-none", active ? "text-white/85" : "text-muted")}>{formatYen(festivalPrice(value))}</span>
-              </button>
-            );
-          })}
+          {COMMON_QUANTITIES.map((value) => (
+            <QuantityButton key={value} value={value} active={value === quantity} large onSelect={setQuantity} />
+          ))}
         </div>
+        {showMore || (quantity !== null && quantity > 10) ? (
+          <div className="grid grid-cols-5 gap-2">
+            {MORE_QUANTITIES.map((value) => (
+              <QuantityButton key={value} value={value} active={value === quantity} onSelect={setQuantity} />
+            ))}
+          </div>
+        ) : (
+          <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowMore(true)}>11個以上</Button>
+        )}
         <Card className="flex min-h-[72px] items-center gap-3 p-3">
           <div className="min-w-0 flex-1">
             {quantity === null || !container ? (
               <p className="text-caption">個数を押すと、価格と容器が出ます。</p>
             ) : (
               <>
-                <p className="text-[20px] font-bold tabular-nums leading-tight">{quantity}個 {formatYen(festivalPrice(quantity))}</p>
+                <p className="tabular-nums leading-tight"><span className="text-[17px] font-semibold">{quantity}個</span> <span className="text-[26px] font-bold">{formatYen(festivalPrice(quantity))}</span></p>
                 <p className="text-caption">容器: {container.label}</p>
               </>
             )}
@@ -120,21 +120,23 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
         </Card>
       </section>
 
-      <section className="space-y-2">
-        <p className="section-label">今日の売上</p>
-        <Card className="space-y-3 p-4">
-          <p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(today?.amount ?? 0)}</p>
-          <Totals totals={today ?? { orders: 0, pieces: 0, amount: 0, cups: 0, packs: 0 }} />
-        </Card>
-      </section>
+      {manager && (
+        <section className="space-y-2">
+          <p className="section-label">今日の売上</p>
+          <Card className="space-y-3 p-4">
+            <p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(today?.amount ?? 0)}</p>
+            <Totals totals={today ?? { orders: 0, pieces: 0, amount: 0, cups: 0, packs: 0 }} />
+          </Card>
+        </section>
+      )}
 
       <section className="space-y-2">
-        <p className="section-label">直近の売上</p>
+        <p className="section-label">{manager ? "直近の売上" : "直近1時間の売上"}</p>
         {sales.length === 0 ? (
-          <Card><EmptyState title="まだ売上はありません" /></Card>
+          <Card><EmptyState title={manager ? "まだ売上はありません" : "直近1時間の売上はありません"} /></Card>
         ) : (
           <Card className="divide-y divide-separator/70 overflow-hidden">
-            {sales.slice(0, RECENT_COUNT).map((sale) => (
+            {(manager ? sales.slice(0, RECENT_COUNT) : sales).map((sale) => (
               <div key={sale.id} className="flex items-center gap-3 px-4 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-headline tabular-nums">{sale.quantity}個 {formatYen(sale.amount)}</p>
@@ -148,7 +150,7 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
         <p className="text-micro px-1">間違えたときは取り消して、入れ直してください。</p>
       </section>
 
-      {days.map((day) => (
+      {manager && days.map((day) => (
         <section key={day.day} className="space-y-2">
           <p className="section-label">{dayLabel(day.day)}の時間帯ごと</p>
           <Card className="overflow-hidden">
@@ -191,6 +193,26 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
         onConfirm={remove}
       />
     </div>
+  );
+}
+
+/** 選んだ個数は色を薄く敷くだけにして、数字と価格は濃い色のまま読めるようにする */
+function QuantityButton({ value, active, large, onSelect }: { value: number; active: boolean; large?: boolean; onSelect: (next: number | null) => void }) {
+  return (
+    <button
+      type="button"
+      data-ui-action
+      aria-pressed={active}
+      onClick={() => onSelect(active ? null : value)}
+      className={cn(
+        "pressable flex flex-col items-center justify-center rounded-xl border-2 tabular-nums",
+        large ? "h-[76px]" : "h-14",
+        active ? "border-accent bg-accent/15" : "border-separator/70 bg-card",
+      )}
+    >
+      <span className={cn("font-bold leading-none", large ? "text-[26px]" : "text-[18px]", active ? "text-accent" : "text-ink")}>{value}</span>
+      <span className="mt-1 text-[12px] font-semibold leading-none text-ink">{formatYen(festivalPrice(value))}</span>
+    </button>
   );
 }
 

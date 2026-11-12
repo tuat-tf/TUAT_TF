@@ -18,7 +18,9 @@ export type Permission =
   | "create_schedule" // 練習予定の作成
   | "create_menu" // 練習メニューの作成
   | "create_notice" // お知らせの作成
-  | "decide_practice"; // 練習の開催を決定する（雨天対応など）
+  | "decide_practice" // 練習の開催を決定する（雨天対応など）
+  | "use_festival" // 学祭ページを使う
+  | "manage_festival"; // 学祭の店長（売上の全体・指示）
 
 /** カスタムロール（roles テーブル） */
 export interface AppRole {
@@ -36,6 +38,8 @@ export interface AppRole {
   editable_menu_blocks: EditableMenuBlock[];
   can_create_notice: boolean;
   can_decide_practice: boolean;
+  can_use_festival: boolean;
+  can_manage_festival: boolean;
   is_system: boolean;
   /** 全ユーザーへ個別割当なしで適用する固定ロール。 */
   is_everyone: boolean;
@@ -714,7 +718,7 @@ export type FeedItem =
   | ({ kind: "record" } & RecordWithAuthor)
   | ({ kind: "tweet" } & TweetWithAuthor);
 
-export type NotificationType = "comment" | "notice" | "schedule_update" | "sync_failure" | "thread_reply" | "mention" | "sheet_setup";
+export type NotificationType = "comment" | "notice" | "schedule_update" | "sync_failure" | "thread_reply" | "mention" | "sheet_setup" | "festival_instruction" | "festival_trip";
 export type NotificationReferenceType = "record" | "tweet" | "schedule" | "notice" | "thread";
 
 export interface AppNotification {

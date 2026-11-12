@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Plus, Share2 } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,16 +15,15 @@ import { useToast } from "@/components/ui/toast";
 import { Linkify } from "@/components/common/Linkify";
 import { formatFestivalTime } from "@/lib/festival";
 import type { FestivalInstruction } from "@/lib/queries";
-import { FestivalSaveButton, SAVE_ERROR, useFestivalShare } from "./shared";
+import { FestivalSaveButton, SAVE_ERROR } from "./shared";
 
 /**
- * 店長からの指示。いま有効な指示を上に並べ、読んだ人が「確認しました」を押す。
- * 通知はLINEに任せる（共有ボタンで文面を渡す）。ここは「いま何が有効で、誰が読んだか」を残す場所。
+ * 店長からの指示。いま有効な指示を新しい順に並べ、読んだ人が「確認しました」を押す。
+ * 出すと学祭の権限を持つ部員へ通知される。出す・直す・終了・削除は店長だけ（DBも同じ）。
  */
-export function FestivalInstructions({ instructions, userId }: { instructions: FestivalInstruction[]; userId: string }) {
+export function FestivalInstructions({ instructions, userId, manager }: { instructions: FestivalInstruction[]; userId: string; manager: boolean }) {
   const router = useRouter();
   const { showToast } = useToast();
-  const share = useFestivalShare();
   const [form, setForm] = useState<{ target: FestivalInstruction | null } | null>(null);
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -91,7 +90,7 @@ export function FestivalInstructions({ instructions, userId }: { instructions: F
 
   return (
     <div className="space-y-3">
-      <Button size="lg" onClick={() => open(null)}><Plus size={18} />指示を出す</Button>
+      {manager && <Button size="lg" onClick={() => open(null)}><Plus size={18} />指示を出す</Button>}
 
       {current.length === 0 ? (
         <Card><EmptyState title="まだ指示はありません" description="店長からの指示がここに並びます。" /></Card>
@@ -102,12 +101,14 @@ export function FestivalInstructions({ instructions, userId }: { instructions: F
           <Card key={row.id} className="space-y-3 p-4">
             <div className="flex items-start gap-2">
               <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-[17px] font-semibold leading-relaxed"><Linkify text={row.body} /></p>
-              <ActionMenu
-                onEdit={() => open(row)}
-                onDelete={() => remove(row)}
-                deleteTitle="この指示を削除しますか？"
-                triggerLabel="指示のメニュー"
-              />
+              {manager && (
+                <ActionMenu
+                  onEdit={() => open(row)}
+                  onDelete={() => remove(row)}
+                  deleteTitle="この指示を削除しますか？"
+                  triggerLabel="指示のメニュー"
+                />
+              )}
             </div>
             <p className="text-caption">{row.author?.display_name ?? "退部した部員"}・{formatFestivalTime(row.created_at)}</p>
             <p className="text-caption">
@@ -118,10 +119,7 @@ export function FestivalInstructions({ instructions, userId }: { instructions: F
               <Button size="sm" variant={acked ? "outline" : "primary"} className="min-w-[116px]" disabled={busy === row.id} onClick={() => toggleAck(row, acked)}>
                 <Check size={15} />{acked ? "確認済み" : "確認しました"}
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => share(["【学祭・店長より】", row.body, "読んだらアプリで「確認しました」を押してください"])}>
-                <Share2 size={15} />LINEなどで共有
-              </Button>
-              <Button size="sm" variant="ghost" disabled={busy === row.id} onClick={() => setClosed(row, true)}>終了にする</Button>
+              {manager && <Button size="sm" variant="ghost" disabled={busy === row.id} onClick={() => setClosed(row, true)}>終了にする</Button>}
             </div>
           </Card>
         );
@@ -136,8 +134,10 @@ export function FestivalInstructions({ instructions, userId }: { instructions: F
                   <p className="whitespace-pre-wrap break-words text-body">{row.body}</p>
                   <p className="text-caption">{row.author?.display_name ?? "退部した部員"}・{formatFestivalTime(row.created_at)}・確認 {row.acks.length}人</p>
                 </div>
-                <Button size="sm" variant="ghost" disabled={busy === row.id} onClick={() => setClosed(row, false)}>戻す</Button>
-                <ActionMenu onDelete={() => remove(row)} deleteTitle="この指示を削除しますか？" triggerLabel="指示のメニュー" />
+                {manager && <>
+                  <Button size="sm" variant="ghost" disabled={busy === row.id} onClick={() => setClosed(row, false)}>戻す</Button>
+                  <ActionMenu onDelete={() => remove(row)} deleteTitle="この指示を削除しますか？" triggerLabel="指示のメニュー" />
+                </>}
               </div>
             ))}
           </div>

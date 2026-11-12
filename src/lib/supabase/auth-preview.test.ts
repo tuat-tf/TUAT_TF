@@ -18,7 +18,7 @@ beforeEach(() => {
   mocks.role = {
     id: "operator", name: "改名した管理担当", can_manage_system: true, can_manage_members: true,
     can_moderate_comments: true, can_manage_ob_meet: true, can_create_schedule: true,
-    can_create_menu: true, can_create_notice: true, can_decide_practice: true,
+    can_create_menu: true, can_create_notice: true, can_decide_practice: true, can_use_festival: true, can_manage_festival: true,
     editable_menu_blocks: ["short", "middle_long"], is_system: false, is_everyone: false,
     color: "blue", category: null, sort_order: 0, created_at: "2026-10-13",
   };
@@ -32,7 +32,7 @@ describe("member preview permissions", () => {
       name: mocks.role.name, permissions_suppressed: true,
       can_manage_system: false, can_manage_members: false, can_moderate_comments: false,
       can_manage_ob_meet: false, can_create_schedule: false, can_create_menu: false,
-      can_create_notice: false, can_decide_practice: false, editable_menu_blocks: [],
+      can_create_notice: false, can_decide_practice: false, can_use_festival: false, can_manage_festival: false, editable_menu_blocks: [],
     });
     expect(mocks.role.can_manage_system).toBe(true);
   });

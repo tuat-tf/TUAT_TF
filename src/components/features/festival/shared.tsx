@@ -4,29 +4,6 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast";
-
-/** LINEなど他のアプリへ文面を渡す。共有できない端末ではコピーする。 */
-export function useFestivalShare() {
-  const { showToast } = useToast();
-  return async function share(lines: (string | null)[]) {
-    const text = [...lines.filter(Boolean), new URL("/festival", window.location.origin).toString()].join("\n");
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast("文面をコピーしました", "success");
-    } catch {
-      showToast("共有できませんでした");
-    }
-  };
-}
 
 /** フォーム下部の主ボタン（進行中はスピナーつき） */
 export function FestivalSaveButton({ saving, editing, disabled, onClick }: { saving: boolean; editing: boolean; disabled?: boolean; onClick: () => void }) {

@@ -38,7 +38,7 @@ const reads: [string, () => Promise<unknown>][] = [
   ["competitions", getCompetitions], ["event catalog", getCompetitionEvents],
   ["competition detail", () => getCompetitionById("competition")], ["program", () => getCompetitionProgramEntries("competition")],
   ["home competition", getHomeCompetition], ["competition goals", () => getCompetitionGoals("competition")],
-  ["goal hub", () => getGoalHub("viewer")], ["monthly goals", () => getMonthlyGoals("viewer")], ["festival board", getFestivalBoard], ["members", getMembersList], ["member directory", getMemberDirectory],
+  ["goal hub", () => getGoalHub("viewer")], ["monthly goals", () => getMonthlyGoals("viewer")], ["festival board", () => getFestivalBoard({ manager: true })], ["members", getMembersList], ["member directory", getMemberDirectory],
   ["roles", getAllRoles], ["role categories", getAllRoleCategories],
   ["notices", () => getNotices("viewer")], ["home notices", () => getHomeNotices("viewer")],
   ["notifications", () => getPersonalNotifications("viewer")], ["unread count", () => getUnreadNotificationCount("viewer")],

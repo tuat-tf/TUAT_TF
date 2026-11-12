@@ -8,20 +8,21 @@ import { getFestivalBoard } from "@/lib/queries";
 import { permissionsOf } from "@/lib/permissions";
 
 /**
- * 学祭の模擬店（試験機能）。本採用するかは未定なので、システム管理権限だけに見せる。
- * DB側も同じ権限のRLSで守っている（supabase/migrations/20261113020000_festival_trial.sql）。
+ * 学祭の模擬店。ロールの「学祭」「学祭の店長」の権限を持つ部員に見せる。
+ * DB側も同じ権限のRLSで守っている（supabase/migrations/20261113040000_festival_roles.sql）。
  */
 export default async function FestivalPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const [profile, { tab }] = await Promise.all([getCurrentProfile(), searchParams]);
-  if (!permissionsOf(profile.roles).manageSystem) redirect("/home");
+  const perms = permissionsOf(profile.roles);
+  if (!perms.useFestival) redirect("/home");
 
-  const data = await getFestivalBoard();
-  const initialTab = FESTIVAL_TABS.find((key) => key === tab) ?? "sales";
+  const data = await getFestivalBoard({ manager: perms.manageFestival });
+  const initialTab = FESTIVAL_TABS.find((key) => key === tab) ?? "summary";
 
   return (
     <>
-      <SubHeader title="学祭" backHref="/admin" right={<FestivalRefresh />} />
-      <FestivalBoard data={data} userId={profile.id} initialTab={initialTab satisfies FestivalTab} />
+      <SubHeader title="学祭" backHref="/mypage" right={<FestivalRefresh />} />
+      <FestivalBoard data={data} userId={profile.id} manager={perms.manageFestival} initialTab={initialTab satisfies FestivalTab} />
     </>
   );
 }

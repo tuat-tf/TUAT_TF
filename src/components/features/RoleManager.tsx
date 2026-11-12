@@ -32,6 +32,7 @@ const MENU_BLOCKS: EditableMenuBlock[] = ["short", "middle_long"];
 const PERMISSION_GROUPS = [
   { label: "管理", keys: ADMINISTRATIVE_PERMISSIONS },
   { label: "日々の活動", keys: ["create_schedule", "create_menu", "decide_practice", "create_notice"] as Permission[] },
+  { label: "学祭", keys: ["use_festival", "manage_festival"] as Permission[] },
 ];
 
 export function RoleManager({ roles: initialRoles, members, categories: initialCategories, canManageSystem }: { roles: AppRole[]; members: Profile[]; categories: RoleCategory[]; canManageSystem: boolean }) {
@@ -144,7 +145,7 @@ function RoleRow({ role, members, categories, onUpdated, onDeleted, onMembersUpd
   </Card>;
 }
 
-type RoleSavePayload = Pick<AppRole, "name" | "can_manage_system" | "can_manage_members" | "can_moderate_comments" | "can_manage_ob_meet" | "editable_menu_blocks" | "can_create_schedule" | "can_create_menu" | "can_create_notice" | "can_decide_practice" | "color" | "category" | "sort_order">;
+type RoleSavePayload = Pick<AppRole, "name" | "can_manage_system" | "can_manage_members" | "can_moderate_comments" | "can_manage_ob_meet" | "editable_menu_blocks" | "can_create_schedule" | "can_create_menu" | "can_create_notice" | "can_decide_practice" | "can_use_festival" | "can_manage_festival" | "color" | "category" | "sort_order">;
 
 function roleSaveMatches(saved: AppRole, payload: RoleSavePayload): boolean {
   return Object.entries(payload).every(([key, value]) => key === "editable_menu_blocks"
@@ -156,7 +157,7 @@ function RoleEditor({ open, onClose, onSaved, sortOrder, role, categories, canMa
   const { showToast } = useToast();
   const [roleId] = useState(() => role?.id ?? crypto.randomUUID());
   const [name, setName] = useState(role?.name ?? "");
-  const [flags, setFlags] = useState<Record<Permission, boolean>>({ manage_system: role?.can_manage_system ?? false, manage_members: role?.can_manage_members ?? false, moderate_comments: role?.can_moderate_comments ?? false, manage_ob_meet: role?.can_manage_ob_meet ?? false, create_schedule: role?.can_create_schedule ?? false, create_menu: role?.can_create_menu ?? false, create_notice: role?.can_create_notice ?? false, decide_practice: role?.can_decide_practice ?? false });
+  const [flags, setFlags] = useState<Record<Permission, boolean>>({ manage_system: role?.can_manage_system ?? false, manage_members: role?.can_manage_members ?? false, moderate_comments: role?.can_moderate_comments ?? false, manage_ob_meet: role?.can_manage_ob_meet ?? false, create_schedule: role?.can_create_schedule ?? false, create_menu: role?.can_create_menu ?? false, create_notice: role?.can_create_notice ?? false, decide_practice: role?.can_decide_practice ?? false, use_festival: role?.can_use_festival ?? false, manage_festival: role?.can_manage_festival ?? false });
   const [editableBlocks, setEditableBlocks] = useState<EditableMenuBlock[]>(role?.editable_menu_blocks ?? []);
   const [color, setColor] = useState(role?.color ?? ROLE_COLORS[0]);
   const [category, setCategory] = useState(role?.category ?? "");
@@ -196,7 +197,7 @@ function RoleEditor({ open, onClose, onSaved, sortOrder, role, categories, canMa
   async function save() {
     if (saving || (pendingSave && (!pendingSave.notSaved || role))) return;
     if (!name.trim()) { setError("ロール名を入力してください"); return; }
-    const payload: RoleSavePayload = pendingSave?.payload ?? { name: name.trim(), can_manage_system: flags.manage_system, can_manage_members: flags.manage_members, can_moderate_comments: flags.moderate_comments, can_manage_ob_meet: flags.manage_ob_meet, editable_menu_blocks: [...editableBlocks], can_create_schedule: flags.create_schedule, can_create_menu: flags.create_menu, can_create_notice: flags.create_notice, can_decide_practice: flags.decide_practice, color, category: role?.is_everyone ? null : category || null, sort_order: sortOrder };
+    const payload: RoleSavePayload = pendingSave?.payload ?? { name: name.trim(), can_manage_system: flags.manage_system, can_manage_members: flags.manage_members, can_moderate_comments: flags.moderate_comments, can_manage_ob_meet: flags.manage_ob_meet, editable_menu_blocks: [...editableBlocks], can_create_schedule: flags.create_schedule, can_create_menu: flags.create_menu, can_create_notice: flags.create_notice, can_decide_practice: flags.decide_practice, can_use_festival: flags.use_festival, can_manage_festival: flags.manage_festival, color, category: role?.is_everyone ? null : category || null, sort_order: sortOrder };
     const unknown = () => {
       setPendingSave({ payload, notSaved: false });
       setError("保存結果を確認できませんでした。入力は残っています。先に保存結果を確認してください。");

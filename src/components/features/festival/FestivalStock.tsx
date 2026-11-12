@@ -2,25 +2,30 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Undo2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Disclosure } from "@/components/ui/disclosure";
 import { FormModal, FormModalFooter, FormDraftGuard } from "@/components/ui/form-modal";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { festivalStockLevel, formatFestivalTime } from "@/lib/festival";
-import type { FestivalStockItem } from "@/lib/queries";
+import type { FestivalStockEvent, FestivalStockItem } from "@/lib/queries";
 import { FestivalSaveButton, SAVE_ERROR } from "./shared";
+
+const HISTORY_SHOWN = 5;
 
 /**
  * 部室にある材料の残り。使うたびに「1つ使った」で減らしていく。
  * 足し引きはDB側で行うので、2人が同時に押しても数がずれない。
+ * 変更は記録に残り、「使った」は売上と同じように1件ずつ取り消せる。
  */
-export function FestivalStock({ items, userId }: { items: FestivalStockItem[]; userId: string }) {
+export function FestivalStock({ items, events, userId }: { items: FestivalStockItem[]; events: FestivalStockEvent[]; userId: string }) {
   const router = useRouter();
   const { showToast } = useToast();
   // 押した直後の数。読み直した一覧が届いたら捨てて、DBの数に合わせる。
@@ -36,7 +41,29 @@ export function FestivalStock({ items, userId }: { items: FestivalStockItem[]; u
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [undoing, setUndoing] = useState<FestivalStockEvent | null>(null);
+  const [undoBusy, setUndoBusy] = useState(false);
+
   const remainingOf = (item: FestivalStockItem) => counts[item.id] ?? item.count;
+
+  async function undo() {
+    if (!undoing) return;
+    setUndoBusy(true);
+    try {
+      const { data, error: undoError } = await createClient().rpc("festival_undo_stock_event", { p_event_id: undoing.id });
+      if (undoError || typeof data !== "number") {
+        showToast("取り消せませんでした");
+        return;
+      }
+      setCounts((current) => ({ ...current, [undoing.item_id]: data }));
+      setUndoing(null);
+    } catch {
+      showToast("取り消せませんでした");
+    } finally {
+      setUndoBusy(false);
+      router.refresh();
+    }
+  }
 
   function open(target: FestivalStockItem | null) {
     setForm({ target });
@@ -131,19 +158,25 @@ export function FestivalStock({ items, userId }: { items: FestivalStockItem[]; u
             <div className="h-2 overflow-hidden rounded-full bg-separator/60" aria-hidden="true">
               <div className={cn("h-full rounded-full transition-[width] duration-200", level.state === "ok" ? "bg-accent" : "bg-danger")} style={{ width: `${level.percent}%` }} />
             </div>
-            <div className="flex items-center gap-2">
-              <Button className="h-12 flex-1" disabled={remaining <= 0} onClick={() => adjust(item, -1)}>1つ使った</Button>
-              <Button variant="outline" className="h-12 px-3" aria-label={`${item.name}を1つ戻す`} disabled={remaining >= 9999} onClick={() => adjust(item, 1)}>
-                <Undo2 size={17} />戻す
-              </Button>
-            </div>
-            <p className="truncate text-micro text-muted tabular-nums">最後の変更: {formatFestivalTime(item.updated_at)}{item.updater ? `・${item.updater.display_name}` : ""}</p>
+            <Button className="h-12 w-full" disabled={remaining <= 0} onClick={() => adjust(item, -1)}>1つ使った</Button>
+            <StockHistory events={events.filter((event) => event.item_id === item.id)} onUndo={setUndoing} />
           </Card>
         );
       })}
 
       <Button size="lg" variant="secondary" onClick={() => open(null)}><Plus size={18} />材料を足す</Button>
-      <p className="text-micro px-1">使うたびに「1つ使った」を押します。押し間違えたら「戻す」。買い足したときは「…」から数を入れ直してください。</p>
+      <p className="text-micro px-1">使うたびに「1つ使った」を押します。押し間違えたら、記録の「取り消す」を押してください。買い足したときは「…」から数を入れ直します。</p>
+
+      <ConfirmDialog
+        open={!!undoing}
+        onOpenChange={(next) => { if (!next && !undoBusy) setUndoing(null); }}
+        title="この記録を取り消しますか？"
+        description={undoing ? `${formatFestivalTime(undoing.created_at)} ${-undoing.delta}つ使った。残りが${-undoing.delta}つ戻ります。` : ""}
+        confirmLabel="取り消す"
+        busyLabel="取り消し中…"
+        busy={undoBusy}
+        onConfirm={undo}
+      />
 
       <FormModal open={!!form} onOpenChange={(next) => { if (!next) setForm(null); }} title={form?.target ? "材料を編集" : "材料"}>
         <FormDraftGuard dirty={dirty} busy={saving} onSave={save} />
@@ -163,6 +196,40 @@ export function FestivalStock({ items, userId }: { items: FestivalStockItem[]; u
           </FormModalFooter>
         </fieldset>
       </FormModal>
+    </div>
+  );
+}
+
+/**
+ * 材料ごとの変更の記録（新しい順）。「使った」は取り消せる。
+ * 数え直した記録より前の「使った」は、数え直しに含まれているので取り消せない（DB側も同じ）。
+ */
+function StockHistory({ events, onUndo }: { events: FestivalStockEvent[]; onUndo: (event: FestivalStockEvent) => void }) {
+  if (events.length === 0) return null;
+  const lastSet = events.find((event) => event.kind === "set");
+  const undoable = (event: FestivalStockEvent) => event.kind === "use" && (!lastSet || event.created_at > lastSet.created_at);
+  const row = (event: FestivalStockEvent) => (
+    <div key={event.id} className="flex items-center gap-3 py-1.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] tabular-nums">
+          {event.kind === "use" ? <>{-event.delta}つ使った<span className="text-muted">（残り{event.count_after}）</span></> : `残りを${event.count_after}にした`}
+        </p>
+        <p className="truncate text-micro text-muted tabular-nums">{formatFestivalTime(event.created_at)}・{event.actor?.display_name ?? "退部した部員"}</p>
+      </div>
+      {undoable(event) && <Button size="sm" variant="ghost" className="text-danger" onClick={() => onUndo(event)}>取り消す</Button>}
+    </div>
+  );
+  const shown = events.slice(0, HISTORY_SHOWN);
+  const rest = events.slice(HISTORY_SHOWN);
+  return (
+    <div className="border-t border-separator/70 pt-2">
+      <p className="text-micro font-semibold text-muted">記録</p>
+      <div className="divide-y divide-separator/50">{shown.map(row)}</div>
+      {rest.length > 0 && (
+        <Disclosure title={`前の記録（${rest.length}件）`}>
+          <div className="divide-y divide-separator/50">{rest.map(row)}</div>
+        </Disclosure>
+      )}
     </div>
   );
 }

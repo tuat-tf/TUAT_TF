@@ -128,6 +128,8 @@ export const getCurrentProfile = cache(async (): Promise<Profile> => {
       editable_menu_blocks: [],
       can_create_notice: false,
       can_decide_practice: false,
+      can_use_festival: false,
+      can_manage_festival: false,
     })),
   };
 });
