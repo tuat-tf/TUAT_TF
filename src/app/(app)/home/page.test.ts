@@ -31,7 +31,7 @@ describe("home content loading", () => {
     let resolveNotices!: (value: unknown[]) => void;
     mocks.notices.mockReturnValue(new Promise(resolve => { resolveNotices = resolve; }));
     const page = HomePage();
-    const body = page.props.children[1].props.children;
+    const body = page.props.children[1].props.children.props.children;
     let completed = false;
     const result = body.type(body.props).then((value: unknown) => { completed = true; return value; });
     await vi.waitFor(() => {
@@ -48,7 +48,7 @@ describe("home content loading", () => {
 
   it("skips distance aggregation for other blocks and attendance when there are no schedules", async () => {
     mocks.profile.mockResolvedValue({ id: "me", blocks: ["short"], roles: [], display_name: "テスト", sheet_name: null });
-    const body = HomePage().props.children[1].props.children;
+    const body = HomePage().props.children[1].props.children.props.children;
     await body.type(body.props);
     expect(mocks.summary).not.toHaveBeenCalled();
     expect(mocks.attendance).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe("finished competitions on home", () => {
       { id: "riko", name: "理工系", starts_on: "2026-10-25", ends_on: null, program_source_url: "http://sairiku.net/result/x/", program_closed_at: "2026-10-26T06:22:38Z" },
       { id: "3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5", name: "OB戦", starts_on: "2026-10-11", ends_on: null, program_source_url: null },
     ] });
-    const body = HomePage().props.children[1].props.children;
+    const body = HomePage().props.children[1].props.children.props.children;
     const content = await body.type(body.props);
     const html = renderToStaticMarkup(content.props.children[1]);
     expect(html).toContain('href="/competitions/riko/program"');
@@ -78,7 +78,7 @@ describe("finished competitions on home", () => {
     mocks.competition.mockResolvedValue({ competition: null, goalCount: 0, finished: [
       { id: "3e2a2b1e-21d1-49b0-a1e8-40bf595fb7e5", name: "OB戦", starts_on: "2026-10-11", ends_on: null, program_source_url: null },
     ] });
-    const body = HomePage().props.children[1].props.children;
+    const body = HomePage().props.children[1].props.children.props.children;
     const content = await body.type(body.props);
     const html = renderToStaticMarkup(content.props.children[1]);
     expect(html).toContain("OB戦");

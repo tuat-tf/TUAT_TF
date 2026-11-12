@@ -24,7 +24,7 @@ export default function PostPermalinkPage({
     <>
       <SubHeader title="投稿" backHref="/timeline" />
       <Suspense fallback={<PostDetailSkeleton />}>
-        <PostContent params={params} />
+        <div className="content-in"><PostContent params={params} /></div>
       </Suspense>
     </>
   );

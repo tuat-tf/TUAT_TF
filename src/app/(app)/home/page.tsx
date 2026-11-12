@@ -49,7 +49,7 @@ export default function HomePage() {
     <>
       <Header title="ホーム" large besideTitle={<time dateTime={jstToday()} className="truncate text-[13px] text-muted">{format(nowJst, "M月d日 (E)", { locale: ja })}</time>} />
       <Suspense fallback={<HomeSkeleton withHeader={false} />}>
-        <HomeContent nowJst={nowJst} />
+        <div className="content-in"><HomeContent nowJst={nowJst} /></div>
       </Suspense>
     </>
   );

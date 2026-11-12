@@ -18,6 +18,7 @@ type ToastItem = {
   id: number;
   message: string;
   kind: ToastKind;
+  leaving?: boolean;
 };
 
 type ToastContextValue = {
@@ -31,7 +32,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const nextId = useRef(0);
 
   const dismiss = useCallback((id: number) => {
-    setToasts((items) => items.filter((item) => item.id !== id));
+    // 退場の動きを見せてから外す（.toast-out は 0.16s）。
+    setToasts((items) => items.map((item) => (item.id === id ? { ...item, leaving: true } : item)));
+    window.setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), 160);
   }, []);
 
   const showToast = useCallback(
@@ -60,7 +63,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             role={toast.kind === "error" ? "alert" : "status"}
             className={cn(
-              "toast-in pointer-events-auto flex min-h-12 items-center gap-3 rounded-xl border bg-card px-3 py-2 shadow-lg",
+              "pointer-events-auto flex min-h-12 items-center gap-3 rounded-xl border bg-card px-3 py-2 shadow-lg",
+              toast.leaving ? "toast-out" : "toast-in",
               toast.kind === "error" ? "border-danger/30" : "border-success/30",
             )}
           >

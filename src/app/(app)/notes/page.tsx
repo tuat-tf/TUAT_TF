@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { NotesSkeleton } from "@/components/ui/page-skeletons";
 
 export default function NotesPage(props: { searchParams: Promise<{ mine?: string }> }) {
-  return <><Header title="ノート" large /><Suspense fallback={<NotesSkeleton withHeader={false} />}><NotesContent {...props} /></Suspense></>;
+  return <><Header title="ノート" large /><Suspense fallback={<NotesSkeleton withHeader={false} />}><div className="content-in"><NotesContent {...props} /></div></Suspense></>;
 }
 
 async function NotesContent({ searchParams }: { searchParams: Promise<{ mine?: string }> }) {

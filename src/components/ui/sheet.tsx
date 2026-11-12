@@ -45,7 +45,7 @@ export function SheetContent({
     const content = contentRef.current;
     if (!content) return;
     const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180;
-    content.style.transition = `transform ${duration}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+    content.style.transition = `transform ${duration}ms var(--ease-sheet)`;
     content.style.transform = "translateY(0)";
     if (resetTimerRef.current !== null) window.clearTimeout(resetTimerRef.current);
     resetTimerRef.current = window.setTimeout(() => {
@@ -68,7 +68,7 @@ export function SheetContent({
         closeButtonRef.current?.click();
         return;
       }
-      content.style.transition = "transform 160ms cubic-bezier(0.32, 0.72, 0, 1)";
+      content.style.transition = "transform 160ms var(--ease-sheet)";
       content.style.transform = "translateY(100%)";
       resetTimerRef.current = window.setTimeout(() => closeButtonRef.current?.click(), 140);
       return;

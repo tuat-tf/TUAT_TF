@@ -12,6 +12,8 @@
    陸上部ログ — iOS 風デザインシステム (Tailwind v4)
    ───────────────────────────────────────────── */
 @theme {
+  /* 動きの共通イージング（シート・スイッチ・折りたたみ）。値を変えるときはここだけ。 */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
   /* ベースカラー */
   --color-bg: #f2f2f7;
   --color-card: #ffffff;
@@ -188,16 +190,16 @@ h1, h2, h3, p {
 }
 /* 選ぶ＝ボトムシートは下から。書く＝全画面はページと同じ右からの送り出しに揃える。 */
 .sheet-content[data-state="open"] {
-  animation: sheet-slide 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: sheet-slide 0.28s var(--ease-sheet);
 }
 .sheet-content[data-state="closed"] {
-  animation: sheet-slide-out 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: sheet-slide-out 0.2s var(--ease-sheet);
 }
 .fullscreen-content[data-state="open"] {
-  animation: fullscreen-slide-in 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: fullscreen-slide-in 0.28s var(--ease-sheet);
 }
 .fullscreen-content[data-state="closed"] {
-  animation: fullscreen-slide-out 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  animation: fullscreen-slide-out 0.22s var(--ease-sheet);
 }
 @media (prefers-reduced-motion: reduce) {
   .sheet-content[data-state],
@@ -222,10 +224,13 @@ h1, h2, h3, p {
 .toast-in {
   animation: dialog-in 0.18s ease-out;
 }
+.toast-out {
+  animation: sheet-fade 0.16s ease-in reverse forwards;
+}
 
 /* スイッチのつまみは位置を切り替えず transform で滑らせる（移動量は幅違いのテーマが上書きする）。 */
 [data-ui-switch-thumb] {
-  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.2s var(--ease-sheet);
 }
 [data-ui-switch-track][data-checked] > [data-ui-switch-thumb] {
   transform: translateX(var(--switch-travel, 16px));
@@ -293,6 +298,10 @@ h1, h2, h3, p {
 .fade-in {
   animation: fade-in 0.18s ease-out;
 }
+/* 仮画面から本文へ差し替わるとき。固定配置の子を巻き込まないよう transform は使わない。 */
+.content-in {
+  animation: sheet-fade 0.16s ease-out;
+}
 
 @keyframes comment-pop {
   from { opacity: 0; transform: translateY(-6px) scale(0.99); }
@@ -306,8 +315,10 @@ h1, h2, h3, p {
 /* 動きを減らす設定では出現アニメーションを止める */
 @media (prefers-reduced-motion: reduce) {
   .fade-in,
+  .content-in,
   .comment-pop,
-  .toast-in {
+  .toast-in,
+  .toast-out {
     animation: none;
   }
   [data-ui-switch-thumb] {

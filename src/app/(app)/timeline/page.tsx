@@ -14,7 +14,7 @@ export default function TimelinePage() {
     <>
       <Header title="タイムライン" large />
       <Suspense fallback={<FeedSkeleton withHeader={false} />}>
-        <TimelineContent />
+        <div className="content-in"><TimelineContent /></div>
       </Suspense>
     </>
   );

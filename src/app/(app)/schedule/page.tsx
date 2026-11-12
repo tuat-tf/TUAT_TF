@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { ScheduleSkeleton } from "@/components/ui/page-skeletons";
 
 export default function SchedulePage(props: { searchParams: Promise<{ compose?: string; open?: string }> }) {
-  return <><Header title="予定" large /><Suspense fallback={<ScheduleSkeleton withHeader={false} />}><ScheduleContent {...props} /></Suspense></>;
+  return <><Header title="予定" large /><Suspense fallback={<ScheduleSkeleton withHeader={false} />}><div className="content-in"><ScheduleContent {...props} /></div></Suspense></>;
 }
 
 async function ScheduleContent({

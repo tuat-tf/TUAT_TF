@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { animateSize } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,6 +37,17 @@ export function ExpandableSection({
     return () => observer.disconnect();
   }, [maxHeight]);
 
+  function toggle() {
+    const node = contentRef.current;
+    const next = !expanded;
+    if (node) {
+      const folded = { maxHeight: `${maxHeight}px` };
+      const full = { maxHeight: `${node.scrollHeight}px` };
+      animateSize(node, next ? [folded, full] : [full, folded]);
+    }
+    setExpanded(next);
+  }
+
   const collapsed = !forceExpanded && overflowing && !expanded;
 
   return (
@@ -58,7 +70,7 @@ export function ExpandableSection({
       {!forceExpanded && overflowing && (
         <button data-ui-disclosure
           type="button"
-          onClick={() => setExpanded((current) => !current)}
+          onClick={toggle}
           aria-expanded={expanded}
           className="mt-1 text-[12px] font-semibold text-accent pressable"
         >
