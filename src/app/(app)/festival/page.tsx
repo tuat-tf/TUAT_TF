@@ -16,7 +16,7 @@ export default async function FestivalPage({ searchParams }: { searchParams: Pro
   if (!permissionsOf(profile.roles).manageSystem) redirect("/home");
 
   const data = await getFestivalBoard();
-  const initialTab = FESTIVAL_TABS.find((key) => key === tab) ?? "instructions";
+  const initialTab = FESTIVAL_TABS.find((key) => key === tab) ?? "sales";
 
   return (
     <>

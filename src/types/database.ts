@@ -625,7 +625,7 @@ export type Database = {
           },
         ]
       }
-      festival_stock_items: FestivalTable<{id:string;name:string;count:number;updated_by:string|null;updated_at:string;created_at:string}, "name", [FestivalProfileRef<"festival_stock_items_updated_by_fkey","updated_by">]>
+      festival_stock_items: FestivalTable<{id:string;name:string;count:number;initial_count:number;updated_by:string|null;updated_at:string;created_at:string}, "name", [FestivalProfileRef<"festival_stock_items_updated_by_fkey","updated_by">]>
       festival_shopping_trips: FestivalTable<{id:string;title:string;note:string|null;status:string;created_by:string|null;created_at:string;updated_at:string}, "title", [FestivalProfileRef<"festival_shopping_trips_created_by_fkey","created_by">]>
       festival_shopping_members: FestivalTable<{trip_id:string;user_id:string;joined_at:string}, "trip_id"|"user_id", [FestivalProfileRef<"festival_shopping_members_user_id_fkey","user_id">, {foreignKeyName:"festival_shopping_members_trip_id_fkey";columns:["trip_id"];isOneToOne:false;referencedRelation:"festival_shopping_trips";referencedColumns:["id"]}]>
       festival_sales: FestivalTable<{id:string;quantity:number;amount:number;sold_at:string;recorded_by:string|null}, "quantity"|"amount", [FestivalProfileRef<"festival_sales_recorded_by_fkey","recorded_by">]>

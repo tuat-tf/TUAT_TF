@@ -4,6 +4,17 @@
 export const FESTIVAL_TABS = ["instructions", "sales", "stock", "shopping"] as const;
 export type FestivalTab = (typeof FESTIVAL_TABS)[number];
 
+/**
+ * 材料の残り具合。用意した数の2割以下で「残りわずか」、0で「なくなりました」。
+ * percent は残量バーの幅（0〜100）。
+ */
+export function festivalStockLevel(remaining: number, initial: number): { state: "ok" | "low" | "empty"; percent: number } {
+  const base = Math.max(initial, remaining);
+  if (remaining <= 0 || base <= 0) return { state: "empty", percent: 0 };
+  const ratio = remaining / base;
+  return { state: ratio <= 0.2 ? "low" : "ok", percent: Math.round(ratio * 100) };
+}
+
 /** 1会計で売る個数の上限 */
 export const FESTIVAL_MAX_QUANTITY = 20;
 

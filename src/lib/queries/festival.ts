@@ -5,7 +5,8 @@ import { fetchAllPages } from "@/lib/fetch-all-pages";
 
 type Person = { display_name: string } | null;
 
-export type FestivalStockItem = { id: string; name: string; count: number; updated_at: string; updater: Person };
+/** count は残りの数、initial_count は用意した数 */
+export type FestivalStockItem = { id: string; name: string; count: number; initial_count: number; updated_at: string; updater: Person };
 export type FestivalTrip = {
   id: string;
   title: string;
@@ -37,7 +38,7 @@ export async function getFestivalBoard(): Promise<FestivalBoardData> {
   const [stock, trips, sales, instructions] = await Promise.all([
     supabase
       .from("festival_stock_items")
-      .select("id,name,count,updated_at,updater:profiles!updated_by(display_name)")
+      .select("id,name,count,initial_count,updated_at,updater:profiles!updated_by(display_name)")
       .order("created_at")
       .order("id"),
     supabase

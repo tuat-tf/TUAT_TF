@@ -23,7 +23,7 @@ export function AdminDashboard({ snapshot, permissions, showRecordSource }: Prop
           <NavigationLink href="/mypage/monthly-results" label="部員の大会・記録会の結果" description="月別・年別・新着で確認します。" icon={<Activity size={20} />} />
           <NavigationLink href="/events" label="種目" description="大会の種目一覧を管理します。" icon={<ListOrdered size={20} />} />
           <NavigationLink href="/admin/sheets" label="スプレッドシート連携" description="連携状況と部員ごとの入力設定を確認します。" icon={<SlidersHorizontal size={20} />} />
-          <NavigationLink href="/festival" label="学祭（試験中）" description="店長の指示・売上・材料・買い出しを共有します。" icon={<Store size={20} />} />
+          <NavigationLink href="/festival" label="学祭（試験中）" description="店長の指示・売上・材料の残り・買い出しを共有します。" icon={<Store size={20} />} />
         </>}
       </NavigationList>
     </section>

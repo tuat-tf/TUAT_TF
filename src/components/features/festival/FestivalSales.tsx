@@ -80,14 +80,6 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
   return (
     <div className="space-y-5">
       <section className="space-y-2">
-        <p className="section-label">今日の売上</p>
-        <Card className="space-y-3 p-4">
-          <p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(today?.amount ?? 0)}</p>
-          <Totals totals={today ?? { orders: 0, pieces: 0, amount: 0, cups: 0, packs: 0 }} />
-        </Card>
-      </section>
-
-      <section className="space-y-2">
         <p className="section-label">個数を選ぶ</p>
         <div className="grid grid-cols-5 gap-2">
           {QUANTITIES.map((value) => {
@@ -125,6 +117,14 @@ export function FestivalSales({ sales, userId }: { sales: FestivalSale[]; userId
             {saving && <LoaderCircle size={18} className="animate-spin" />}
             {saving ? "保存中…" : "保存する"}
           </Button>
+        </Card>
+      </section>
+
+      <section className="space-y-2">
+        <p className="section-label">今日の売上</p>
+        <Card className="space-y-3 p-4">
+          <p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(today?.amount ?? 0)}</p>
+          <Totals totals={today ?? { orders: 0, pieces: 0, amount: 0, cups: 0, packs: 0 }} />
         </Card>
       </section>
 

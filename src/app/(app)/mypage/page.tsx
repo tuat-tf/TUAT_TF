@@ -2,7 +2,7 @@ import { canModerateComments } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
-import { Trophy, Medal, Settings, Shield, Users, Target, Rss, Flag } from "lucide-react";
+import { Trophy, Medal, Settings, Shield, Store, Users, Target, Rss, Flag } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/card";
 import { NavigationList, NavigationLink } from "@/components/ui/navigation-list";
@@ -129,6 +129,7 @@ export default async function MyPage({
             <p className="section-label">管理メニュー</p>
             <NavigationList>
               <NavigationLink prefetch={false} href="/admin" icon={<Shield size={20} className="text-accent" />} label="管理" description="部員・大会・連携などの管理を行います。" />
+              {perms.manageSystem && <NavigationLink prefetch={false} href="/festival" icon={<Store size={20} className="text-accent" />} label="学祭（試験中）" description="店長の指示・売上・材料の残り・買い出しを共有します。" />}
             </NavigationList>
           </section>
         )}

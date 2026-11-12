@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { festivalContainer, festivalPrice, jstDayHour, summarizeFestivalSales } from "./festival";
+import { festivalContainer, festivalPrice, festivalStockLevel, jstDayHour, summarizeFestivalSales } from "./festival";
 
 describe("festival prices", () => {
   it("matches the owner's price table for 1 to 20 pieces", () => {
@@ -32,5 +32,18 @@ describe("festival sales summary", () => {
       { hour: 10, orders: 2, pieces: 7, amount: 610, cups: 3, packs: 0 },
       { hour: 12, orders: 1, pieces: 10, amount: 700, cups: 0, packs: 1 },
     ]);
+  });
+});
+
+describe("festival stock level", () => {
+  it("warns at 20% of the prepared amount and reports empty at zero", () => {
+    expect(festivalStockLevel(30, 30)).toEqual({ state: "ok", percent: 100 });
+    expect(festivalStockLevel(7, 30)).toEqual({ state: "ok", percent: 23 });
+    expect(festivalStockLevel(6, 30)).toEqual({ state: "low", percent: 20 });
+    expect(festivalStockLevel(0, 30)).toEqual({ state: "empty", percent: 0 });
+  });
+  it("treats a count above the prepared amount as full", () => {
+    expect(festivalStockLevel(12, 10)).toEqual({ state: "ok", percent: 100 });
+    expect(festivalStockLevel(0, 0)).toEqual({ state: "empty", percent: 0 });
   });
 });

@@ -11,5 +11,5 @@ async function ProfileLoading() {
   const profile = await getCurrentProfile();
   const permissions = permissionsOf(profile.roles);
   const showAdmin = permissions.manageMembers || permissions.createSchedule || permissions.manageSystem;
-  return <MyPageSkeleton showTraining={profile.blocks.includes("middle_long")} showAdmin={showAdmin} />;
+  return <MyPageSkeleton showTraining={profile.blocks.includes("middle_long")} showAdmin={showAdmin} adminRows={permissions.manageSystem ? 2 : 1} />;
 }
