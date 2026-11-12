@@ -41,3 +41,11 @@ it("keeps all events in catalog order without mutating the input", () => {
   expect(sortCompetitionEvents([...events].reverse())).toEqual(events);
   expect(events[0].name).toBe("100m");
 });
+it("accepts a free-text event and drops the input-only flag", () => {
+  expect(
+    normalizeGoalDrafts([{ event: " 2000mSC ", target: "完走", custom: true }]),
+  ).toEqual([{ event: "2000mSC", target: "完走" }]);
+  expect(() =>
+    normalizeGoalDrafts([{ event: "a".repeat(51), target: "b", custom: true }]),
+  ).toThrow("50文字");
+});

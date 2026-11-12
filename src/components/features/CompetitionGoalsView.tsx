@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormModal, FormModalFooter } from "@/components/ui/form-modal";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
@@ -25,6 +26,7 @@ import type {
 } from "@/types";
 
 const selectClass = "w-full rounded-xl border border-separator bg-card p-3 text-base";
+const OTHER = "__other__";
 
 /** 大会ごとの目標ページ（全画面）。その大会の目標一覧と、自分の目標の追加編集。他の大会へは切り替えない */
 export function CompetitionGoalsView({
@@ -56,7 +58,6 @@ export function CompetitionGoalsView({
 
   const ordered = sortCompetitionEvents(events);
   const ownGoals = goals.filter((g) => g.user_id === userId);
-  const availableEventCount = ordered.filter((event) => !ownGoals.some((goal) => goal.event === event.name)).length;
   const bestByKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const row of personalBests) {
@@ -68,7 +69,7 @@ export function CompetitionGoalsView({
 
   function openEditor(goal?: CompetitionGoalRow) {
     const next = goal
-      ? [{ event: goal.event, target: goal.target }]
+      ? [{ event: goal.event, target: goal.target, custom: !events.some((e) => e.name === goal.event) }]
       : [{ event: "", target: "" }];
     setEditingId(goal?.id ?? null);
     setDrafts(next);
@@ -88,8 +89,8 @@ export function CompetitionGoalsView({
     setError("");
     try {
       const rows = normalizeGoalDrafts(drafts);
-      if (rows.some((row) => !events.some((e) => e.name === row.event)))
-        throw new Error("種目を選択してください");
+      if (rows.some((row) => ownGoals.some((g) => g.id !== editingId && g.event === row.event)))
+        throw new Error("同じ種目の目標がすでにあります");
       const sb = createClient();
       const { data, error: saveError } = editingId
         ? await sb
@@ -155,7 +156,7 @@ export function CompetitionGoalsView({
         onEdit={openEditor}
         onDelete={remove}
         onAdd={() => openEditor()}
-        canAdd={availableEventCount > 0}
+        canAdd
         busy={busy}
       />
 
@@ -181,15 +182,20 @@ export function CompetitionGoalsView({
                 <select
                   data-ui-field
                   className={selectClass}
-                  value={row.event}
+                  value={row.custom ? OTHER : row.event}
                   disabled={busy}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const value = e.target.value;
                     setDrafts((old) =>
                       old.map((r, i) =>
-                        i === index ? { ...r, event: e.target.value } : r,
+                        i === index
+                          ? value === OTHER
+                            ? { ...r, event: "", custom: true }
+                            : { ...r, event: value, custom: false }
+                          : r,
                       ),
-                    )
-                  }
+                    );
+                  }}
                 >
                   <option value="">種目を選択</option>
                   {ordered
@@ -204,8 +210,25 @@ export function CompetitionGoalsView({
                     .map((e) => (
                       <option key={e.name}>{e.name}</option>
                     ))}
+                  <option value={OTHER}>その他（自由入力）</option>
                 </select>
               </label>
+              {row.custom && (
+                <Input
+                  aria-label={`種目${index + 1}の種目名`}
+                  maxLength={50}
+                  placeholder="例: 2000mSC"
+                  value={row.event}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setDrafts((old) =>
+                      old.map((r, i) =>
+                        i === index ? { ...r, event: e.target.value } : r,
+                      ),
+                    )
+                  }
+                />
+              )}
               <label className="block text-body">
                 目標
                 <Textarea
@@ -239,7 +262,7 @@ export function CompetitionGoalsView({
           {!editingId && (
             <Button
               variant="secondary"
-              disabled={busy || drafts.length >= availableEventCount}
+              disabled={busy}
               onClick={() => setDrafts((old) => [...old, { event: "", target: "" }])}
             >
               <Plus size={16} />
@@ -252,7 +275,7 @@ export function CompetitionGoalsView({
             </p>
           )}
           <FormModalFooter>
-            <Button size="lg" disabled={busy || !events.length} onClick={() => void save()}>
+            <Button size="lg" disabled={busy} onClick={() => void save()}>
               {busy ? "保存中…" : editingId ? "更新する" : "作成する"}
             </Button>
           </FormModalFooter>

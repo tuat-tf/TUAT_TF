@@ -1,4 +1,5 @@
-export type GoalDraft = { event: string; target: string };
+/** custom: 種目を「その他」で自由入力している */
+export type GoalDraft = { event: string; target: string; custom?: boolean };
 export type CompetitionEvent = { name: string; sort_order: number; measure_type: string; time_format?: string };
 /** Use the system's catalog order in every block. */
 export function sortCompetitionEvents<T extends { name: string; sort_order: number }>(
@@ -16,6 +17,8 @@ export function normalizeGoalDrafts(drafts: GoalDraft[]) {
   }));
   if (!rows.length || rows.some((row) => !row.event || !row.target))
     throw new Error("各種目と目標を入力してください");
+  if (rows.some((row) => row.event.length > 50))
+    throw new Error("種目名は50文字以内で入力してください");
   if (rows.some((row) => row.target.length > 300))
     throw new Error("目標は300文字以内で入力してください");
   if (new Set(rows.map((row) => row.event)).size !== rows.length)

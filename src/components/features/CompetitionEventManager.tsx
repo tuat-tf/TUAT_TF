@@ -87,7 +87,7 @@ export function CompetitionEventManager({
         .eq("name", event.name)
         .select("name");
       if (error || !data || data.length !== 1) {
-        showToast(error?.code === "23503" ? "目標が登録されている種目は削除できません" : "種目を削除できませんでした");
+        showToast("種目を削除できませんでした");
         return false;
       }
       setItems((old) => old.filter((e) => e.name !== event.name));
@@ -308,7 +308,7 @@ export function CompetitionEventManager({
                     onEdit={() => setEditing(e)}
                     onDelete={() => remove(e)}
                     deleteTitle={`「${e.name}」を削除しますか？`}
-                    deleteDescription="目標が登録されている種目は削除できません。"
+                    deleteDescription="登録済みの結果と目標は、この種目名のまま残ります。"
                     triggerLabel={`${e.name}のメニュー`}
                   />
                 )}
