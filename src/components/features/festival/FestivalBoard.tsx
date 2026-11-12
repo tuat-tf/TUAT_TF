@@ -3,13 +3,11 @@
 import { useState } from "react";
 import { SegmentedControl } from "@/components/ui/segmented";
 import type { FestivalBoardData } from "@/lib/queries";
+import type { FestivalTab } from "@/lib/festival";
 import { FestivalInstructions } from "./FestivalInstructions";
 import { FestivalSales } from "./FestivalSales";
 import { FestivalStock } from "./FestivalStock";
 import { FestivalShopping } from "./FestivalShopping";
-
-export const FESTIVAL_TABS = ["instructions", "sales", "stock", "shopping"] as const;
-export type FestivalTab = (typeof FESTIVAL_TABS)[number];
 
 const TAB_ITEMS: { key: FestivalTab; label: string }[] = [
   { key: "instructions", label: "指示" },

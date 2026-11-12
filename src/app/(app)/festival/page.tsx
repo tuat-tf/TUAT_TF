@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { SubHeader } from "@/components/layout/SubHeader";
-import { FestivalBoard, FESTIVAL_TABS, type FestivalTab } from "@/components/features/festival/FestivalBoard";
+import { FestivalBoard } from "@/components/features/festival/FestivalBoard";
+import { FESTIVAL_TABS, type FestivalTab } from "@/lib/festival";
 import { FestivalRefresh } from "@/components/features/festival/shared";
 import { getCurrentProfile } from "@/lib/supabase/auth";
 import { getFestivalBoard } from "@/lib/queries";
