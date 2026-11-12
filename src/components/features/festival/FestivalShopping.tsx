@@ -118,11 +118,11 @@ export function FestivalShopping({ trips, userId }: { trips: FestivalTrip[]; use
               {names && <span className="text-muted">: {names}</span>}
             </p>
             <p className="text-micro text-muted">{trip.creator?.display_name ?? "退部した部員"}・{formatFestivalTime(trip.created_at)}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant={joined ? "outline" : "primary"} className="min-w-[124px]" disabled={busy === trip.id} onClick={() => toggleJoin(trip, joined)}>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant={joined ? "outline" : "primary"} disabled={busy === trip.id} onClick={() => toggleJoin(trip, joined)}>
                 {joined ? "行くのをやめる" : "行きます"}
               </Button>
-              <Button size="sm" variant="secondary" className="min-w-[92px]" disabled={busy === trip.id} onClick={() => setStatus(trip, trip.status === "open" ? "going" : "done")}>
+              <Button variant="secondary" disabled={busy === trip.id} onClick={() => setStatus(trip, trip.status === "open" ? "going" : "done")}>
                 {trip.status === "open" ? "出発する" : "完了にする"}
               </Button>
             </div>

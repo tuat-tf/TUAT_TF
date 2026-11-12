@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
+import { ChevronDown, LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,9 +17,9 @@ import {
 } from "@/lib/festival";
 import type { FestivalSale } from "@/lib/queries";
 
-/** よく出る個数（大きく並べる）と、それ以上（「11個以上」を開いたときだけ出す） */
-const COMMON_QUANTITIES = Array.from({ length: 10 }, (_, index) => index + 1);
-const MORE_QUANTITIES = Array.from({ length: FESTIVAL_MAX_QUANTITY - 10 }, (_, index) => index + 11);
+/** よく出る個数は1〜10個。それ以上は「11個以上」を開いたときだけ、同じ並びの続きに出す。 */
+const COMMON_COUNT = 10;
+const QUANTITIES = Array.from({ length: FESTIVAL_MAX_QUANTITY }, (_, index) => index + 1);
 const RECENT_COUNT = 10;
 
 /**
@@ -83,37 +83,40 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
   }
 
   const container = quantity === null ? null : festivalContainer(quantity);
+  const moreOpen = showMore || (quantity !== null && quantity > COMMON_COUNT);
+
+  function toggleMore() {
+    // 閉じると11個以上のボタンが消えるので、そこで選んでいた個数は外す。
+    if (moreOpen && quantity !== null && quantity > COMMON_COUNT) setQuantity(null);
+    setShowMore(!moreOpen);
+  }
 
   return (
     <div className="space-y-5">
-      <section className="space-y-2">
-        <p className="section-label">個数を選ぶ</p>
+      <section className="space-y-1">
+        <div className="flex items-center justify-between">
+          <p className="section-label">個数を選ぶ</p>
+          <button type="button" aria-expanded={moreOpen} onClick={toggleMore} className="pressable -mr-1 flex min-h-11 items-center gap-0.5 pl-3 text-[13px] font-semibold text-accent">
+            11個以上<ChevronDown size={15} className={cn("transition-transform", moreOpen && "rotate-180")} />
+          </button>
+        </div>
         <div className="grid grid-cols-5 gap-2">
-          {COMMON_QUANTITIES.map((value) => (
-            <QuantityButton key={value} value={value} active={value === quantity} large onSelect={setQuantity} />
+          {(moreOpen ? QUANTITIES : QUANTITIES.slice(0, COMMON_COUNT)).map((value) => (
+            <QuantityButton key={value} value={value} active={value === quantity} onSelect={setQuantity} />
           ))}
         </div>
-        {showMore || (quantity !== null && quantity > 10) ? (
-          <div className="grid grid-cols-5 gap-2">
-            {MORE_QUANTITIES.map((value) => (
-              <QuantityButton key={value} value={value} active={value === quantity} onSelect={setQuantity} />
-            ))}
-          </div>
-        ) : (
-          <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowMore(true)}>11個以上</Button>
-        )}
-        <Card className="flex min-h-[72px] items-center gap-3 p-3">
+        <Card className="mt-3 flex min-h-[80px] items-center gap-3 py-3 pr-3 pl-4">
           <div className="min-w-0 flex-1">
             {quantity === null || !container ? (
               <p className="text-caption">個数を押すと、価格と容器が出ます。</p>
             ) : (
               <>
-                <p className="tabular-nums leading-tight"><span className="text-[17px] font-semibold">{quantity}個</span> <span className="text-[26px] font-bold">{formatYen(festivalPrice(quantity))}</span></p>
-                <p className="text-caption">容器: {container.label}</p>
+                <p className="text-[30px] font-bold leading-none tabular-nums">{formatYen(festivalPrice(quantity))}</p>
+                <p className="mt-1.5 text-caption tabular-nums">{quantity}個・{container.label}</p>
               </>
             )}
           </div>
-          <Button className="min-w-[112px]" disabled={quantity === null || saving} onClick={save}>
+          <Button className="h-12 min-w-[116px]" disabled={quantity === null || saving} onClick={save}>
             {saving && <LoaderCircle size={18} className="animate-spin" />}
             {saving ? "保存中…" : "保存する"}
           </Button>
@@ -142,7 +145,7 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
                   <p className="text-headline tabular-nums">{sale.quantity}個 {formatYen(sale.amount)}</p>
                   <p className="truncate text-caption tabular-nums">{formatFestivalTime(sale.sold_at)}・{sale.recorder?.display_name ?? "退部した部員"}</p>
                 </div>
-                <Button size="sm" variant="ghost" className="text-danger" onClick={() => setRemoving(sale)}>取り消す</Button>
+                <Button size="sm" variant="ghost" data-ui-tone="danger" className="text-danger" onClick={() => setRemoving(sale)}>取り消す</Button>
               </div>
             ))}
           </Card>
@@ -196,22 +199,21 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
   );
 }
 
-/** 選んだ個数は色を薄く敷くだけにして、数字と価格は濃い色のまま読めるようにする */
-function QuantityButton({ value, active, large, onSelect }: { value: number; active: boolean; large?: boolean; onSelect: (next: number | null) => void }) {
+/** 個数のボタン。どれも同じ大きさの角丸の四角にそろえ、選んだものは共通の「選択中」の色になる。 */
+function QuantityButton({ value, active, onSelect }: { value: number; active: boolean; onSelect: (next: number | null) => void }) {
   return (
     <button
       type="button"
-      data-ui-action
+      data-ui-action="tile"
       aria-pressed={active}
       onClick={() => onSelect(active ? null : value)}
       className={cn(
-        "pressable flex flex-col items-center justify-center rounded-xl border-2 tabular-nums",
-        large ? "h-[76px]" : "h-14",
-        active ? "border-accent bg-accent/15" : "border-separator/70 bg-card",
+        "flex h-16 flex-col items-center justify-center gap-1.5 rounded-2xl border tabular-nums",
+        active ? "border-accent bg-accent/15 text-accent" : "border-separator/70 bg-card text-ink",
       )}
     >
-      <span className={cn("font-bold leading-none", large ? "text-[26px]" : "text-[18px]", active ? "text-accent" : "text-ink")}>{value}</span>
-      <span className="mt-1 text-[12px] font-semibold leading-none text-ink">{formatYen(festivalPrice(value))}</span>
+      <span className="text-[24px] font-bold leading-none">{value}</span>
+      <span className={cn("text-[12px] font-semibold leading-none", !active && "text-ink/65")}>{formatYen(festivalPrice(value))}</span>
     </button>
   );
 }

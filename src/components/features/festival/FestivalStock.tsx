@@ -216,7 +216,7 @@ function StockHistory({ events, onUndo }: { events: FestivalStockEvent[]; onUndo
         </p>
         <p className="truncate text-micro text-muted tabular-nums">{formatFestivalTime(event.created_at)}・{event.actor?.display_name ?? "退部した部員"}</p>
       </div>
-      {undoable(event) && <Button size="sm" variant="ghost" className="text-danger" onClick={() => onUndo(event)}>取り消す</Button>}
+      {undoable(event) && <Button size="sm" variant="ghost" data-ui-tone="danger" className="text-danger" onClick={() => onUndo(event)}>取り消す</Button>}
     </div>
   );
   const shown = events.slice(0, HISTORY_SHOWN);

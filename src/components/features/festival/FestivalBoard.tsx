@@ -56,15 +56,15 @@ function FestivalSummary({ data, manager, onOpen }: { data: FestivalBoardData; m
   const todayAmount = manager ? data.sales.filter((sale) => jstDayHour(sale.sold_at).day === todayKey).reduce((sum, sale) => sum + sale.amount, 0) : 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {manager && (
-        <section className="space-y-2">
+        <section className="space-y-1">
           <SectionHead label="今日の売上" onOpen={() => onOpen("sales")} />
           <Card className="p-4"><p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(todayAmount)}</p></Card>
         </section>
       )}
 
-      <section className="space-y-2">
+      <section className="space-y-1">
         <SectionHead label="材料の残り" onOpen={() => onOpen("stock")} />
         {data.stock.length === 0 ? (
           <Card className="p-4"><p className="text-caption">まだ材料はありません。</p></Card>
@@ -73,8 +73,8 @@ function FestivalSummary({ data, manager, onOpen }: { data: FestivalBoardData; m
             {data.stock.map((item) => {
               const level = festivalStockLevel(item.count, item.initial_count);
               return (
-                <button key={item.id} type="button" data-ui-action onClick={() => onOpen("stock")}
-                  className="pressable space-y-2 rounded-card border border-separator/70 bg-card p-3 text-left">
+                <button key={item.id} type="button" data-ui-panel onClick={() => onOpen("stock")}
+                  className="pressable min-w-0 space-y-2 rounded-card border border-separator/70 bg-card p-3 text-left">
                   <p className="truncate text-caption font-semibold">{item.name}</p>
                   <p className="flex items-baseline gap-1 tabular-nums">
                     <span className={cn("text-[30px] font-bold leading-none", level.state === "ok" ? "text-ink" : "text-danger")}>{item.count}</span>
@@ -91,14 +91,14 @@ function FestivalSummary({ data, manager, onOpen }: { data: FestivalBoardData; m
         )}
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-1">
         <SectionHead label="買い出し" onOpen={() => onOpen("shopping")} />
         {activeTrips.length === 0 ? (
           <Card className="p-4"><p className="text-caption">募集中の買い出しはありません。</p></Card>
         ) : (
           <Card className="divide-y divide-separator/70 overflow-hidden">
             {activeTrips.map((trip) => (
-              <button key={trip.id} type="button" data-ui-action onClick={() => onOpen("shopping")} className="pressable flex w-full items-center gap-3 px-4 py-3 text-left">
+              <button key={trip.id} type="button" data-ui-row onClick={() => onOpen("shopping")} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                 <Badge className={trip.status === "going" ? "bg-accent/10 text-accent" : undefined}>{TRIP_STATUS[trip.status as keyof typeof TRIP_STATUS]}</Badge>
                 <span className="min-w-0 flex-1 truncate text-headline">{trip.title}</span>
                 <span className="shrink-0 text-caption tabular-nums">行く人 {trip.members.length}人</span>
@@ -115,7 +115,7 @@ function SectionHead({ label, onOpen }: { label: string; onOpen: () => void }) {
   return (
     <div className="flex items-center justify-between">
       <p className="section-label">{label}</p>
-      <button type="button" data-ui-action onClick={onOpen} className="pressable flex items-center text-caption text-accent">
+      <button type="button" onClick={onOpen} className="pressable -mr-1 flex min-h-11 items-center pl-3 text-[13px] font-semibold text-accent">
         開く<ChevronRight size={15} />
       </button>
     </div>
