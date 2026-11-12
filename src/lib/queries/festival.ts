@@ -20,21 +20,12 @@ export type FestivalTrip = {
   members: { user_id: string; profile: Person }[];
 };
 export type FestivalSale = { id: string; quantity: number; amount: number; sold_at: string; recorder: Person };
-export type FestivalInstruction = {
-  id: string;
-  body: string;
-  created_at: string;
-  closed_at: string | null;
-  author: Person;
-  acks: { user_id: string; profile: Person }[];
-};
 export type FestivalBoardData = {
   stock: FestivalStockItem[];
   /** 新しい順。材料ごとに直近の分を画面で絞る */
   stockEvents: FestivalStockEvent[];
   trips: FestivalTrip[];
   sales: FestivalSale[];
-  instructions: FestivalInstruction[];
 };
 
 /** 売上を直近1時間だけ見せる人の範囲 */
@@ -47,7 +38,7 @@ export const FESTIVAL_RECENT_SALES_MS = 60 * 60 * 1000;
 export async function getFestivalBoard({ manager }: { manager: boolean }): Promise<FestivalBoardData> {
   const supabase = await createClient();
   const salesSince = manager ? null : new Date(Date.now() - FESTIVAL_RECENT_SALES_MS).toISOString();
-  const [stock, stockEvents, trips, sales, instructions] = await Promise.all([
+  const [stock, stockEvents, trips, sales] = await Promise.all([
     supabase
       .from("festival_stock_items")
       .select("id,name,count,initial_count,updated_at,updater:profiles!updated_by(display_name)")
@@ -74,22 +65,14 @@ export async function getFestivalBoard({ manager }: { manager: boolean }): Promi
         .order("id")
         .range(from, to);
     }),
-    supabase
-      .from("festival_instructions")
-      .select("id,body,created_at,closed_at,author:profiles!author_id(display_name),acks:festival_instruction_acks(user_id,profile:profiles!user_id(display_name))")
-      .order("created_at", { ascending: false })
-      .order("id")
-      .limit(50),
   ]);
   if (stock.error) throw stock.error;
   if (stockEvents.error) throw stockEvents.error;
   if (trips.error) throw trips.error;
-  if (instructions.error) throw instructions.error;
   return {
     stock: (stock.data ?? []) as unknown as FestivalStockItem[],
     stockEvents: (stockEvents.data ?? []) as unknown as FestivalStockEvent[],
     trips: (trips.data ?? []) as unknown as FestivalTrip[],
     sales: sales as unknown as FestivalSale[],
-    instructions: (instructions.data ?? []) as unknown as FestivalInstruction[],
   };
 }

@@ -100,7 +100,7 @@ export default async function MyPage({
           <NavigationLink prefetch={false} href="/goals" icon={<Target size={20} className="text-accent" />} label="目標" />
           {/* 大会は全員に。追加・編集・並べ替えは大会画面の中で管理者にだけ出る */}
           <NavigationLink prefetch={false} href="/competitions" icon={<Flag size={20} className="text-accent" />} label="大会" />
-          {perms.useFestival && <NavigationLink prefetch={false} href="/festival" icon={<Store size={20} className="text-accent" />} label="学祭" description="売上・材料の残り・買い出し・店長の指示" />}
+          {perms.useFestival && <NavigationLink prefetch={false} href="/festival" icon={<Store size={20} className="text-accent" />} label="学祭" description="売上・材料の残り・買い出し" />}
           <NavigationLink prefetch={false} href="/mypage/pb" icon={<Medal size={20} className="text-warning" />} label="自分の大会・記録会の結果" />
           <NavigationLink prefetch={false} href="/members" icon={<Users size={20} className="text-accent" />} label="メンバー一覧" />
           <Suspense fallback={<NavigationLink prefetch={false} href="/blog" icon={<Rss size={20} className="text-accent" />} label="ブログ" />}>
