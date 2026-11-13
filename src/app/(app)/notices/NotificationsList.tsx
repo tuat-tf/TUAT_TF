@@ -41,10 +41,6 @@ export function NotificationsList({
         return `${actorName}さんがスレッドにメッセージを送信しました`;
       case "mention":
         return `${actorName}さんがあなたをメンションしました`;
-      case "festival_instruction":
-        return `学祭: ${actorName}さんが指示を出しました`;
-      case "festival_trip":
-        return `学祭: ${actorName}さんが買い出しを募集しています`;
       default:
         return "新しい通知があります";
     }
@@ -52,8 +48,6 @@ export function NotificationsList({
 
   const getHref = (n: AppNotificationWithActor) => {
     if (n.type === "sheet_setup") return "/mypage/settings#practice-record-settings";
-    if (n.type === "festival_instruction") return "/festival?tab=instructions";
-    if (n.type === "festival_trip") return "/festival?tab=shopping";
     if (!n.reference_id) return null;
     switch (n.reference_type) {
       case "record":

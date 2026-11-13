@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { jstToday } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -12,19 +11,15 @@ import type { FestivalBoardData } from "@/lib/queries";
 import { festivalStockLevel, formatYen, jstDayHour, type FestivalTab } from "@/lib/festival";
 import { FestivalSales } from "./FestivalSales";
 import { FestivalStock } from "./FestivalStock";
-import { FestivalShopping } from "./FestivalShopping";
 
 const TABS: { key: FestivalTab; label: string }[] = [
   { key: "summary", label: "まとめ" },
   { key: "sales", label: "売上" },
   { key: "stock", label: "材料" },
-  { key: "shopping", label: "買い出し" },
 ];
 
-const TRIP_STATUS = { open: "募集中", going: "買い出し中" } as const;
-
 /**
- * 学祭の模擬店。最初の「まとめ」で、材料の残りと買い出しの募集が一目で分かる。
+ * 学祭の模擬店。最初の「まとめ」で、売れた個数と材料の残りが一目で分かる。
  * 開いていたタブはURLに残し、開き直しても同じ場所へ戻る。
  */
 export function FestivalBoard({ data, userId, manager, initialTab }: { data: FestivalBoardData; userId: string; manager: boolean; initialTab: FestivalTab }) {
@@ -44,25 +39,41 @@ export function FestivalBoard({ data, userId, manager, initialTab }: { data: Fes
       {tab === "summary" && <FestivalSummary data={data} manager={manager} onOpen={select} />}
       {tab === "sales" && <FestivalSales sales={data.sales} userId={userId} manager={manager} />}
       {tab === "stock" && <FestivalStock items={data.stock} events={data.stockEvents} userId={userId} />}
-      {tab === "shopping" && <FestivalShopping trips={data.trips} userId={userId} />}
     </div>
   );
 }
 
 /** 一目で分かるまとめ。各ブロックを押すと、そのタブへ移る。 */
 function FestivalSummary({ data, manager, onOpen }: { data: FestivalBoardData; manager: boolean; onOpen: (tab: FestivalTab) => void }) {
-  const activeTrips = data.trips.filter((trip) => trip.status !== "done");
   const todayKey = jstToday();
+  const todayPieces = data.dailyPieces.find((day) => day.day === todayKey)?.pieces ?? 0;
+  const pastDays = data.dailyPieces.filter((day) => day.day !== todayKey);
   const todayAmount = manager ? data.sales.filter((sale) => jstDayHour(sale.sold_at).day === todayKey).reduce((sum, sale) => sum + sale.amount, 0) : 0;
 
   return (
     <div className="space-y-3">
-      {manager && (
-        <section className="space-y-1">
-          <SectionHead label="今日の売上" onOpen={() => onOpen("sales")} />
-          <Card className="p-4"><p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(todayAmount)}</p></Card>
-        </section>
-      )}
+      <section className="space-y-1">
+        <SectionHead label="売れた個数" onOpen={() => onOpen("sales")} />
+        <Card className="space-y-3 p-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-caption">今日</p>
+              <p className="text-[28px] font-bold tabular-nums leading-none">{todayPieces}<span className="ml-1 text-body text-muted">個</span></p>
+            </div>
+            {manager && <p className="text-headline tabular-nums">{formatYen(todayAmount)}</p>}
+          </div>
+          {pastDays.length > 0 && (
+            <dl className="divide-y divide-separator/70 border-t border-separator/70">
+              {pastDays.map((day) => (
+                <div key={day.day} className="flex items-center justify-between py-2 tabular-nums">
+                  <dt className="text-caption">{dayLabel(day.day)}</dt>
+                  <dd className="text-[15px] font-semibold">{day.pieces}個</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </Card>
+      </section>
 
       <section className="space-y-1">
         <SectionHead label="材料の残り" onOpen={() => onOpen("stock")} />
@@ -91,22 +102,6 @@ function FestivalSummary({ data, manager, onOpen }: { data: FestivalBoardData; m
         )}
       </section>
 
-      <section className="space-y-1">
-        <SectionHead label="買い出し" onOpen={() => onOpen("shopping")} />
-        {activeTrips.length === 0 ? (
-          <Card className="p-4"><p className="text-caption">募集中の買い出しはありません。</p></Card>
-        ) : (
-          <Card className="divide-y divide-separator/70 overflow-hidden">
-            {activeTrips.map((trip) => (
-              <button key={trip.id} type="button" data-ui-row onClick={() => onOpen("shopping")} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-                <Badge className={trip.status === "going" ? "bg-accent/10 text-accent" : undefined}>{TRIP_STATUS[trip.status as keyof typeof TRIP_STATUS]}</Badge>
-                <span className="min-w-0 flex-1 truncate text-headline">{trip.title}</span>
-                <span className="shrink-0 text-caption tabular-nums">行く人 {trip.members.length}人</span>
-              </button>
-            ))}
-          </Card>
-        )}
-      </section>
     </div>
   );
 }
@@ -120,4 +115,9 @@ function SectionHead({ label, onOpen }: { label: string; onOpen: () => void }) {
       </button>
     </div>
   );
+}
+
+function dayLabel(day: string) {
+  const [, month, date] = day.split("-").map(Number);
+  return `${month}/${date}`;
 }

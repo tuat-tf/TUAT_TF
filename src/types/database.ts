@@ -626,8 +626,6 @@ export type Database = {
         ]
       }
       festival_stock_items: FestivalTable<{id:string;name:string;count:number;initial_count:number;updated_by:string|null;updated_at:string;created_at:string}, "name", [FestivalProfileRef<"festival_stock_items_updated_by_fkey","updated_by">]>
-      festival_shopping_trips: FestivalTable<{id:string;title:string;note:string|null;status:string;created_by:string|null;created_at:string;updated_at:string}, "title", [FestivalProfileRef<"festival_shopping_trips_created_by_fkey","created_by">]>
-      festival_shopping_members: FestivalTable<{trip_id:string;user_id:string;joined_at:string}, "trip_id"|"user_id", [FestivalProfileRef<"festival_shopping_members_user_id_fkey","user_id">, {foreignKeyName:"festival_shopping_members_trip_id_fkey";columns:["trip_id"];isOneToOne:false;referencedRelation:"festival_shopping_trips";referencedColumns:["id"]}]>
       festival_sales: FestivalTable<{id:string;quantity:number;amount:number;sold_at:string;recorded_by:string|null}, "quantity"|"amount", [FestivalProfileRef<"festival_sales_recorded_by_fkey","recorded_by">]>
       festival_instructions: FestivalTable<{id:string;body:string;author_id:string|null;created_at:string;closed_at:string|null}, "body", [FestivalProfileRef<"festival_instructions_author_id_fkey","author_id">]>
       festival_stock_events: FestivalTable<{id:string;item_id:string;kind:string;delta:number;count_after:number;actor_id:string|null;created_at:string}, "item_id"|"kind"|"delta"|"count_after", [FestivalProfileRef<"festival_stock_events_actor_id_fkey","actor_id">, {foreignKeyName:"festival_stock_events_item_id_fkey";columns:["item_id"];isOneToOne:false;referencedRelation:"festival_stock_items";referencedColumns:["id"]}]>
@@ -2270,6 +2268,7 @@ export type Database = {
       }
     }
     Functions: {
+      festival_daily_pieces: {Args:Record<PropertyKey,never>;Returns:{day:string;pieces:number}[]}
       festival_adjust_stock: {Args:{p_item_id:string;p_delta:number};Returns:number|null}
       festival_undo_stock_event: {Args:{p_event_id:string};Returns:number|null}
       get_competition_meet: {Args:{p_competition_id:string};Returns:Json}

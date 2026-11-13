@@ -8,7 +8,7 @@ import { getFestivalBoard } from "@/lib/queries";
 import { permissionsOf } from "@/lib/permissions";
 
 /**
- * 学祭の模擬店。ロールの「学祭」「学祭の店長」の権限を持つ部員に見せる。
+ * 学祭の模擬店。ロールの「学祭」「日をまたいだ学祭の売上」の権限を持つ部員に見せる。
  * DB側も同じ権限のRLSで守っている（supabase/migrations/20261113040000_festival_roles.sql）。
  */
 export default async function FestivalPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
@@ -21,7 +21,7 @@ export default async function FestivalPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <SubHeader title="学祭" backHref="/mypage" right={<FestivalRefresh />} />
+      <SubHeader title="学祭" backHref="/home" right={<FestivalRefresh />} />
       <FestivalBoard data={data} userId={profile.id} manager={perms.manageFestival} initialTab={initialTab satisfies FestivalTab} />
     </>
   );

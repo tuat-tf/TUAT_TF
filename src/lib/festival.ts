@@ -1,7 +1,7 @@
 // 学祭の模擬店（サーターアンダギー）の価格・容器・売上集計。画面とテストで共有する。
 
 /** 学祭ページのタブ。サーバー側のページ（URLの ?tab= の検証）とクライアントの両方で使うので、ここに置く。 */
-export const FESTIVAL_TABS = ["summary", "sales", "stock", "shopping"] as const;
+export const FESTIVAL_TABS = ["summary", "sales", "stock"] as const;
 export type FestivalTab = (typeof FESTIVAL_TABS)[number];
 
 /**

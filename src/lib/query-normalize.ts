@@ -87,8 +87,6 @@ const NOTIFICATION_TYPES = new Set<NotificationType>([
   "sync_failure",
   "mention",
   "thread_reply",
-  "festival_instruction",
-  "festival_trip",
 ]);
 const REFERENCE_TYPES = new Set<NotificationReferenceType>([
   "record",

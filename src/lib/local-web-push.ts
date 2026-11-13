@@ -35,10 +35,6 @@ export function localPushPayload(record: PushRecord): string {
   } else if (record.type === "thread_reply") {
     title = "スレッドに新しいメッセージ"; body = "参加中のスレッドにメッセージが届きました";
     url = record.reference_id ? `/notes/threads/${record.reference_id}` : "/notices#notifications";
-  } else if (record.type === "festival_instruction") {
-    title = "学祭"; body = "店長から指示が出ました"; url = "/festival?tab=instructions";
-  } else if (record.type === "festival_trip") {
-    title = "学祭"; body = "買い出しの募集があります"; url = "/festival?tab=shopping";
   } else if (record.type === "mention") {
     title = "メンションされました"; body = "つぶやきまたはストーリーであなたがメンションされました";
     url = record.reference_id ? `/timeline/tweet/${record.reference_id}` : "/notices#notifications";

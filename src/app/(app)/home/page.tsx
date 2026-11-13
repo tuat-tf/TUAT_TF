@@ -13,6 +13,7 @@ import { HomeFeed } from "@/components/features/HomeFeed";
 import { CompetitionHomeSection } from "@/components/features/CompetitionHomeSection";
 import { HomeNotices } from "@/components/features/HomeNotices";
 import { InstallPrompt } from "@/components/features/InstallPrompt";
+import { FestivalHomeCard } from "@/components/features/festival/FestivalHomeCard";
 import { HomeScheduleCard } from "@/components/cards/HomeScheduleCard";
 import { UpcomingScheduleCard } from "@/components/cards/UpcomingScheduleCard";
 import { getCurrentProfile, getCurrentUserId } from "@/lib/supabase/auth";
@@ -24,6 +25,7 @@ import {
   getAttendancesForSchedules,
   getCompetitionProgramEntries,
   getFeed,
+  getFestivalHome,
   getHomeNotices,
   getRecentSharedNotes,
   getUserTrainingSummary,
@@ -56,7 +58,8 @@ export default function HomePage() {
 }
 
 async function HomeContent({ nowJst }: { nowJst: Date }) {
-  const [notices, competition, summary, schedules, notes, feed] = await Promise.all([
+  const [festival, notices, competition, summary, schedules, notes, feed] = await Promise.all([
+    FestivalSection(),
     NoticesSection(),
     CompetitionSection(),
     WeeklySummarySection({ nowJst }),
@@ -66,6 +69,7 @@ async function HomeContent({ nowJst }: { nowJst: Date }) {
   ]);
   return (
     <div data-home-grid className="grid grid-cols-1 items-start gap-5 px-4 pt-1 md:px-6 lg:grid-cols-2 lg:gap-6">
+      <div data-home-section="festival" className="min-w-0 empty:hidden lg:col-span-2">{festival}</div>
       <div data-home-section="notices" className="min-w-0 empty:hidden lg:col-span-2">{notices}</div>
       <div data-home-section="competition" className="min-w-0 empty:hidden lg:col-span-2">{competition}</div>
       <div data-home-section="summary" className="min-w-0 empty:hidden">{summary}</div>
@@ -124,6 +128,13 @@ async function CompetitionSection() {
       <FinishedCompetitions competitions={result.finished} />
     </div>
   );
+}
+
+/** 学祭の権限を持つ部員にだけ、ホームの一番上に学祭の入口を出す。 */
+async function FestivalSection() {
+  const profile = await getCurrentProfile();
+  if (!permissionsOf(profile.roles).useFestival) return null;
+  return <FestivalHomeCard data={await getFestivalHome()} today={jstToday()} />;
 }
 
 async function NoticesSection() {

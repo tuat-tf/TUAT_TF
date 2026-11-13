@@ -20,7 +20,7 @@ export type Permission =
   | "create_notice" // お知らせの作成
   | "decide_practice" // 練習の開催を決定する（雨天対応など）
   | "use_festival" // 学祭ページを使う
-  | "manage_festival"; // 学祭の店長（売上の全体・指示）
+  | "manage_festival"; // 日をまたいだ学祭の売上を見る
 
 /** カスタムロール（roles テーブル） */
 export interface AppRole {
@@ -718,7 +718,7 @@ export type FeedItem =
   | ({ kind: "record" } & RecordWithAuthor)
   | ({ kind: "tweet" } & TweetWithAuthor);
 
-export type NotificationType = "comment" | "notice" | "schedule_update" | "sync_failure" | "thread_reply" | "mention" | "sheet_setup" | "festival_instruction" | "festival_trip";
+export type NotificationType = "comment" | "notice" | "schedule_update" | "sync_failure" | "thread_reply" | "mention" | "sheet_setup";
 export type NotificationReferenceType = "record" | "tweet" | "schedule" | "notice" | "thread";
 
 export interface AppNotification {

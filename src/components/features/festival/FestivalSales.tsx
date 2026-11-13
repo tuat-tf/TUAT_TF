@@ -24,7 +24,8 @@ const RECENT_COUNT = 10;
 
 /**
  * 売上。個数を押すと価格と容器が出るので、確かめてから保存する（押し間違いをそのまま入れない）。
- * 今日の売上・日ごとの集計は店長だけに出す。ほかの人に届く売上は直近1時間の分だけ（RLS）。
+ * 金額の集計は「日をまたいだ学祭の売上」の権限だけに出す。ほかの人に届く売上は直近1時間の分だけ（RLS）。
+ * 日ごとに売れた個数は「まとめ」で全員に出す。
  */
 export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[]; userId: string; manager: boolean }) {
   const router = useRouter();
