@@ -5,7 +5,13 @@ const OFFLINE_ASSETS = ['/offline', '/branding/summer-icon-192.png'];
 // 一度取れたものはそのまま使ってよい。これが無いと起動のたびに部品を取り直すことになり、
 // 電波の悪いところではそこが待ち時間の大半になる。
 const STATIC_CACHE = 'tuat-tf-static-v1';
-const KEPT_CACHES = [OFFLINE_CACHE, STATIC_CACHE];
+// 学祭のページだけは、最後に開けた中身を端末に残す。模擬店の場所は電波が悪く、
+// 開き直したときに何も出ないと売上を入れられないため（2026-11-13 所有者の依頼）。
+// つながるときは毎回取り直し（network-first）、取れなかったときだけ残しておいた中身を出す。
+// 売上の入力は端末に置いて、つながったら送る（src/lib/festival-offline.ts）。
+const FESTIVAL_CACHE = 'tuat-tf-festival-v1';
+const FESTIVAL_PATH = '/festival';
+const KEPT_CACHES = [OFFLINE_CACHE, STATIC_CACHE, FESTIVAL_CACHE];
 // 古い版の部品は消えずに溜まるので、増えすぎたらまとめて捨てて入れ直す。
 const STATIC_CACHE_MAX_ENTRIES = 250;
 
@@ -28,9 +34,9 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Cache only the app's own content-hashed assets. Authenticated HTML, RSC payloads,
-// and API responses are never cached.
-// For failed navigations, serve only the public offline explanation page.
+// Cache the app's own content-hashed assets, and the last good copy of the festival page.
+// No other authenticated HTML, RSC payloads, or API responses are cached.
+// For other failed navigations, serve only the public offline explanation page.
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -49,6 +55,22 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode !== 'navigate') return;
+  if (url.origin === self.location.origin && url.pathname === FESTIVAL_PATH) {
+    event.respondWith((async () => {
+      const cache = await caches.open(FESTIVAL_CACHE);
+      try {
+        const response = await fetch(request);
+        // ログインし直し等で別の画面へ飛ばされた応答は残さない。
+        if (response.ok && response.type === 'basic' && new URL(response.url).pathname === FESTIVAL_PATH) {
+          await cache.put(FESTIVAL_PATH, response.clone());
+        }
+        return response;
+      } catch {
+        return (await cache.match(FESTIVAL_PATH)) || (await caches.match('/offline')) || Response.error();
+      }
+    })());
+    return;
+  }
   event.respondWith(
     fetch(request).catch(async () =>
       (await caches.match('/offline')) || Response.error(),

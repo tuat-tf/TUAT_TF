@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, LoaderCircle } from "lucide-react";
+import { ChevronDown, CloudOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,11 @@ import {
   type FestivalTotals,
 } from "@/lib/festival";
 import type { FestivalSale } from "@/lib/queries";
+import {
+  addPendingSale, getPendingSales, getServerPendingSales, removePendingSale, retryPendingSale, subscribePendingSales,
+  type PendingFestivalSale,
+} from "@/lib/festival-offline";
+import { sendPendingFestivalSales } from "./FestivalSalesSync";
 
 /** よく出る個数は1〜10個。「11個以上」を開くと20個までのボタンと、21個以上を数字で入れる欄が出る。 */
 const COMMON_COUNT = 10;
@@ -27,6 +32,7 @@ const RECENT_COUNT = 10;
  * 売上。個数を押すと価格と容器が出るので、確かめてから保存する（押し間違いをそのまま入れない）。
  * 金額の集計は「日をまたいだ学祭の売上」の権限だけに出す。ほかの人に届く売上は直近1時間の分だけ（RLS）。
  * 日ごとに売れた個数は「まとめ」で全員に出す。
+ * 電波が無くても入れられる。押した売上はまず端末に置き、つながったら自動で送る（lib/festival-offline.ts）。
  */
 export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[]; userId: string; manager: boolean }) {
   const router = useRouter();
@@ -35,7 +41,8 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
   const [showMore, setShowMore] = useState(false);
   /** 21個以上を数字で入れる欄の中身 */
   const [typed, setTyped] = useState("");
-  const [saving, setSaving] = useState(false);
+  const pending = useSyncExternalStore(subscribePendingSales, getPendingSales, getServerPendingSales);
+  const [removingPending, setRemovingPending] = useState<PendingFestivalSale | null>(null);
   const [removing, setRemoving] = useState<FestivalSale | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
 
@@ -43,30 +50,36 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
   const todayKey = jstToday();
   const today = days.find((day) => day.day === todayKey);
 
-  async function save() {
-    if (quantity === null || saving) return;
-    const amount = festivalPrice(quantity);
-    setSaving(true);
-    try {
-      const { data, error } = await createClient()
-        .from("festival_sales")
-        .insert({ quantity, amount, recorded_by: userId })
-        .select("id");
-      if (error || data?.length !== 1) {
-        showToast("売上を保存できませんでした");
-        return;
+  /**
+   * 押したらすぐ端末に置いて、次の会計へ進めるようにする（送り終わるのを待たない）。
+   * 送れたら「保存しました」、電波が無ければ「端末に置いた」と出す。
+   */
+  function save() {
+    if (quantity === null) return;
+    const sale: PendingFestivalSale = {
+      id: crypto.randomUUID(), quantity, amount: festivalPrice(quantity), soldAt: new Date().toISOString(), recordedBy: userId,
+    };
+    addPendingSale(sale);
+    setQuantity(null);
+    setTyped("");
+    setShowMore(false);
+    const label = `${sale.quantity}個 ${formatYen(sale.amount)}`;
+    sendPendingFestivalSales().then(() => {
+      const left = getPendingSales().find((item) => item.id === sale.id);
+      if (!left) {
+        showToast(`${label} を保存しました`, "success");
+        router.refresh();
+      } else if (left.failed) {
+        showToast(`${label} を送れませんでした（${left.failed}）`);
+      } else {
+        showToast(`電波が届かないので ${label} を端末に置きました。つながったら自動で送ります`, "success");
       }
-      showToast(`${quantity}個 ${formatYen(amount)} を保存しました`, "success");
-      setQuantity(null);
-      setTyped("");
-      setShowMore(false);
-    } catch {
-      // 届いたかどうか分からないので、もう一度押す前に一覧で確かめてもらう。
-      showToast("保存できたか分かりません。下の一覧を確かめてください");
-    } finally {
-      setSaving(false);
-      router.refresh();
-    }
+    }).catch(() => {});
+  }
+
+  function retry(sale: PendingFestivalSale) {
+    retryPendingSale(sale.id);
+    sendPendingFestivalSales().then((sent) => { if (sent > 0) router.refresh(); }).catch(() => {});
   }
 
   async function remove() {
@@ -152,10 +165,7 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
               </>
             )}
           </div>
-          <Button className="h-12 min-w-[116px]" disabled={quantity === null || saving} onClick={save}>
-            {saving && <LoaderCircle size={18} className="animate-spin" />}
-            {saving ? "保存中…" : "保存する"}
-          </Button>
+          <Button className="h-12 min-w-[116px]" disabled={quantity === null} onClick={save}>保存する</Button>
         </Card>
       </section>
 
@@ -166,6 +176,28 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
             <p className="text-[28px] font-bold tabular-nums leading-none">{formatYen(today?.amount ?? 0)}</p>
             <Totals totals={today ?? { orders: 0, pieces: 0, amount: 0, cups: 0, packs: 0 }} />
           </Card>
+        </section>
+      )}
+
+      {pending.length > 0 && (
+        <section className="space-y-2">
+          <p className="section-label">まだ送っていない売上</p>
+          <Card className="divide-y divide-separator/70 overflow-hidden">
+            {pending.map((sale) => (
+              <div key={sale.id} className="flex items-center gap-3 px-4 py-2">
+                <CloudOff size={18} className={cn("shrink-0", sale.failed ? "text-danger" : "text-muted")} aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-headline tabular-nums">{sale.quantity}個 {formatYen(sale.amount)}</p>
+                  <p className={cn("truncate text-caption tabular-nums", sale.failed && "text-danger")}>
+                    {formatFestivalTime(sale.soldAt)}・{sale.failed ?? "つながったら自動で送ります"}
+                  </p>
+                </div>
+                {sale.failed && <Button size="sm" variant="ghost" onClick={() => retry(sale)}>送り直す</Button>}
+                <Button size="sm" variant="ghost" data-ui-tone="danger" className="text-danger" onClick={() => setRemovingPending(sale)}>取り消す</Button>
+              </div>
+            ))}
+          </Card>
+          <p className="text-micro px-1">この端末にだけ残っています。集計にはまだ入っていません。アプリを閉じても消えません。</p>
         </section>
       )}
 
@@ -230,6 +262,19 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
         busyLabel="取り消し中…"
         busy={removeBusy}
         onConfirm={remove}
+      />
+      <ConfirmDialog
+        open={!!removingPending}
+        onOpenChange={(next) => { if (!next) setRemovingPending(null); }}
+        title="まだ送っていない売上を取り消しますか？"
+        description={removingPending ? `${formatFestivalTime(removingPending.soldAt)} ${removingPending.quantity}個 ${formatYen(removingPending.amount)}。この端末から消え、送られません。` : ""}
+        confirmLabel="取り消す"
+        busyLabel="取り消し中…"
+        busy={false}
+        onConfirm={() => {
+          if (removingPending) removePendingSale(removingPending.id);
+          setRemovingPending(null);
+        }}
       />
     </div>
   );
