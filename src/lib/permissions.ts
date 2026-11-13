@@ -10,8 +10,6 @@ export const PERMISSION_COLUMN: Record<Permission, keyof AppRole> = {
   create_menu: "can_create_menu",
   create_notice: "can_create_notice",
   decide_practice: "can_decide_practice",
-  use_festival: "can_use_festival",
-  manage_festival: "can_manage_festival",
 };
 
 /** ロール作成・編集フォームで使う権限の一覧（表示順） */
@@ -24,8 +22,6 @@ export const PERMISSION_LIST: { key: Permission; label: string; desc: string }[]
   { key: "create_menu", label: "メニュー作成・編集", desc: "メニューの作成と、自分のメニューの編集・削除ができます。中長距離のスプレッドシートのメニューも編集できます。編集範囲を設定すると、そのブロックの他人のメニューも編集できます。" },
   { key: "create_notice", label: "お知らせ作成・編集・削除", desc: "お知らせの作成と、他人のお知らせを含む編集・削除ができます。「全員」ロールに付けると、全員が操作できます。" },
   { key: "decide_practice", label: "練習の開催状況・中止", desc: "開催判断中などの状況を出欠欄に表示できます。練習予定の中止と、中止の取り消しもできます。" },
-  { key: "use_festival", label: "学祭", desc: "ホームの学祭から、売上の入力と材料の残りを使えます。売れた個数は日ごとにすべて、金額は直近1時間の分だけ見られます。" },
-  { key: "manage_festival", label: "日をまたいだ学祭の売上", desc: "学祭の売上金額を、今日の分も過去の日の分もすべて見られます。" },
 ];
 
 /** 所属ロールのいずれかが該当権限を持つか（権限は OR で合算） */
@@ -48,9 +44,6 @@ export function permissionsOf(roles: AppRole[] | undefined | null) {
     createMenu: hasPermission(roles, "create_menu"),
     createNotice: hasPermission(roles, "create_notice"),
     decidePractice: hasPermission(roles, "decide_practice"),
-    manageFestival: hasPermission(roles, "manage_festival"),
-    /** 店長の権限だけでもページは使える */
-    useFestival: hasPermission(roles, "use_festival") || hasPermission(roles, "manage_festival"),
   };
 }
 

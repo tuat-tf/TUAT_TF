@@ -65,7 +65,7 @@ describe("finished competitions on home", () => {
     ] });
     const body = HomePage().props.children[1].props.children.props.children;
     const content = await body.type(body.props);
-    const html = renderToStaticMarkup(content.props.children[2]);
+    const html = renderToStaticMarkup(content.props.children[1]);
     expect(html).toContain('href="/competitions/riko/program"');
     expect(html.match(/結果を見る/g)).toHaveLength(2);
     expect(html.match(/終了/g)).toHaveLength(2);
@@ -80,7 +80,7 @@ describe("finished competitions on home", () => {
     ] });
     const body = HomePage().props.children[1].props.children.props.children;
     const content = await body.type(body.props);
-    const html = renderToStaticMarkup(content.props.children[2]);
+    const html = renderToStaticMarkup(content.props.children[1]);
     expect(html).toContain("OB戦");
     expect(html).toContain("終了");
     expect(html).toContain("結果を見る");

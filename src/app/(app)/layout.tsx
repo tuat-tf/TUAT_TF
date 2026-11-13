@@ -10,7 +10,6 @@ import { SessionKeepAlive } from "@/components/layout/SessionKeepAlive";
 import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { VersionWatcher } from "@/components/features/VersionWatcher";
 import { PushSubscriptionSync } from "@/components/features/PushSubscriptionSync";
-import { FestivalSalesSync } from "@/components/features/festival/FestivalSalesSync";
 import { SheetHeaderGuard } from "@/components/features/SheetHeaderGuard";
 import { ToastProvider } from "@/components/ui/toast";
 import { AppQueryProvider } from "@/components/providers/QueryProvider";
@@ -33,7 +32,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <BottomNav />
             <VersionWatcher />
             <PushSubscriptionSync />
-            <FestivalSalesSync />
             <Suspense fallback={null}><AuthenticatedSheetHeaderGuard /></Suspense>
           </div>
         </div>

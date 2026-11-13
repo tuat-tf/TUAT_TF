@@ -18,9 +18,7 @@ export type Permission =
   | "create_schedule" // 練習予定の作成
   | "create_menu" // 練習メニューの作成
   | "create_notice" // お知らせの作成
-  | "decide_practice" // 練習の開催を決定する（雨天対応など）
-  | "use_festival" // 学祭ページを使う
-  | "manage_festival"; // 日をまたいだ学祭の売上を見る
+  | "decide_practice"; // 練習の開催を決定する（雨天対応など）
 
 /** カスタムロール（roles テーブル） */
 export interface AppRole {

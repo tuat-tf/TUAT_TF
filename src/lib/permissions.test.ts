@@ -31,13 +31,7 @@ describe("permissions", () => {
       manageSystem: false, manageMembers: false, createSchedule: false,
       moderateComments: false, manageObMeet: false,
       createMenu: false, createNotice: false, decidePractice: false,
-      useFestival: false, manageFestival: false,
     });
-  });
-  it("lets the festival manager permission use the festival page too", () => {
-    expect(permissionsOf([role({ can_manage_festival: true })])).toMatchObject({ useFestival: true, manageFestival: true });
-    expect(permissionsOf([role({ can_use_festival: true })])).toMatchObject({ useFestival: true, manageFestival: false });
-    expect(permissionsOf([role({ can_manage_system: true })])).toMatchObject({ useFestival: false });
   });
   it("recognizes practice-decision permission independently", () => {
     expect(hasPermission([role({ can_decide_practice: true })], "decide_practice")).toBe(true);

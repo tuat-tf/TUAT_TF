@@ -16,14 +16,6 @@ export default function OfflinePage() {
         >
           {"\u63a5\u7d9a\u5f8c\u306b\u518d\u8a66\u884c"}
         </Link>
-        {/* 学祭のページは最後に開けた中身が端末に残っていて、売上は電波が無くても入れられる。
-            Link だと画面の中身を通信で取りに行くので、ふつうのリンクで開き直す。 */}
-        <a
-          href="/festival?tab=sales"
-          className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-separator px-4 text-[15px] font-semibold text-accent"
-        >
-          学祭の売上を入力する
-        </a>
       </div>
     </main>
   );
