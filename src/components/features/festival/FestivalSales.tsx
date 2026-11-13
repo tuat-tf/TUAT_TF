@@ -6,20 +6,21 @@ import { ChevronDown, LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { jstToday } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import {
-  FESTIVAL_MAX_QUANTITY, festivalContainer, festivalPrice, formatFestivalTime, formatYen, summarizeFestivalSales,
+  FESTIVAL_BUTTON_MAX, FESTIVAL_MAX_QUANTITY, festivalContainer, festivalPrice, formatFestivalTime, formatYen, summarizeFestivalSales,
   type FestivalTotals,
 } from "@/lib/festival";
 import type { FestivalSale } from "@/lib/queries";
 
-/** よく出る個数は1〜10個。それ以上は「11個以上」を開いたときだけ、同じ並びの続きに出す。 */
+/** よく出る個数は1〜10個。「11個以上」を開くと20個までのボタンと、21個以上を数字で入れる欄が出る。 */
 const COMMON_COUNT = 10;
-const QUANTITIES = Array.from({ length: FESTIVAL_MAX_QUANTITY }, (_, index) => index + 1);
+const QUANTITIES = Array.from({ length: FESTIVAL_BUTTON_MAX }, (_, index) => index + 1);
 const RECENT_COUNT = 10;
 
 /**
@@ -32,6 +33,8 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
   const { showToast } = useToast();
   const [quantity, setQuantity] = useState<number | null>(null);
   const [showMore, setShowMore] = useState(false);
+  /** 21個以上を数字で入れる欄の中身 */
+  const [typed, setTyped] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState<FestivalSale | null>(null);
   const [removeBusy, setRemoveBusy] = useState(false);
@@ -55,6 +58,7 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
       }
       showToast(`${quantity}個 ${formatYen(amount)} を保存しました`, "success");
       setQuantity(null);
+      setTyped("");
       setShowMore(false);
     } catch {
       // 届いたかどうか分からないので、もう一度押す前に一覧で確かめてもらう。
@@ -86,9 +90,25 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
   const container = quantity === null ? null : festivalContainer(quantity);
   const moreOpen = showMore || (quantity !== null && quantity > COMMON_COUNT);
 
+  /** ボタンで選んだら、数字の欄は空にする */
+  function selectButton(next: number | null) {
+    setQuantity(next);
+    setTyped("");
+  }
+
+  /** 21〜200個なら、その個数を選んだことにする。範囲外なら選択を外す。 */
+  function typeQuantity(raw: string) {
+    const digits = raw.replace(/[^0-9]/g, "").slice(0, 3);
+    setTyped(digits);
+    const value = Number(digits);
+    setQuantity(digits && value > FESTIVAL_BUTTON_MAX && value <= FESTIVAL_MAX_QUANTITY ? value : null);
+  }
+  const typedInvalid = typed !== "" && quantity === null;
+
   function toggleMore() {
     // 閉じると11個以上のボタンが消えるので、そこで選んでいた個数は外す。
     if (moreOpen && quantity !== null && quantity > COMMON_COUNT) setQuantity(null);
+    if (moreOpen) setTyped("");
     setShowMore(!moreOpen);
   }
 
@@ -103,9 +123,24 @@ export function FestivalSales({ sales, userId, manager }: { sales: FestivalSale[
         </div>
         <div className="grid grid-cols-5 gap-2">
           {(moreOpen ? QUANTITIES : QUANTITIES.slice(0, COMMON_COUNT)).map((value) => (
-            <QuantityButton key={value} value={value} active={value === quantity} onSelect={setQuantity} />
+            <QuantityButton key={value} value={value} active={value === quantity} onSelect={selectButton} />
           ))}
         </div>
+        {moreOpen && (
+          <div className="mt-2 space-y-1">
+            <Input
+              type="text"
+              inputMode="numeric"
+              enterKeyHint="done"
+              aria-label="21個以上の個数"
+              placeholder={`21個以上は個数を入力（${FESTIVAL_MAX_QUANTITY}個まで）`}
+              value={typed}
+              onChange={(event) => typeQuantity(event.target.value)}
+              className={cn(typed !== "" && quantity !== null && "border-accent", typedInvalid && "border-danger")}
+            />
+            {typedInvalid && <p className="px-1 text-micro text-danger">21〜{FESTIVAL_MAX_QUANTITY}個で入力してください（20個まではボタンを押してください）</p>}
+          </div>
+        )}
         <Card className="mt-3 flex min-h-[80px] items-center gap-3 py-3 pr-3 pl-4">
           <div className="min-w-0 flex-1">
             {quantity === null || !container ? (

@@ -15,25 +15,28 @@ export function festivalStockLevel(remaining: number, initial: number): { state:
   return { state: ratio <= 0.2 ? "low" : "ok", percent: Math.round(ratio * 100) };
 }
 
-/** 1会計で売る個数の上限 */
-export const FESTIVAL_MAX_QUANTITY = 20;
+/** ボタンで選べる個数（1〜20個）。それより多いときは数字で入れる。 */
+export const FESTIVAL_BUTTON_MAX = 20;
+/** 1会計で売る個数の上限（DBの CHECK と同じ） */
+export const FESTIVAL_MAX_QUANTITY = 200;
 
-/** 個数ごとの価格（円）。添字0が1個。10個以降は1個ごとに50円ずつ上がる。 */
+/** 個数ごとの価格（円）。添字0が1個。10個以降は1個ごとに50円ずつ上がる（21個以上も同じ決まりで延ばす）。 */
 const PRICES = [90, 180, 270, 350, 430, 500, 560, 620, 670, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200] as const;
 
 export function isFestivalQuantity(quantity: number): boolean {
   return Number.isInteger(quantity) && quantity >= 1 && quantity <= FESTIVAL_MAX_QUANTITY;
 }
 
-/** 個数の価格（円）。1〜20個以外は扱わない。 */
+/** 個数の価格（円）。1〜200個以外は扱わない。 */
 export function festivalPrice(quantity: number): number {
-  if (!isFestivalQuantity(quantity)) throw new RangeError("個数は1〜20個で指定してください");
-  return PRICES[quantity - 1];
+  if (!isFestivalQuantity(quantity)) throw new RangeError(`個数は1〜${FESTIVAL_MAX_QUANTITY}個で指定してください`);
+  if (quantity <= PRICES.length) return PRICES[quantity - 1];
+  return PRICES[PRICES.length - 1] + (quantity - PRICES.length) * 50;
 }
 
 /** 容器。1〜3個は紙コップ1個、4〜6個は紙コップ2個、7個以上はプラパック1個。 */
 export function festivalContainer(quantity: number): { cups: number; packs: number; label: string } {
-  if (!isFestivalQuantity(quantity)) throw new RangeError("個数は1〜20個で指定してください");
+  if (!isFestivalQuantity(quantity)) throw new RangeError(`個数は1〜${FESTIVAL_MAX_QUANTITY}個で指定してください`);
   if (quantity <= 3) return { cups: 1, packs: 0, label: "紙コップ" };
   if (quantity <= 6) return { cups: 2, packs: 0, label: "紙コップ2個" };
   return { cups: 0, packs: 1, label: "プラパック" };

@@ -6,8 +6,11 @@ describe("festival prices", () => {
     const table = [90, 180, 270, 350, 430, 500, 560, 620, 670, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200];
     expect(table.map((_, index) => festivalPrice(index + 1))).toEqual(table);
   });
-  it("rejects quantities outside 1 to 20", () => {
-    for (const quantity of [0, 21, 1.5, -1]) expect(() => festivalPrice(quantity)).toThrow(RangeError);
+  it("keeps adding 50 yen per piece above 20", () => {
+    expect([21, 30, 200].map(festivalPrice)).toEqual([1250, 1700, 10200]);
+  });
+  it("rejects quantities outside 1 to 200", () => {
+    for (const quantity of [0, 201, 1.5, -1]) expect(() => festivalPrice(quantity)).toThrow(RangeError);
   });
   it("picks one cup for 1-3, two cups for 4-6 and a pack from 7", () => {
     expect([1, 3].map((q) => festivalContainer(q))).toEqual([{ cups: 1, packs: 0, label: "紙コップ" }, { cups: 1, packs: 0, label: "紙コップ" }]);
