@@ -2268,6 +2268,7 @@ export type Database = {
       }
     }
     Functions: {
+      festival_daily_orders: {Args:Record<PropertyKey,never>;Returns:{day:string;quantity:number;orders:number}[]}
       festival_daily_pieces: {Args:Record<PropertyKey,never>;Returns:{day:string;pieces:number}[]}
       festival_adjust_stock: {Args:{p_item_id:string;p_delta:number};Returns:number|null}
       festival_undo_stock_event: {Args:{p_event_id:string};Returns:number|null}

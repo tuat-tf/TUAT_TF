@@ -14,6 +14,8 @@ export type FestivalStockEvent = { id: string; item_id: string; kind: "use" | "s
 export type FestivalSale = { id: string; quantity: number; amount: number; sold_at: string; recorder: Person };
 /** day は日本時間の YYYY-MM-DD */
 export type FestivalDailyPieces = { day: string; pieces: number };
+/** その日に「quantity 個入り」が orders 回売れた */
+export type FestivalDailyOrders = { day: string; quantity: number; orders: number };
 export type FestivalBoardData = {
   stock: FestivalStockItem[];
   /** 新しい順。材料ごとに直近の分を画面で絞る */
@@ -21,6 +23,8 @@ export type FestivalBoardData = {
   sales: FestivalSale[];
   /** 日ごとに売れた個数。新しい順。金額は含まない */
   dailyPieces: FestivalDailyPieces[];
+  /** 日ごと・何個入りごとの会計数。金額は含まない */
+  dailyOrders: FestivalDailyOrders[];
 };
 
 /** 売上を直近1時間だけ見せる人の範囲 */
@@ -33,7 +37,7 @@ export const FESTIVAL_RECENT_SALES_MS = 60 * 60 * 1000;
 export async function getFestivalBoard({ manager }: { manager: boolean }): Promise<FestivalBoardData> {
   const supabase = await createClient();
   const salesSince = manager ? null : new Date(Date.now() - FESTIVAL_RECENT_SALES_MS).toISOString();
-  const [stock, stockEvents, sales, dailyPieces] = await Promise.all([
+  const [stock, stockEvents, sales, dailyPieces, dailyOrders] = await Promise.all([
     supabase
       .from("festival_stock_items")
       .select("id,name,count,initial_count,updated_at,updater:profiles!updated_by(display_name)")
@@ -55,14 +59,17 @@ export async function getFestivalBoard({ manager }: { manager: boolean }): Promi
         .range(from, to);
     }),
     getFestivalDailyPieces(supabase),
+    supabase.rpc("festival_daily_orders"),
   ]);
   if (stock.error) throw stock.error;
+  if (dailyOrders.error) throw dailyOrders.error;
   if (stockEvents.error) throw stockEvents.error;
   return {
     stock: (stock.data ?? []) as unknown as FestivalStockItem[],
     stockEvents: (stockEvents.data ?? []) as unknown as FestivalStockEvent[],
     sales: sales as unknown as FestivalSale[],
     dailyPieces,
+    dailyOrders: (dailyOrders.data ?? []).map((row) => ({ day: row.day, quantity: row.quantity, orders: Number(row.orders) })),
   };
 }
 

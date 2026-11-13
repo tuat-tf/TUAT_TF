@@ -11,6 +11,7 @@ import type { FestivalBoardData } from "@/lib/queries";
 import { festivalStockLevel, formatYen, jstDayHour, type FestivalTab } from "@/lib/festival";
 import { FestivalSales } from "./FestivalSales";
 import { FestivalStock } from "./FestivalStock";
+import type { FestivalDailyOrders } from "@/lib/queries";
 
 const TABS: { key: FestivalTab; label: string }[] = [
   { key: "summary", label: "まとめ" },
@@ -75,6 +76,8 @@ function FestivalSummary({ data, manager, onOpen }: { data: FestivalBoardData; m
         </Card>
       </section>
 
+      <FestivalOrdersTable orders={data.dailyOrders} />
+
       <section className="space-y-1">
         <SectionHead label="材料の残り" onOpen={() => onOpen("stock")} />
         {data.stock.length === 0 ? (
@@ -120,4 +123,45 @@ function SectionHead({ label, onOpen }: { label: string; onOpen: () => void }) {
 function dayLabel(day: string) {
   const [, month, date] = day.split("-").map(Number);
   return `${month}/${date}`;
+}
+
+/** 日ごとに「何個入りが何回売れたか」。行は何個入り、列は日（古い順）と合計。全員に見せてよい。 */
+function FestivalOrdersTable({ orders }: { orders: FestivalDailyOrders[] }) {
+  if (orders.length === 0) return null;
+  const days = [...new Set(orders.map((row) => row.day))].sort();
+  const quantities = [...new Set(orders.map((row) => row.quantity))].sort((a, b) => a - b);
+  const count = (day: string, quantity: number) => orders.find((row) => row.day === day && row.quantity === quantity)?.orders ?? 0;
+  const dayTotal = (day: string) => orders.filter((row) => row.day === day).reduce((sum, row) => sum + row.orders, 0);
+  const rowTotal = (quantity: number) => orders.filter((row) => row.quantity === quantity).reduce((sum, row) => sum + row.orders, 0);
+  return (
+    <section className="space-y-1">
+      <p className="section-label">何個入りが何回売れたか</p>
+      <Card className="overflow-x-auto">
+        <table className="w-full text-[14px] tabular-nums">
+          <thead>
+            <tr className="text-micro text-muted">
+              <th scope="col" className="px-4 py-2 text-left font-medium">個数</th>
+              {days.map((day) => <th key={day} scope="col" className="px-2 py-2 text-right font-medium">{dayLabel(day)}</th>)}
+              {days.length > 1 && <th scope="col" className="px-4 py-2 text-right font-medium">合計</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {quantities.map((quantity) => (
+              <tr key={quantity} className="border-t border-separator/50">
+                <th scope="row" className="whitespace-nowrap px-4 py-2 text-left font-medium">{quantity}個入り</th>
+                {days.map((day) => <td key={day} className={cn("px-2 py-2 text-right", count(day, quantity) === 0 && "text-muted")}>{count(day, quantity)}</td>)}
+                {days.length > 1 && <td className="px-4 py-2 text-right font-semibold">{rowTotal(quantity)}</td>}
+              </tr>
+            ))}
+            <tr className="border-t border-separator/70 font-semibold">
+              <th scope="row" className="px-4 py-2 text-left">会計</th>
+              {days.map((day) => <td key={day} className="px-2 py-2 text-right">{dayTotal(day)}</td>)}
+              {days.length > 1 && <td className="px-4 py-2 text-right">{orders.reduce((sum, row) => sum + row.orders, 0)}</td>}
+            </tr>
+          </tbody>
+        </table>
+      </Card>
+      <p className="text-micro px-1">数字は売れた回数（会計の数）です。</p>
+    </section>
+  );
 }
