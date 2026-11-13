@@ -125,43 +125,56 @@ function dayLabel(day: string) {
   return `${month}/${date}`;
 }
 
-/** 日ごとに「何個入りが何回売れたか」。行は何個入り、列は日（古い順）と合計。全員に見せてよい。 */
+/**
+ * 日ごとに、何個入りのセットが何セット売れ、合わせて何個になったか。
+ * 行は何個入り、列は日（古い順）と合計。各マスは「セット数」と、その下に「個数（セット数×何個入り）」。全員に見せてよい。
+ */
 function FestivalOrdersTable({ orders }: { orders: FestivalDailyOrders[] }) {
   if (orders.length === 0) return null;
   const days = [...new Set(orders.map((row) => row.day))].sort();
   const quantities = [...new Set(orders.map((row) => row.quantity))].sort((a, b) => a - b);
-  const count = (day: string, quantity: number) => orders.find((row) => row.day === day && row.quantity === quantity)?.orders ?? 0;
-  const dayTotal = (day: string) => orders.filter((row) => row.day === day).reduce((sum, row) => sum + row.orders, 0);
-  const rowTotal = (quantity: number) => orders.filter((row) => row.quantity === quantity).reduce((sum, row) => sum + row.orders, 0);
+  const pick = (day: string | null, quantity: number | null) =>
+    orders.filter((row) => (day === null || row.day === day) && (quantity === null || row.quantity === quantity));
+  const sets = (rows: FestivalDailyOrders[]) => rows.reduce((sum, row) => sum + row.orders, 0);
+  const pieces = (rows: FestivalDailyOrders[]) => rows.reduce((sum, row) => sum + row.orders * row.quantity, 0);
+  const columns: (string | null)[] = days.length > 1 ? [...days, null] : days;
+
+  const cell = (rows: FestivalDailyOrders[], key: string, strong = false) => {
+    const count = sets(rows);
+    return (
+      <td key={key} className={cn("px-3 py-2 text-right align-top", count === 0 && "text-muted", strong && "font-semibold")}>
+        <span className="block">{count}セット</span>
+        {count > 0 && <span className="block text-micro text-muted">{pieces(rows)}個</span>}
+      </td>
+    );
+  };
+
   return (
     <section className="space-y-1">
-      <p className="section-label">何個入りが何回売れたか</p>
+      <p className="section-label">セットごとの売れた数</p>
       <Card className="overflow-x-auto">
         <table className="w-full text-[14px] tabular-nums">
           <thead>
             <tr className="text-micro text-muted">
-              <th scope="col" className="px-4 py-2 text-left font-medium">個数</th>
-              {days.map((day) => <th key={day} scope="col" className="px-2 py-2 text-right font-medium">{dayLabel(day)}</th>)}
-              {days.length > 1 && <th scope="col" className="px-4 py-2 text-right font-medium">合計</th>}
+              <th scope="col" className="px-4 py-2 text-left font-medium">セット</th>
+              {columns.map((day) => <th key={day ?? "total"} scope="col" className="px-3 py-2 text-right font-medium">{day ? dayLabel(day) : "合計"}</th>)}
             </tr>
           </thead>
           <tbody>
             {quantities.map((quantity) => (
               <tr key={quantity} className="border-t border-separator/50">
-                <th scope="row" className="whitespace-nowrap px-4 py-2 text-left font-medium">{quantity}個入り</th>
-                {days.map((day) => <td key={day} className={cn("px-2 py-2 text-right", count(day, quantity) === 0 && "text-muted")}>{count(day, quantity)}</td>)}
-                {days.length > 1 && <td className="px-4 py-2 text-right font-semibold">{rowTotal(quantity)}</td>}
+                <th scope="row" className="whitespace-nowrap px-4 py-2 text-left align-top font-medium">{quantity}個入り</th>
+                {columns.map((day) => cell(pick(day, quantity), day ?? "total", day === null))}
               </tr>
             ))}
-            <tr className="border-t border-separator/70 font-semibold">
-              <th scope="row" className="px-4 py-2 text-left">会計</th>
-              {days.map((day) => <td key={day} className="px-2 py-2 text-right">{dayTotal(day)}</td>)}
-              {days.length > 1 && <td className="px-4 py-2 text-right">{orders.reduce((sum, row) => sum + row.orders, 0)}</td>}
+            <tr className="border-t border-separator/70">
+              <th scope="row" className="px-4 py-2 text-left align-top font-semibold">合計</th>
+              {columns.map((day) => cell(pick(day, null), day ?? "total", true))}
             </tr>
           </tbody>
         </table>
       </Card>
-      <p className="text-micro px-1">数字は売れた回数（会計の数）です。</p>
+      <p className="text-micro px-1">上がセット数（会計の数）、下がそのセットで売れた個数です。</p>
     </section>
   );
 }
