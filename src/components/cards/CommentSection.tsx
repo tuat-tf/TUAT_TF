@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/common/Avatar";
 import { CommentLikeButton } from "@/components/cards/CommentLikeButton";
@@ -103,13 +103,19 @@ export function CommentSection({
     };
   }, [targetId, targetType]);
 
-  useEffect(() => {
-    if (mentionQuery === null || membersRequested.current) return;
+  const [membersFailed, setMembersFailed] = useState(false);
+  const loadMembers = useCallback(() => {
+    if (membersRequested.current) return;
     membersRequested.current = true;
+    setMembersFailed(false);
+    const failed = () => { membersRequested.current = false; setMembersFailed(true); };
     void Promise.resolve(createClient().from("profiles").select("id, display_name, mention_reading").eq("status", "active").order("display_name"))
-      .then(({ data, error: readError }) => { if (!readError) setMembers(data ?? []); else membersRequested.current = false; })
-      .catch(() => { membersRequested.current = false; });
-  }, [mentionQuery]);
+      .then(({ data, error: readError }) => { if (readError) failed(); else setMembers(data ?? []); })
+      .catch(failed);
+  }, []);
+  useEffect(() => {
+    if (mentionQuery !== null) loadMembers();
+  }, [mentionQuery, loadMembers]);
   const suggestions = mentionQuery === null || !members ? [] : members.filter(member => member.id !== currentUser.id && matchesMention(member, mentionQuery)).slice(0, 6);
   function selectMention(member: { id: string; display_name: string }) {
     hashtag.replace(completeMention(text, hashtag.caret, member.display_name));
@@ -325,15 +331,24 @@ export function CommentSection({
 
       {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
 
-      {suggestions.length > 0 && (
+      {mentionQuery !== null && (
         <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-separator bg-bg p-1" role="listbox" aria-label="メンションする人">
           {suggestions.map(member => (
             <button data-ui-action key={member.id} type="button" role="option" aria-selected={false}
               className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-[14px] active:bg-card"
+              // Keep the textarea focused (and the phone keyboard open) while choosing.
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectMention(member)}>
               <span className="min-w-0 flex-1 truncate">@{member.display_name}</span>
             </button>
           ))}
+          {/* 候補を出せないときも理由を見せる（黙って何も出さないと、壊れているのか区別できない）。 */}
+          {suggestions.length === 0 && (
+            <p className="flex min-h-11 items-center gap-2 px-2 text-[13px] text-muted">
+              {membersFailed ? "メンションする人を読み込めませんでした" : !members ? "メンションする人を読み込み中…" : "条件に合う人はいません"}
+              {membersFailed && <button type="button" className="font-semibold text-accent pressable" onMouseDown={(event) => event.preventDefault()} onClick={loadMembers}>再試行</button>}
+            </p>
+          )}
         </div>
       )}
 
