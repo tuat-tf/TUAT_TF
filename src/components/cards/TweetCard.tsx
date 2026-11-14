@@ -71,7 +71,7 @@ export function TweetCard({
         </div>
         <span className="shrink-0" onClick={(event) => event.stopPropagation()}>
           <TweetOwnerMenu
-            tweet={{ id: tweet.id, content: tweet.content, quoted: tweet.quoted }}
+            tweet={{ id: tweet.id, content: tweet.content, quoted: tweet.quoted, mentions: tweet.mentions }}
             isOwner={isOwner}
             quote={tweet.expires_at ? undefined : {
               kind: "tweet",

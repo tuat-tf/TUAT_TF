@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeMention, matchesMention, mentionedMembers, mentionQueryAt } from "./mentions";
+import { completeMention, matchesMention, mentionQueryAt, mentionSpans, resolveMentions } from "./mentions";
 
 describe("mentionQueryAt", () => {
   it("finds a half-width or full-width @ before the cursor", () => {
@@ -44,12 +44,37 @@ describe("iPhone composition caret", () => {
   });
 });
 
-describe("mentionedMembers", () => {
-  const members = [{ display_name: "林" }, { display_name: "林田" }, { display_name: "武藤 太郎" }];
+describe("resolveMentions", () => {
+  const members = [{ id: "a", display_name: "林" }, { id: "b", display_name: "林田" }, { id: "c", display_name: "武藤 太郎" }];
+  const ids = (text: string, picked: string[] = [], list = members) => resolveMentions(text, list, picked).map(m => m.id);
   it("finds names typed in full without picking a candidate", () => {
-    expect(mentionedMembers("＠武藤 太郎 おつかれ", members).map(m => m.display_name)).toEqual(["武藤 太郎"]);
-    expect(mentionedMembers("@林田", members).map(m => m.display_name)).toEqual(["林田"]);
-    expect(mentionedMembers("@林、ありがとう", members).map(m => m.display_name)).toEqual(["林"]);
-    expect(mentionedMembers("mail a@林", members)).toEqual([]);
+    expect(ids("＠武藤 太郎 おつかれ")).toEqual(["c"]);
+    expect(ids("@林田")).toEqual(["b"]);
+    expect(ids("@林、ありがとう")).toEqual(["a"]);
+    expect(ids("mail a@林")).toEqual([]);
+  });
+  it("keeps a picked member when text follows the name, but never reads a longer name as the shorter one", () => {
+    expect(ids("@林さん")).toEqual([]);
+    expect(ids("@林さん", ["a"])).toEqual(["a"]);
+    expect(ids("@林田さん", ["a"])).toEqual([]);
+  });
+  it("mentions nobody for a shared name unless one of them was picked", () => {
+    const twins = [{ id: "x", display_name: "山田" }, { id: "y", display_name: "山田" }];
+    expect(ids("@山田 ", [], twins)).toEqual([]);
+    expect(ids("@山田 ", ["y"], twins)).toEqual(["y"]);
+  });
+  it("keeps an existing mention written under an old name when editing, and drops it once the name is erased", () => {
+    const list = [{ id: "a", display_name: "旧姓" }, { id: "a", display_name: "林" }];
+    expect(ids("@旧姓 おつかれ", ["a"], list)).toEqual(["a"]);
+    expect(ids("おつかれ", ["a"], list)).toEqual([]);
+  });
+});
+
+describe("mentionSpans", () => {
+  it("returns the position of each written name, longest name first, for both @ and ＠", () => {
+    expect(mentionSpans("@林田 と ＠林", ["林", "林田"])).toEqual([
+      { start: 0, end: 3, name: "林田" }, { start: 6, end: 8, name: "林" },
+    ]);
+    expect(mentionSpans("a@林", ["林"])).toEqual([]);
   });
 });

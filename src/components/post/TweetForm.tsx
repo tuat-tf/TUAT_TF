@@ -24,11 +24,11 @@ import { prepareTweetImage, validateTweetImage } from "@/lib/tweet-image";
 import { QuotedPostCard } from "@/components/cards/QuotedPostCard";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
-import { completeMention, matchesMention, mentionedMembers, mentionQueryAt } from "@/lib/mentions";
+import { completeMention, matchesMention, mentionQueryAt, resolveMentions } from "@/lib/mentions";
 import { DraftRestoredNotice } from "@/components/post/DraftRestoredNotice";
 import { usePostDraft } from "@/hooks/use-post-draft";
 import { readPostDraft } from "@/lib/post-drafts";
-import type { QuotedPost } from "@/types";
+import type { QuotedPost, TweetMention } from "@/types";
 import type { Database } from "@/types/database";
 
 type TweetValues = {
@@ -54,7 +54,7 @@ export type TweetFormHandle = { save: () => void; discardDraft: () => void };
 export const TweetForm = forwardRef<
   TweetFormHandle,
   {
-    tweet?: { id: string; content: string; quoted?: QuotedPost };
+    tweet?: { id: string; content: string; quoted?: QuotedPost; mentions?: TweetMention[] };
     initialStory?: boolean;
     /** 引用する投稿。新規作成時だけ指定でき、あとから引用先は変えられない。 */
     quote?: Exclude<QuotedPost, { kind: "missing" }>;
@@ -83,7 +83,7 @@ export const TweetForm = forwardRef<
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }>>([]);
   const [membersFailed, setMembersFailed] = useState(false);
   const [membersAttempt, setMembersAttempt] = useState(0);
-  const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>(restored?.values.mentionIds ?? []);
+  const [selectedMentionIds, setSelectedMentionIds] = useState<string[]>(restored?.values.mentionIds ?? tweet?.mentions?.map((mention) => mention.profile_id) ?? []);
   const [pollEnabled, setPollEnabled] = useState(restored?.values.pollEnabled ?? false);
   const [pollOptions, setPollOptions] = useState(restored?.values.pollOptions ?? ["", ""]);
   const [pollMultiple, setPollMultiple] = useState(restored?.values.pollMultiple ?? false);
@@ -104,11 +104,12 @@ export const TweetForm = forwardRef<
   const { ref: hashtagRef, ...hashtag } = useHashtagCompletion(content, setContent);
   // カーソルの位置で書きかけの @名前（全角の＠も）。本文の先頭や途中にも足せる。
   const mentionQuery = mentionQueryAt(content, hashtag.caret);
-  const selectedMentions = members.filter(
-    (member) =>
-      selectedMentionIds.includes(member.id) &&
-      content.includes(`@${member.display_name}`),
-  );
+  // 編集では、すでに付いているメンション（書いた時点の名前）も候補に入れて、名前が残っているかぎり保つ。
+  const mentionCandidates = useMemo(() => [
+    ...(tweet?.mentions ?? []).map((mention) => ({ id: mention.profile_id, display_name: mention.display_name })),
+    ...members.map((member) => ({ id: member.id, display_name: member.display_name })),
+  ], [tweet?.mentions, members]);
+  const selectedMentions = resolveMentions(content, mentionCandidates, selectedMentionIds);
   const imagePreview = useMemo(() => imageFile ? URL.createObjectURL(imageFile) : null, [imageFile]);
   const initialContent = tweet?.content ?? "";
   const effectiveLength = tweetContentLength(content);
@@ -145,7 +146,7 @@ export const TweetForm = forwardRef<
 
   function removeMention(member: { id: string; display_name: string }) {
     setContent((value) =>
-      value.replaceAll(`@${member.display_name}`, "").replace(/ {2,}/g, " "),
+      value.replaceAll(`@${member.display_name}`, "").replaceAll(`＠${member.display_name}`, "").replace(/ {2,}/g, " "),
     );
     setSelectedMentionIds((ids) => ids.filter((id) => id !== member.id));
   }
@@ -207,11 +208,9 @@ export const TweetForm = forwardRef<
           }
         }
         const expiresAt = expiresIn24Hours ? new Date(Date.now() + 86400000).toISOString() : null;
-        // 候補から選んだ人に加え、名前を最後まで打った「@名前」もメンションにする。
-        const activeMentionIds = [...selectedMentionIds.filter((profileId) => {
-          const member = members.find((candidate) => candidate.id === profileId);
-          return member ? text.includes(`@${member.display_name}`) : false;
-        }), ...mentionedMembers(text, members.filter((member) => member.id !== userId)).map((member) => member.id)];
+        // 候補から選んだ人に加え、名前を最後まで打った「@名前」もメンションにする。編集でも同じ判定で付け外しする。
+        const activeMentionIds = resolveMentions(text, mentionCandidates, selectedMentionIds)
+          .map((member) => member.id).filter((profileId) => profileId !== userId);
         pendingSave.current = {
           userId,
           values: { content: text, image_path: imagePath, expires_at: expiresAt,
@@ -219,13 +218,13 @@ export const TweetForm = forwardRef<
             poll_multiple: pollEnabled && pollMultiple, poll_anonymous: pollAnonymous,
             poll_allow_options: pollEnabled && pollAllowOptions, poll_enabled: pollEnabled },
           pollOptions: editing || !pollEnabled ? [] : cleanPollOptions,
-          mentionIds: editing ? [] : [...new Set(activeMentionIds)].sort(),
+          mentionIds: [...new Set(activeMentionIds)].sort(),
         };
       }
       const attempt = pendingSave.current;
       const result = await atomicSave(saveState.current, async () => {
         const response = await supabase.rpc("save_tweet", {
-          p_id: draftId, p_values: editing ? { content: attempt.values.content } : attempt.values,
+          p_id: draftId, p_values: editing ? { content: attempt.values.content, sync_mentions: true } : attempt.values,
           p_poll_options: attempt.pollOptions, p_mention_ids: attempt.mentionIds,
           p_edit: editing, p_expected_content: tweet?.content ?? null,
         });
@@ -239,6 +238,7 @@ export const TweetForm = forwardRef<
         if (readError || !data) return null;
         const saved = data as unknown as TweetConfirmation;
         if (saved.user_id !== attempt.userId || saved.content !== attempt.values.content) return null;
+        if (JSON.stringify(saved.tweet_mentions.map((mention) => mention.profile_id).sort()) !== JSON.stringify(attempt.mentionIds)) return null;
         if (editing) return draftId;
         if (saved.image_path !== attempt.values.image_path
           || saved.quoted_type !== attempt.values.quoted_type || saved.quoted_id !== attempt.values.quoted_id
@@ -248,7 +248,6 @@ export const TweetForm = forwardRef<
         const options = [...saved.tweet_poll_options].sort((a, b) => a.sort_order - b.sort_order);
         if (options.length < attempt.pollOptions.length
           || attempt.pollOptions.some((text, i) => !options.some((option) => option.text === text && option.sort_order === i && option.created_by === attempt.userId))) return null;
-        if (JSON.stringify(saved.tweet_mentions.map((mention) => mention.profile_id).sort()) !== JSON.stringify(attempt.mentionIds)) return null;
         return draftId;
       });
       if (!result.ok) {

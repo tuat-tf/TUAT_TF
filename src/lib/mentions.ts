@@ -42,24 +42,40 @@ export function matchesMention(member: { display_name: string; mention_reading?:
 }
 
 /**
- * 本文に「@名前」（全角の＠も）と書いてある部員。候補から選ばずに名前を打ち切った場合もメンションにする。
- * 名前の直後が文字の続き（例: @林 と @林田）なら別の人なので数えない。
+ * 本文中の「@名前」（全角の＠も）の位置。保存するメンション先の判定と、表示のリンクの両方がこれを使う。
+ * ・長い名前を先に当てる（@林田 を @林 と読まない）。
+ * ・メールアドレスのように英数字の直後の @ は数えない。
  */
-export function mentionedMembers<T extends { display_name: string }>(text: string, members: T[]): T[] {
-  return members.filter(member => {
-    const name = member.display_name;
-    if (!name) return false;
-    for (const at of ["@", "＠"]) {
-      let from = 0;
-      for (;;) {
-        const index = text.indexOf(at + name, from);
-        if (index < 0) break;
-        const before = text[index - 1];
-        const after = text[index + at.length + name.length];
-        if ((before === undefined || !/[A-Za-z0-9_]/.test(before)) && (after === undefined || /[\s、。,.!！?？@＠]/.test(after))) return true;
-        from = index + 1;
-      }
-    }
-    return false;
-  });
+export function mentionSpans(text: string, names: string[]): Array<{ start: number; end: number; name: string }> {
+  const sorted = [...new Set(names.filter(Boolean))].sort((a, b) => b.length - a.length);
+  const spans: Array<{ start: number; end: number; name: string }> = [];
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] !== "@" && text[index] !== "＠") continue;
+    if (index > 0 && /[A-Za-z0-9_]/.test(text[index - 1])) continue;
+    const name = sorted.find(candidate => text.startsWith(candidate, index + 1));
+    if (!name) continue;
+    spans.push({ start: index, end: index + 1 + name.length, name });
+    index += name.length;
+  }
+  return spans;
+}
+
+/**
+ * 保存するメンション先。
+ * ・候補から選んだ人（pickedIds）は、名前の後ろに文字が続いても（@田中さん）メンションにする。
+ * ・選ばずに名前を打ち切った場合は、名前の直後が空白・句読点・文末のときだけ。
+ * ・同じ名前の部員が複数いて誰も選んでいないときは、誰にも通知しない（別の人へ届くのを防ぐ）。
+ * 編集のときは、すでに付いているメンション（書いた時点の名前）も members に混ぜて渡す。
+ */
+export function resolveMentions<T extends { id: string; display_name: string }>(text: string, members: T[], pickedIds: string[]): T[] {
+  const found = new Map<string, T>();
+  for (const span of mentionSpans(text, members.map(member => member.display_name))) {
+    const same = members.filter(member => member.display_name === span.name);
+    const picked = same.filter(member => pickedIds.includes(member.id));
+    const after = text[span.end];
+    const complete = after === undefined || /[\s、。,.!！?？@＠]/.test(after);
+    const targets = picked.length ? picked : complete && new Set(same.map(member => member.id)).size === 1 ? same : [];
+    for (const member of targets) if (!found.has(member.id)) found.set(member.id, member);
+  }
+  return [...found.values()];
 }

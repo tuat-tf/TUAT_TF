@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
-import { completeMention, matchesMention, mentionedMembers, mentionQueryAt } from "@/lib/mentions";
+import { completeMention, matchesMention, mentionQueryAt, resolveMentions } from "@/lib/mentions";
 import type { CommentAuthor, CommentWithAuthor, TargetType } from "@/types";
 
 type CommentLike = { liked: boolean; count: number };
@@ -122,6 +122,17 @@ export function CommentSection({
     setMentionIds(ids => ids.includes(member.id) ? ids : [...ids, member.id]);
   }
 
+  /** 自分以外の部員。まだ読んでいなければ、本文に @ があるときだけ読む。 */
+  async function otherMembers(content: string) {
+    let memberList = members;
+    if (!memberList && /[@＠]/.test(content)) {
+      const { data } = await createClient().from("profiles").select("id, display_name, mention_reading").eq("status", "active").order("display_name");
+      memberList = data ?? null;
+      if (memberList) setMembers(memberList);
+    }
+    return (memberList ?? []).filter(member => member.id !== currentUser.id).map(member => ({ id: member.id, display_name: member.display_name }));
+  }
+
   async function add() {
     const content = text.trim();
     if (!content || saving) return;
@@ -130,16 +141,7 @@ export function CommentSection({
     setError("");
     const supabase = createClient();
     // 候補から選んだ人に加え、名前を最後まで打った「@名前」もメンションにする。消した名前は通知しない。
-    let memberList = members;
-    if (!memberList && /[@＠]/.test(content)) {
-      const { data } = await supabase.from("profiles").select("id, display_name, mention_reading").eq("status", "active").order("display_name");
-      memberList = data ?? null;
-      if (memberList) setMembers(memberList);
-    }
-    const others = (memberList ?? []).filter(member => member.id !== currentUser.id);
-    const typed = mentionedMembers(content, others);
-    const mentioned = others.filter(member => typed.includes(member)
-      || (mentionIds.includes(member.id) && content.includes(`@${member.display_name}`)));
+    const mentioned = resolveMentions(content, await otherMembers(content), mentionIds);
     const { data, error: insertError } = await supabase.rpc("add_comment", {
       p_target_type: targetType, p_target_id: targetId, p_content: content, p_mention_ids: mentioned.map(member => member.id),
     });
@@ -180,13 +182,12 @@ export function CommentSection({
     setSaving(true);
     setError("");
     const supabase = createClient();
-    const { data, error: updateError } = await supabase
-      .from("comments")
-      .update({ content })
-      .eq("id", comment.id)
-      .eq("user_id", currentUser.id)
-      .select("content, updated_at")
-      .single();
+    // すでに付いているメンションは名前が残っているかぎり保ち、書き足した「@名前」は新しく付ける（通知は新しい人だけ）。
+    const existing = (comment.mentions ?? []).map(mention => ({ id: mention.profile_id, display_name: mention.display_name }));
+    const mentioned = resolveMentions(content, [...existing, ...await otherMembers(content)], existing.map(mention => mention.id));
+    const { data, error: updateError } = await supabase.rpc("edit_comment", {
+      p_id: comment.id, p_content: content, p_mention_ids: mentioned.map(member => member.id),
+    });
 
     if (updateError || !data) {
       setError("コメントを更新できませんでした");
@@ -196,7 +197,8 @@ export function CommentSection({
 
     setComments((items) =>
       items.map((item) =>
-        item.id === comment.id ? { ...item, ...data } : item,
+        item.id === comment.id ? { ...item, content: data.content, updated_at: data.updated_at,
+          mentions: mentioned.map(member => ({ profile_id: member.id, display_name: member.display_name })) } : item,
       ),
     );
     setEditingId(null);

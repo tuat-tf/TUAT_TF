@@ -10,7 +10,7 @@ import { TweetForm, type TweetFormHandle } from "@/components/post/TweetForm";
 import { useToast } from "@/components/ui/toast";
 import { UnsavedChangesDialog } from "@/components/ui/unsaved-changes-dialog";
 import { copyText } from "@/components/common/ShareButton";
-import type { PracticeRecord, QuotedPost, RecordFieldDef } from "@/types";
+import type { PracticeRecord, QuotedPost, RecordFieldDef, TweetMention } from "@/types";
 
 type Quotable = Exclude<QuotedPost, { kind: "missing" }>;
 
@@ -147,7 +147,7 @@ export function TweetOwnerMenu({
   isOwner,
   quote,
 }: {
-  tweet: { id: string; content: string; quoted?: QuotedPost };
+  tweet: { id: string; content: string; quoted?: QuotedPost; mentions?: TweetMention[] };
   isOwner: boolean;
   /** 引用用の見た目。ストーリーは消えてしまうので渡さない＝引用できない */
   quote?: Quotable;
