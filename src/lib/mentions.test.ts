@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeMention, matchesMention, mentionQueryAt } from "./mentions";
+import { completeMention, matchesMention, mentionedMembers, mentionQueryAt } from "./mentions";
 
 describe("mentionQueryAt", () => {
   it("finds a half-width or full-width @ before the cursor", () => {
@@ -34,5 +34,22 @@ describe("matchesMention", () => {
     expect(matchesMention({ display_name: "田中", mention_reading: "たなか" }, "たな")).toBe(true);
     expect(matchesMention({ display_name: "Tanaka", mention_reading: null }, "tan")).toBe(true);
     expect(matchesMention({ display_name: "田中", mention_reading: "たなか" }, "さと")).toBe(false);
+  });
+});
+
+describe("iPhone composition caret", () => {
+  it("falls back to the @ at the end when the caret is reported before the composing text", () => {
+    expect(mentionQueryAt("＠むと", 0)).toBe("むと");
+    expect(completeMention("おつかれ ＠むと", 5, "武藤")).toEqual({ text: "おつかれ @武藤 ", caret: 9 });
+  });
+});
+
+describe("mentionedMembers", () => {
+  const members = [{ display_name: "林" }, { display_name: "林田" }, { display_name: "武藤 太郎" }];
+  it("finds names typed in full without picking a candidate", () => {
+    expect(mentionedMembers("＠武藤 太郎 おつかれ", members).map(m => m.display_name)).toEqual(["武藤 太郎"]);
+    expect(mentionedMembers("@林田", members).map(m => m.display_name)).toEqual(["林田"]);
+    expect(mentionedMembers("@林、ありがとう", members).map(m => m.display_name)).toEqual(["林"]);
+    expect(mentionedMembers("mail a@林", members)).toEqual([]);
   });
 });

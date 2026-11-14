@@ -24,7 +24,7 @@ import { prepareTweetImage, validateTweetImage } from "@/lib/tweet-image";
 import { QuotedPostCard } from "@/components/cards/QuotedPostCard";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
-import { completeMention, matchesMention, mentionQueryAt } from "@/lib/mentions";
+import { completeMention, matchesMention, mentionedMembers, mentionQueryAt } from "@/lib/mentions";
 import { DraftRestoredNotice } from "@/components/post/DraftRestoredNotice";
 import { usePostDraft } from "@/hooks/use-post-draft";
 import { readPostDraft } from "@/lib/post-drafts";
@@ -207,10 +207,11 @@ export const TweetForm = forwardRef<
           }
         }
         const expiresAt = expiresIn24Hours ? new Date(Date.now() + 86400000).toISOString() : null;
-        const activeMentionIds = selectedMentionIds.filter((profileId) => {
+        // 候補から選んだ人に加え、名前を最後まで打った「@名前」もメンションにする。
+        const activeMentionIds = [...selectedMentionIds.filter((profileId) => {
           const member = members.find((candidate) => candidate.id === profileId);
           return member ? text.includes(`@${member.display_name}`) : false;
-        });
+        }), ...mentionedMembers(text, members.filter((member) => member.id !== userId)).map((member) => member.id)];
         pendingSave.current = {
           userId,
           values: { content: text, image_path: imagePath, expires_at: expiresAt,
