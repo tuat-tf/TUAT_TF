@@ -24,6 +24,7 @@ import { prepareTweetImage, validateTweetImage } from "@/lib/tweet-image";
 import { QuotedPostCard } from "@/components/cards/QuotedPostCard";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
+import { completeMention, matchesMention, mentionQueryAt } from "@/lib/mentions";
 import { DraftRestoredNotice } from "@/components/post/DraftRestoredNotice";
 import { usePostDraft } from "@/hooks/use-post-draft";
 import { readPostDraft } from "@/lib/post-drafts";
@@ -100,9 +101,9 @@ export const TweetForm = forwardRef<
     setContent(""); setSelectedMentionIds([]);
     setPollEnabled(false); setPollOptions(["", ""]); setPollMultiple(false); setPollAnonymous(true); setPollAllowOptions(false);
   }
-  const mentionMatch = content.match(/@([^\s@\n]*)$/);
-  const mentionQuery = mentionMatch?.[1]?.toLocaleLowerCase("ja") ?? null;
   const { ref: hashtagRef, ...hashtag } = useHashtagCompletion(content, setContent);
+  // カーソルの位置で書きかけの @名前（全角の＠も）。本文の先頭や途中にも足せる。
+  const mentionQuery = mentionQueryAt(content, hashtag.caret);
   const selectedMentions = members.filter(
     (member) =>
       selectedMentionIds.includes(member.id) &&
@@ -138,7 +139,7 @@ export const TweetForm = forwardRef<
   }, [membersAttempt]);
 
   function selectMention(member: { id: string; display_name: string }) {
-    setContent((value) => value.replace(/@([^\s@\n]*)$/, `@${member.display_name} `));
+    hashtag.replace(completeMention(content, hashtag.caret, member.display_name));
     setSelectedMentionIds((ids) => ids.includes(member.id) ? ids : [...ids, member.id]);
   }
 
@@ -308,11 +309,7 @@ export const TweetForm = forwardRef<
               retry={() => { setMembersFailed(false); setMembersAttempt((value) => value + 1); }} />
             {mentionQuery !== null && <div className="max-h-40 overflow-y-auto">
               {members
-                .filter((member) => {
-                  const displayName = member.display_name.toLocaleLowerCase("ja");
-                  const reading = member.mention_reading?.toLocaleLowerCase("ja") ?? "";
-                  return displayName.includes(mentionQuery) || reading.includes(mentionQuery);
-                })
+                .filter((member) => matchesMention(member, mentionQuery))
                 .slice(0, 6)
                 .map((member) => (
                   <button data-ui-action

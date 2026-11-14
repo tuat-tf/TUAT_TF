@@ -32,7 +32,7 @@ vi.mock("@/components/cards/CommentLikeButton", () => ({ CommentLikeButton: () =
 vi.mock("@/components/common/Linkify", () => ({ Linkify: ({ text }: { text: string }) => text }));
 vi.mock("@/components/post/HashtagTextarea", () => ({
   HashtagTextarea: ({ onChange }: { onChange: typeof state.input }) => { state.input = onChange; return null; },
-  useHashtagCompletion: () => ({ ref: { current: null }, suggestions: [], select: () => {}, track: () => {} }),
+  useHashtagCompletion: () => ({ ref: { current: null }, suggestions: [], select: () => {}, track: () => {}, caret: null, replace: () => {} }),
 }));
 vi.mock("@/components/ui/textarea", () => ({ Textarea: ({ onChange }: { onChange: typeof state.input }) => { state.input = onChange; return null; } }));
 vi.mock("@/components/ui/button", () => ({ Button: ({ children, onClick }: { children: ReactNode; onClick: typeof state.send }) => { state.send = onClick; return createElement("button", {}, children); } }));

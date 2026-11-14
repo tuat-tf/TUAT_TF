@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HashtagSuggestions } from "@/components/post/HashtagSuggestions";
 import { HashtagTextarea, useHashtagCompletion } from "@/components/post/HashtagTextarea";
+import { completeMention, matchesMention, mentionQueryAt } from "@/lib/mentions";
 import type { CommentAuthor, CommentWithAuthor, TargetType } from "@/types";
 
 type CommentLike = { liked: boolean; count: number };
@@ -39,8 +40,9 @@ export function CommentSection({
   // @mentions: members are read once, the first time "@" is typed in the reply box.
   const [members, setMembers] = useState<Array<{ id: string; display_name: string; mention_reading: string | null }> | null>(null);
   const [mentionIds, setMentionIds] = useState<string[]>([]);
-  const mentionQuery = text.match(/@([^\s@\n]*)$/)?.[1]?.toLocaleLowerCase("ja") ?? null;
   const { ref: hashtagRef, ...hashtag } = useHashtagCompletion(text, setText);
+  // カーソルの位置で書きかけの @名前（全角の＠も）。本文の先頭や途中にも足せる。
+  const mentionQuery = mentionQueryAt(text, hashtag.caret);
   const membersRequested = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
   const countChange = useRef(onCountChange);
@@ -108,10 +110,9 @@ export function CommentSection({
       .then(({ data, error: readError }) => { if (!readError) setMembers(data ?? []); else membersRequested.current = false; })
       .catch(() => { membersRequested.current = false; });
   }, [mentionQuery]);
-  const suggestions = mentionQuery === null || !members ? [] : members.filter(member => member.id !== currentUser.id && (
-    member.display_name.toLocaleLowerCase("ja").includes(mentionQuery) || (member.mention_reading ?? "").toLocaleLowerCase("ja").includes(mentionQuery))).slice(0, 6);
+  const suggestions = mentionQuery === null || !members ? [] : members.filter(member => member.id !== currentUser.id && matchesMention(member, mentionQuery)).slice(0, 6);
   function selectMention(member: { id: string; display_name: string }) {
-    setText(value => value.replace(/@([^\s@\n]*)$/, `@${member.display_name} `));
+    hashtag.replace(completeMention(text, hashtag.caret, member.display_name));
     setMentionIds(ids => ids.includes(member.id) ? ids : [...ids, member.id]);
   }
 

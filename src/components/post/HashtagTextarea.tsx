@@ -95,12 +95,16 @@ export function useHashtagCompletion(value: string, setValue: (value: string) =>
     setCaret(field.selectionStart === field.selectionEnd ? field.selectionStart : null);
   }, []);
 
-  function select(tag: string) {
-    const next = completeHashtag(value, caret ?? value.length, tag);
+  /** 文字を置き換えて、カーソルを指定の位置へ置く（#タグ・@メンションの補完で使う）。 */
+  function replace(next: { text: string; caret: number }) {
     nextCaret.current = next.caret;
     setCaret(next.caret);
     setValue(next.text);
   }
 
-  return { ref, suggestions, select, track };
+  function select(tag: string) {
+    replace(completeHashtag(value, caret ?? value.length, tag));
+  }
+
+  return { ref, suggestions, select, track, caret, replace };
 }
