@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 // These fixtures exercise the Windows wrapper mutex and launch configuration.
 // Linux FLOCK/unprivileged-launch contracts are required in test:ops:linux.
 const windowsOnlyTests = ['ops/pc-host/backup-lifecycle.test.mjs', 'ops/pc-host/runner-lock.test.mjs'];
-const windowsTests = [...windowsOnlyTests, 'ops/pc-host/account-preflight.test.mjs', 'ops/pc-host/release.test.mjs'];
+const windowsTests = [...windowsOnlyTests, 'ops/pc-host/release.test.mjs'];
 const root = fileURLToPath(new URL('../', import.meta.url));
 const [platform, ...patterns] = process.argv.slice(2);
 if (!['linux', 'win32'].includes(platform) || process.platform !== platform || process.versions.node.split('.')[0] !== '24') {

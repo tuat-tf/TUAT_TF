@@ -1,4 +1,4 @@
-// TUATPC01 framing matches ops/laptop/backup-backend.mjs; no provider dependency.
+// TUATPC01 framing matches ops/pc-backup/archive.mjs; no provider dependency.
 // Restore decrypts into private staging and publishes only after GCM authentication.
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { constants, createReadStream } from 'node:fs';

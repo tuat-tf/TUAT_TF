@@ -9,9 +9,9 @@
 ## 1. 電源設定（実施済み 2026-09-19）
 
 ```powershell
-powershell -NoProfile -File ops/laptop/power-saving.ps1 status
-powershell -NoProfile -File ops/laptop/power-saving.ps1 apply -DisplayOffMinutes 5 -MaxCpuPercent 100
-powershell -NoProfile -File ops/laptop/power-saving.ps1 restore
+powershell -NoProfile -File ops/pc-host/power-saving.ps1 status
+powershell -NoProfile -File ops/pc-host/power-saving.ps1 apply -DisplayOffMinutes 5 -MaxCpuPercent 100
+powershell -NoProfile -File ops/pc-host/power-saving.ps1 restore
 ```
 
 | 設定 | 前 | 後 | ねらい |
@@ -24,7 +24,7 @@ powershell -NoProfile -File ops/laptop/power-saving.ps1 restore
 
 変更前の値は `.contingency/power-saving-before.json` に控えてある。`restore` で元に戻る（動作確認済み）。
 
-**スリープを「しない」にした理由**: 今までスリープしていなかったのは、常駐タスク（`backend-task.ps1`）が
+**スリープを「しない」にした理由**: 今までスリープしていなかったのは、旧バックエンドの常駐タスク（今はない）が
 `SetThreadExecutionState` で抑止していたから。つまり**そのプロセスが落ちた隙に寝てしまう**状態だった。
 実際には寝ていないので電力は増えない。設定としても「しない」に固定して、止まる経路をひとつ減らした。
 

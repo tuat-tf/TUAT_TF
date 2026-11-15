@@ -156,7 +156,7 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 | [AGENTS.md](AGENTS.md) | AIへの作業規則 |
 | `docs/` | 画面・文言・権限・同期の仕様 |
 | [ops/handoff/](ops/handoff/README.md) | 別PCへの復旧手順、鍵の地図 |
-| `ops/` の各README | 運用スクリプトの説明 |
+| [ops/README.md](ops/README.md) と各フォルダのREADME | 運用スクリプトの説明 |
 
 2026-11-08までの作業記録・計画書（約180本）は削除した。必要なら Git の履歴から取り出せる（例: `git log --all -- docs/` で探し、`git show <commit>:<path>` で読む）。
 
@@ -164,6 +164,9 @@ PCが壊れて別のPCへ移すときの手順は [ops/handoff/README.md](ops/ha
 
 - 別のPCへの全体の復旧は、まだ試していない（バックアップの読み戻しと別DBへの復元は毎日確認している）。
 - `TUAT_TF_NEXT_PAUSED`（D:ドライブ）は休止中の新アプリ。指示があるまで再開しない。
-- `ops/` の起動・Jobs のスクリプトには、旧構成の設定が混ざっていないことを確かめる検査（`NEXT_PUBLIC_CLOUD_AUTH*`・`PC_TRIAL*`・`R2_*` など）が残っている。本番の設定に `R2_READ_ENABLED=false`・`R2_WRITE_ENABLED=false` が必要なのもこのため。アプリ側はもうこれらを読まない。
-- `@aws-sdk/client-s3` と `@smithy/node-http-handler` は、バックアップのコード（`ops/local-minimal`・`ops/pc-backup`・`ops/laptop/backup-backend.mjs`）が読み込んでいるので消していない。
+- `ops/` の旧構成のファイル（旧Windowsバックエンド、旧クラウドとの同期、移行のときの確認用）は2026-11-16に削除した。残した現役のコードの中には、旧構成の名残がまだある。どれも本番では通らない分岐か、旧構成が混ざっていないことを確かめる検査で、外すには本番と別の Linux（Node 24）での試験が要るので手を付けていない。
+  - `ops/local-minimal/runtime.py`・`ops/pc-host/release.mjs`: 旧構成の設定（`NEXT_PUBLIC_CLOUD_AUTH*`・`PC_TRIAL*`・`R2_*` など）が混ざっていないことの検査。本番の設定に `R2_READ_ENABLED=false`・`R2_WRITE_ENABLED=false` が必要なのもこのため。アプリ側はもうこれらを読まない。
+  - `ops/local-minimal/backup.py`: アプリを一時停止して採取する古い方式と、移行のときの試験機が動いていないことの検査。
+  - `ops/pc-backup/adapters.mjs`・`files.mjs`、`ops/pc-jobs/run.mjs` の `dedicated`、`ops/pc-host/runner-lock.mjs` の Windows 用の分岐: 旧方式の部品。
+- `@aws-sdk/client-s3` と `@smithy/node-http-handler` は、`ops/local-minimal`（Drive への保存）と `ops/pc-backup/adapters.mjs` が読み込んでいるので消していない。
 - `npm audit` に `minimatch`（`eslint-config-next` 経由、開発用のみ）の指摘が残っている。直すには破壊的な更新（`npm audit fix --force`）が要るので見送った。このPCの npm 10 では `npm audit fix` が内部エラーで落ちる。`npx npm@11 audit fix` なら動く。

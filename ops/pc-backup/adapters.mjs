@@ -5,8 +5,7 @@ import { Readable } from 'node:stream';
 import { S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand,ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { readPrivateFile,BACKUP_LIMITS,backupDockerSocket,validateBackupProfile,backupTargetFingerprint } from './config.mjs';
-import { sha256 } from './archive.mjs';
-import { decryptBackup,verifyRecovery } from '../laptop/backup-backend.mjs';
+import { sha256,decryptBackup,verifyRecovery } from './archive.mjs';
 
 export {BACKUP_LIMITS};
 export const STORAGE_LIMITS=Object.freeze({maxKeys:1000,listPageBytes:BACKUP_LIMITS.metadataBytes,controlResponseBytes:BACKUP_LIMITS.pushBytes});

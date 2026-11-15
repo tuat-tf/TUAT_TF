@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,rm,readdir} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {createHash} from 'node:crypto';import {Readable} from 'node:stream';
 import {readFileSync} from 'node:fs';
-import {transferSnapshot} from './offsite.mjs';import {encryptBackup,decryptBackup} from '../laptop/backup-backend.mjs';
+import {transferSnapshot} from './offsite.mjs';import {encryptBackup,decryptBackup} from '../pc-backup/archive.mjs';
 import {snapshotStorageScope} from './drive-storage.mjs';
 
 const sourceId='11111111-1111-4111-8111-111111111111',generation='22222222-2222-4222-8222-222222222222',now=Date.parse('2026-10-12T02:00:00.000Z');

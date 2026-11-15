@@ -45,7 +45,9 @@ Cloudflare → Tunnel → gateway（127.0.0.1のみ） → Next.js → PC内のD
 | `linux-launch.py` / `linux-application-sandbox.sh` | 権限を落として起動する部分 |
 | `runner-lock.mjs` / `backup-owner.mjs` | 二重起動の防止 |
 | `cloudflare/` | 公開URLの Worker と Tunnel の設定 |
-| `account-preflight.ps1` / `stage-task.ps1` / `task.ps1` | Windows で直接動かしていた頃の起動用。今は使っていない |
-| `synthetic-review.mjs`、`backup-review/`、`db-review/` | 移行のときに使った確認用。今は使っていない |
+| `power-saving.ps1`、[POWER-SAVING.md](POWER-SAVING.md) | 本番PCの消費電力を下げる設定 |
+| `*.example.*` | 設定の形の例（値は入っていない） |
+
+`runner-lock.mjs` と `release.mjs` には、WSL ではなく Windows で直接動かしていた頃の分岐が残っている（`npm run test:ops:windows` が試験している）。本番では通らない。
 
 試験の走らせ方は [ops/README.md](../README.md)。試験が通っても、本番の再起動・復元・実機での操作を確かめたことにはならない。

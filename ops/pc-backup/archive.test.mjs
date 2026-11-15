@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { encryptBackup, decryptBackup, verifyRecovery, downloadRecovery } from './backup-backend.mjs';
+import { encryptBackup, decryptBackup, verifyRecovery } from './archive.mjs';
 
 const key = '11'.repeat(32);
 const dump = Buffer.from('PGDMP synthetic database');
@@ -22,16 +22,4 @@ test('recovery cannot be paired with a different database or instance', () => {
   for (const change of [{ version: 2 }, { vault: null }, { cron: { jobs: [] } }, { pushEnv: {} }]) {
     assert.throws(() => verifyRecovery(Buffer.from(JSON.stringify({ ...recovery, ...change })), dump, instance));
   }
-});
-test('recovery download validates ownership, checksum and authenticated content', async () => {
-  const encrypted = encryptBackup(bytes, key);
-  const metadata = { sha256: createHash('sha256').update(encrypted).digest('hex') };
-  let calls = 0;
-  const client = { async send() { calls++; return { Metadata: metadata, Body: { transformToByteArray: async () => encrypted } }; } };
-  const objectKey = `ops/pc-backend/${instance}/backups/fictional.recovery.json.enc`;
-  await assert.rejects(downloadRecovery(client, 'test-only', 'other/secret.recovery.json.enc', key, dump, instance));
-  assert.equal(calls, 0);
-  assert.deepEqual(await downloadRecovery(client, 'test-only', objectKey, key, dump, instance), bytes);
-  metadata.sha256 = 'invalid';
-  await assert.rejects(downloadRecovery(client, 'test-only', objectKey, key, dump, instance));
 });

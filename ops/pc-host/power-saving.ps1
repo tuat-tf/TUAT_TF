@@ -14,10 +14,10 @@
   バッテリー側(DC)の設定は触らない。
 
   使い方:
-    powershell -NoProfile -File ops/laptop/power-saving.ps1 status
-    powershell -NoProfile -File ops/laptop/power-saving.ps1 apply
-    powershell -NoProfile -File ops/laptop/power-saving.ps1 apply -DisplayOffMinutes 3 -MaxCpuPercent 70
-    powershell -NoProfile -File ops/laptop/power-saving.ps1 restore
+    powershell -NoProfile -File ops/pc-host/power-saving.ps1 status
+    powershell -NoProfile -File ops/pc-host/power-saving.ps1 apply
+    powershell -NoProfile -File ops/pc-host/power-saving.ps1 apply -DisplayOffMinutes 3 -MaxCpuPercent 70
+    powershell -NoProfile -File ops/pc-host/power-saving.ps1 restore
 #>
 [CmdletBinding()]
 param(

@@ -10,8 +10,7 @@ The path is a fixed HTTPS
 `<worker>.<account-subdomain>.workers.dev` address, one Worker `PC_APP` VPC Service
 binding, a persistent named Cloudflare Tunnel, and this PC's loopback app gateway.
 Next, Auth, REST and private images run on the PC. Encrypted offsite backup uses
-the club Google Drive (R2 is no longer used for anything).
-Keep the retired cloud source fences and writers disabled. No Quick Tunnel,
+the club Google Drive. No Quick Tunnel,
 endpoint lease/discovery, fallback, retry, or
 second data path is involved.
 
@@ -148,29 +147,3 @@ Google callback cookies/redirects, CSRF rejection, private images/uploads,
 multiple cookies, and an interrupted write with no replay. Update Auth redirect
 allowlists only within the separately authorized cutover scope. A synthetic
 transport test cannot establish these checks or actual user/device behavior.
-
-## Historical provider check (2026-10-11)
-
-The preparation review recorded Workers VPC as open beta and free on all Workers
-plans during beta, with ordinary Workers quotas still applying. It recorded
-100,000 inbound requests per day/account and 10 ms CPU per request for Workers
-Free, and a connector requirement of `cloudflared` 2025.7.0 or newer with
-QUIC (`auto`/`quic`) over outbound UDP 7844. These are dated research notes,
-not assertions of today's pricing, limits, or requirements.
-
-Requests proxied from the PC include its PC-served assets. The preparation review
-also recorded Cloudflare's recommendation to use a custom domain for production
-and its description of `workers.dev` as intended for personal/hobby, noncritical
-projects. Recheck the primary sources before a new capacity, cost, or deployment
-decision; this document does not promise perpetual free pricing.
-
-Primary sources:
-
-- [VPC setup and all-plan beta availability](https://developers.cloudflare.com/workers-vpc/get-started/)
-- [Official private website example using workers.dev](https://developers.cloudflare.com/workers-vpc/examples/private-api/)
-- [VPC destination and Host behavior](https://developers.cloudflare.com/workers-vpc/configuration/vpc-services/)
-- [Named Tunnel, no public ingress requirement, QUIC/version prerequisites](https://developers.cloudflare.com/workers-vpc/configuration/tunnel/)
-- [VPC beta pricing](https://developers.cloudflare.com/workers-vpc/platform/pricing/)
-- [workers.dev hostname and intended use](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/)
-- [Workers Free limits](https://developers.cloudflare.com/workers/platform/limits/)
-- [Request/manual redirect behavior](https://developers.cloudflare.com/workers/runtime-apis/request/)
