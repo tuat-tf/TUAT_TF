@@ -23,7 +23,7 @@
   --color-warning: #ff9500;
   --color-danger: #ff3b30;
   --color-ink: #000000;
-  --color-muted: #8e8e93;
+  --color-muted: #6e6e73;
   --color-muted2: #6c6c70;
   --color-faint: #6c6c70;
 
@@ -50,6 +50,13 @@
   --font-sans:
     -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
     "Yu Gothic", "Noto Sans JP", "Segoe UI", Meiryo, sans-serif;
+}
+
+/* Text-strength variants of the status colors, for labels on light glass. */
+:root {
+  --color-accent-ink: #075db5;
+  --color-success-ink: #087438;
+  --color-danger-ink: #bd2923;
 }
 
 html {

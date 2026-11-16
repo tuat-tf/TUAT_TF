@@ -3,7 +3,7 @@
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) {
   --ui-edge: rgb(255 255 255 / .85);
   --ui-line: rgb(32 46 70 / .09);
-  --ui-neutral: linear-gradient(155deg, #ffffffda, #ffffff70);
+  --ui-neutral: linear-gradient(155deg, #fffffff0, #ffffffc7);
   --ui-shadow: inset 0 1px 0 #ffffffc7, 0 2px 8px #25324a0a;
   --ui-selected: #e8f2ff;
 }
@@ -80,10 +80,10 @@
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-action]:is([data-ui-variant="danger"], [data-ui-tone="danger"]) {
   background: linear-gradient(150deg, #fff6f5, #ffe5e1);
   border-color: #d3322926;
-  color: #b4231c;
+  color: var(--color-danger-ink);
 }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-action][data-ui-tone="primary"] {
-  color: #075db5;
+  color: var(--color-accent-ink);
   background: linear-gradient(155deg, #fff, #e5f0ff);
 }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-action][data-ui-variant="ghost"] {
@@ -94,12 +94,12 @@
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) :is([data-ui-action], [data-ui-choice]):is([aria-pressed="true"], [aria-current="page"], [aria-selected="true"], [data-ui-active="true"]),
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-choice-row][aria-pressed="true"],
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) :is([data-ui-choice], [data-ui-choice-row]):has(input:checked) {
-  color: #075db5;
+  color: var(--color-accent-ink);
   background: linear-gradient(155deg, #fafdff, var(--ui-selected));
   border-color: #0875ed59;
   box-shadow: inset 0 1px 0 #fff, 0 1px 6px #176bb51a;
 }
-:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-action][data-ui-tone="danger"][aria-pressed="true"] { color: #b4231c; background: #fff0ee; border-color: #d3322966; }
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-action][data-ui-tone="danger"][aria-pressed="true"] { color: var(--color-danger-ink); background: #fff0ee; border-color: #d3322966; }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) :is([data-ui-action], [data-ui-choice]):is(:active, [data-glass-pressed]) {
   scale: .975;
   opacity: 1;
@@ -125,7 +125,7 @@
   background-color: #0875ed0d;
   opacity: 1;
 }
-:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-row][aria-pressed="true"] { background-color: var(--ui-selected); color: #075db5; }
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-row][aria-pressed="true"] { background-color: var(--ui-selected); color: var(--color-accent-ink); }
 /* Navigation rows share one outer card. Only the outside corners are rounded,
    so the internal divider stays straight and focus remains inside the card. */
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-navigation-list] > [data-ui-row] {
@@ -270,7 +270,7 @@
 }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-group="segmented"] > [data-ui-action]:is([aria-pressed="true"], [aria-selected="true"]) {
   background: var(--ui-neutral);
-  color: #075db5;
+  color: var(--color-accent-ink);
   border-color: var(--ui-edge);
   box-shadow: var(--ui-shadow);
 }
@@ -301,11 +301,11 @@
   border: 1px solid #ffffffcf;
   border-radius: 999px;
   padding: 3px 10px;
-  background: #ffffff99;
+  background: #ffffffd9;
   color: #536172;
 }
-:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-status="positive"] { color: #087438; background: #e4f6e9; }
-:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-status="negative"] { color: #bd2923; background: #fff0ee; }
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-status="positive"] { color: var(--color-success-ink); background: #e4f6e9; }
+:where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-status="negative"] { color: var(--color-danger-ink); background: #fff0ee; }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-table] {
   border-color: var(--ui-line);
   background: #ffffffd9;
@@ -314,12 +314,12 @@
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-poll-option] {
   border-radius: 16px;
   border-color: #263b591c;
-  background-color: #ffffffb3;
+  background-color: #ffffffd9;
 }
 [data-new-ui-surface][data-ui-select-menu] {
   border-radius: 20px;
   border: 1px solid #ffffffc9;
-  background: linear-gradient(145deg, #ffffffb3, #f4f6f9d9);
+  background: linear-gradient(145deg, #ffffffeb, #f4f6f9f2);
   backdrop-filter: blur(22px) saturate(135%);
   -webkit-backdrop-filter: blur(22px) saturate(135%);
   box-shadow: inset 0 1px 0 #fff, 0 12px 30px #17233426;
@@ -332,8 +332,8 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
-[data-new-ui-surface] [data-ui-select-option][data-highlighted] { color: #075db5; background: #0875ed14; }
-[data-new-ui-surface] [data-ui-select-option][data-state="checked"] { color: #075db5; font-weight: 600; }
+[data-new-ui-surface] [data-ui-select-option][data-highlighted] { color: var(--color-accent-ink); background: #0875ed14; }
+[data-new-ui-surface] [data-ui-select-option][data-state="checked"] { color: var(--color-accent-ink); font-weight: 600; }
 [data-new-ui-surface].sheet-content { border-radius: 28px 28px 0 0; border: 1px solid #ffffffbd; box-shadow: 0 -8px 32px #17233414; }
 [data-new-ui-surface][data-ui-dialog], [data-new-ui-surface] [data-ui-toast] {
   border-radius: 26px;
@@ -345,11 +345,11 @@
   margin-block: 16px;
   border: 1px solid #ffffffa6;
   border-radius: 28px;
-  background: linear-gradient(150deg, #ffffff70, #ffffff29);
+  background: linear-gradient(150deg, #ffffffd1, #ffffffa6);
   height: calc(100dvh - 32px);
   box-shadow: var(--ui-shadow);
 }
-[data-new-ui-surface][data-ui-sidebar] [aria-current="page"] { background: var(--ui-neutral); color: #075db5; border: 1px solid #fff; box-shadow: var(--ui-shadow); }
+[data-new-ui-surface][data-ui-sidebar] [aria-current="page"] { background: var(--ui-neutral); color: var(--color-accent-ink); border: 1px solid #fff; box-shadow: var(--ui-shadow); }
 :where(.app-main:has(> [data-new-ui]), [data-new-ui-surface]) [data-ui-composer] {
   bottom: max(12px, calc(var(--ui-composer-inset, 0px) + 12px));
   border: 1px solid #ffffffc9;

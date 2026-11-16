@@ -17,7 +17,7 @@ function LoadingRegion({ label, children, className = "pb-6" }: { label: string;
 // This module is also used by client forms; keep its header free of data fetching.
 function Title({ title, action = false }: { title?: string; action?: boolean }) {
   return (
-    <header data-glass-header className="sticky top-0 z-30 bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0">
+    <header data-glass-header className="sticky top-0 z-30 bg-bg/88 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0">
       <div className="flex h-12 items-center justify-between px-4 md:px-6 lg:h-16">
         {title ? <h1 className="min-w-0 truncate text-large-title">{title}</h1> : <Skeleton className="h-6 w-28" />}
         {action && <Skeleton className="ml-3 h-11 w-11 shrink-0 rounded-full" />}
@@ -120,7 +120,7 @@ export function MyPageSkeleton({ showTraining = true, showAdmin = false, adminRo
 
 /** サブページ共通の見出し（左に戻る・中央にタイトル）。SubHeader と同じ高さ。 */
 function SubTitle({ title }: { title?: string } = {}) {
-  return <header data-glass-header className="sticky top-0 z-30 bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0"><div data-new-ui-subheader-layout className="flex h-12 items-center gap-2 px-2 md:px-4 lg:h-16"><Skeleton className="h-5 w-11 shrink-0" /><div className="flex min-w-0 flex-1 justify-center">{title ? <h1 data-new-ui-title className="truncate text-center text-title">{title}</h1> : <Skeleton className="h-5 w-32 max-w-full" />}</div><div className="w-11 shrink-0" /></div></header>;
+  return <header data-glass-header className="sticky top-0 z-30 bg-bg/88 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0"><div data-new-ui-subheader-layout className="flex h-12 items-center gap-2 px-2 md:px-4 lg:h-16"><Skeleton className="h-5 w-11 shrink-0" /><div className="flex min-w-0 flex-1 justify-center">{title ? <h1 data-new-ui-title className="truncate text-center text-title">{title}</h1> : <Skeleton className="h-5 w-32 max-w-full" />}</div><div className="w-11 shrink-0" /></div></header>;
 }
 
 /** 設定の閉じたグループと、一般部員プレビューの復帰入口を本文へ合わせる。 */
