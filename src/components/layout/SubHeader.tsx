@@ -19,7 +19,7 @@ export function SubHeader({
   sideWidth?: number;
 }) {
   return (
-    <header data-glass-header className="sticky top-0 z-30 bg-bg/88 backdrop-blur-xl pt-[env(safe-area-inset-top)] lg:pt-0">
+    <header data-glass-header>
       <div data-new-ui-subheader-layout className="flex h-12 items-center gap-2 px-2 md:px-4 lg:h-16">
         <BackButton fallback={backHref ?? "/home"} forceFallback={forceBackHref} />
         <h1 data-new-ui-title className="min-w-0 flex-1 truncate text-title text-center" title={title}>{title}</h1>

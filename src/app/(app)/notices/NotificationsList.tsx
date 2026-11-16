@@ -142,7 +142,7 @@ export function NotificationsList({
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className={`text-[14px] leading-snug ${!n.is_read ? 'font-bold' : ''}`}>
+            <p className={`text-sm leading-snug ${!n.is_read ? 'font-bold' : ''}`}>
               {getMessage(n)}
             </p>
             <p className="text-micro text-muted2 mt-1">

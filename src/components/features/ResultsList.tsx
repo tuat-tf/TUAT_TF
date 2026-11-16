@@ -110,17 +110,17 @@ function ResultRow({
         <p className="text-headline flex items-center gap-1.5 flex-wrap">
           {pb.event_name}
           {pb.is_pb && (
-            <span className="text-[10px] font-bold text-warning border border-warning rounded px-1 leading-tight">
+            <span className="text-2xs font-bold text-warning border border-warning rounded px-1 leading-tight">
               PB
             </span>
           )}
           {pb.is_ub && (
-            <span className="text-[10px] font-bold text-accent border border-accent rounded px-1 leading-tight">
+            <span className="text-2xs font-bold text-accent border border-accent rounded px-1 leading-tight">
               UB
             </span>
           )}
           {pb.is_official && (
-            <span className="text-[10px] font-bold text-success border border-success rounded px-1 leading-tight">
+            <span className="text-2xs font-bold text-success border border-success rounded px-1 leading-tight">
               公認
             </span>
           )}

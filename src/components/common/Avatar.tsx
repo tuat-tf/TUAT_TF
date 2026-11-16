@@ -7,9 +7,9 @@ import { avatarDisplayUrl } from "@/lib/avatar-image";
 import type { Block } from "@/types";
 
 const SIZES = {
-  sm: "h-8 w-8 text-[13px]",
-  md: "h-10 w-10 text-[15px]",
-  lg: "h-16 w-16 text-2xl",
+  sm: "h-8 w-8 text-xs",
+  md: "h-10 w-10 text-sm",
+  lg: "h-16 w-16 text-xl",
 };
 
 /**

@@ -240,7 +240,7 @@ export function TimelineView({
             aria-label={compact ? "カード表示に戻す" : "一覧表示にする"}
             title={compact ? "カード表示に戻す" : "一覧表示にする"}
             className={cn(
-              "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-[12px] font-semibold pressable",
+              "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold pressable",
               compact ? "border-accent bg-accent text-white" : "border-separator bg-card text-muted2",
             )}
           >
@@ -285,11 +285,11 @@ export function TimelineView({
                     <div className="mb-1.5 flex items-center gap-1.5 px-1">
                       <h2
                         id={`feed-date-${group.date}`}
-                        className="text-[12px] font-semibold text-muted2"
+                        className="text-xs font-semibold text-muted2"
                       >
                         {feedDateLabel(group.date, jstToday(), jstToday(-1))}
                       </h2>
-                      <span className="text-[10px] text-muted">・{group.items.length}件</span>
+                      <span className="text-2xs text-muted">・{group.items.length}件</span>
                     </div>
                     {compact ? (
                       <div data-ui-panel className="divide-y divide-separator/70 overflow-hidden rounded-card border border-separator/70 bg-card">

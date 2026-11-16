@@ -29,11 +29,11 @@ export function IntensityInput({
           return <div key={key} data-ui-panel className="rounded-xl border border-separator bg-card p-2.5">
             <label htmlFor={`${id}-${key}`} className="mb-1.5 flex flex-wrap items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-              <span className="text-[12px] font-semibold">{meta.label}</span>
+              <span className="text-xs font-semibold">{meta.label}</span>
               <span className="text-micro">{meta.sub}</span>
             </label>
             <div className="flex items-baseline gap-1">
-              <input id={`${id}-${key}`} data-ui-field="metric" aria-label={`${meta.label}の距離（km）`} type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={values[key]} onChange={(event) => onChange({ ...values, [key]: event.target.value })} className="w-full bg-transparent text-right text-[20px] font-bold tabular-nums outline-none" />
+              <input id={`${id}-${key}`} data-ui-field="metric" aria-label={`${meta.label}の距離（km）`} type="number" inputMode="decimal" min={0} step="0.01" placeholder="0" value={values[key]} onChange={(event) => onChange({ ...values, [key]: event.target.value })} className="w-full bg-transparent text-right text-xl font-bold tabular-nums outline-none" />
               <span className="text-caption">km</span>
             </div>
           </div>;

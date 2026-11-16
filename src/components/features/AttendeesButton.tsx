@@ -80,7 +80,7 @@ export function AttendeesButton({
           e.stopPropagation();
           setOpen(true);
         }}
-        className="inline-flex h-11 min-h-11 w-full min-w-0 flex-wrap content-center items-center justify-center gap-x-1 rounded-full bg-bg border border-separator px-2 text-[13px] font-semibold leading-tight text-muted2 pressable"
+        className="inline-flex h-11 min-h-11 w-full min-w-0 flex-wrap content-center items-center justify-center gap-x-1 rounded-full bg-bg border border-separator px-2 text-xs font-semibold leading-tight text-muted2 pressable"
       >
         {/* 0でも消さず常に表示。数字は等幅＋2桁ぶんの固定幅で桁が増えてもガクつかない。 */}
         <span className="whitespace-nowrap text-success">
@@ -123,18 +123,18 @@ function Group({ title, color, list }: { title: string; color: string; list: Att
         const gradeMembers = list.filter((attendee) => (attendee.profile.grade || null) === grade);
         return (
           <div key={grade ?? "unset"} className="rounded-xl bg-bg/60 px-3 py-2">
-            <p className="text-[12px] font-semibold text-muted2">{gradeShort(grade) ?? "学年未設定"}</p>
+            <p className="text-xs font-semibold text-muted2">{gradeShort(grade) ?? "学年未設定"}</p>
             <div className="divide-y divide-separator/60">
               {gradeMembers.map((attendee) => (
                 <div key={attendee.user_id} className="flex min-h-10 items-start gap-2.5 py-1.5">
                   <Avatar name={attendee.profile.display_name} blocks={attendee.profile.blocks} avatarUrl={attendee.profile.avatar_url} size="sm" />
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className={cn("flex items-center gap-1.5 truncate text-[14px] font-semibold", attendee.is_late && "text-warning")}>
+                    <p className={cn("flex items-center gap-1.5 truncate text-sm font-semibold", attendee.is_late && "text-warning")}>
                       <span className="truncate">{attendee.profile.display_name || "名無し"}</span>
                       {attendee.is_late && <span className="shrink-0 text-caption text-warning">遅刻</span>}
                       {(attendee.profile.blocks ?? []).includes("manager") && (
                         <span
-                          className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                          className="shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-bold"
                           style={{ color: BLOCKS.manager.color, backgroundColor: BLOCKS.manager.bg }}
                         >
                           {BLOCKS.manager.short}
@@ -142,10 +142,10 @@ function Group({ title, color, list }: { title: string; color: string; list: Att
                       )}
                     </p>
                     {attendee.late_note && (
-                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[12px] leading-5 text-muted2">{attendee.late_note}</p>
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-muted2">{attendee.late_note}</p>
                     )}
                     {attendee.status === "absent" && attendee.absence_note && (
-                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[12px] leading-5 text-muted2">{attendee.absence_note}</p>
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-xs leading-5 text-muted2">{attendee.absence_note}</p>
                     )}
                   </div>
                 </div>

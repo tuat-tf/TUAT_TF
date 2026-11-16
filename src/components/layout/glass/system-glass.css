@@ -125,7 +125,7 @@
   z-index: 61;
   width: min(280px, calc(100vw - 24px));
   padding: 7px;
-  border-radius: 28px;
+  border-radius: var(--radius-sheet);
   border: 1px solid #ffffff80;
   /* Keep menu labels readable when WebKit does not blur background text. */
   background: rgb(244 246 249 / .96);
@@ -152,8 +152,8 @@
   min-height: 48px;
   padding: 11px 13px;
   text-align: left;
-  border-radius: 20px;
-  font-size: 15px;
+  border-radius: calc(var(--radius-sheet) - 7px);
+  font-size: var(--text-sm);
   line-height: 22px;
   font-weight: 500;
   color: inherit;
@@ -166,7 +166,7 @@
   transition: background-color 110ms ease-out, scale 180ms cubic-bezier(.2,.8,.2,1);
 }
 .system-glass-menu-icon { display: flex; flex: 0 0 23px; align-items: center; justify-content: center; }
-.system-glass-menu-description { display: block; font-size: 12px; line-height: 17px; color: var(--color-muted); }
+.system-glass-menu-description { display: block; font-size: var(--text-xs); line-height: 17px; color: var(--color-muted); }
 .system-glass-menu-item[data-destructive] { color: var(--color-danger); }
 .system-glass-menu-item[data-separator] { border-top: 1px solid #26334415; margin-top: 5px; border-top-left-radius: 0; border-top-right-radius: 0; }
 @media (hover: hover) { .system-glass-menu-item:hover { background: #687a9014; } }

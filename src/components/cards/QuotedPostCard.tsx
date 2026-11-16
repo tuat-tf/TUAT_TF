@@ -35,13 +35,13 @@ export function QuotedPostCard({ quoted, linked = true }: { quoted: QuotedPost; 
           blocks={quoted.author.blocks}
           size="sm"
         />
-        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold">
           {quoted.author.display_name || "名無し"}
         </span>
         <span className="shrink-0 text-micro">{subtitle}</span>
       </div>
       {(distance || text) && (
-        <p className="mt-1.5 line-clamp-3 whitespace-pre-wrap break-words text-[13px] leading-6 text-muted2">
+        <p className="mt-1.5 line-clamp-3 whitespace-pre-wrap break-words text-xs leading-6 text-muted2">
           {distance && <span className="font-semibold text-ink">{distance}</span>}
           {distance && text ? " " : ""}
           {text}

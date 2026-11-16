@@ -42,9 +42,9 @@ export function EditProfileButton({
         data-ui-action={!settingsRow || undefined}
         onClick={() => setOpen(true)}
         aria-label="プロフィールを編集"
-        className={settingsRow ? "flex w-full items-center gap-3 px-4 py-3 text-left active:bg-bg" : "h-9 px-1 flex items-center gap-1 text-accent text-[15px] pressable"}
+        className={settingsRow ? "flex w-full items-center gap-3 px-4 py-3 text-left active:bg-bg" : "h-9 px-1 flex items-center gap-1 text-accent text-sm pressable"}
       >
-        {settingsRow ? <><UserRound size={19} className="shrink-0 text-accent" /><span className="min-w-0 flex-1"><span className="block text-[14px] font-medium">プロフィールを編集</span><span className="block text-micro text-muted">名前・アイコン・ブロック・種目・学年</span></span><ChevronRight size={18} className="shrink-0 text-muted" /></> : <><Pencil size={18} />編集</>}
+        {settingsRow ? <><UserRound size={19} className="shrink-0 text-accent" /><span className="min-w-0 flex-1"><span className="block text-sm font-medium">プロフィールを編集</span><span className="block text-micro text-muted">名前・アイコン・ブロック・種目・学年</span></span><ChevronRight size={18} className="shrink-0 text-muted" /></> : <><Pencil size={18} />編集</>}
       </button>
       <FormModal open={open} onOpenChange={setOpen} title="プロフィール">
         <ProfileEditForm

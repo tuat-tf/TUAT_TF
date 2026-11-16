@@ -174,7 +174,7 @@ export function NoticeForm({
                 type="button"
                 aria-pressed={active}
                 onClick={() => setCategory(c)}
-                className="h-10 rounded-xl border text-[13px] font-semibold pressable"
+                className="h-10 rounded-xl border text-xs font-semibold pressable"
                 style={{
                   borderColor: active ? meta.color : "#e5e5ea",
                   backgroundColor: active ? meta.bg : "#fff",

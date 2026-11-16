@@ -90,7 +90,7 @@ export function NoteArticleList({
                   <NoteBody
                     body={isLong ? truncateNoteBody(article.body, LONG_BODY) + "…" : article.body}
                     images={article.images}
-                    className="text-[14px]"
+                    className="text-sm"
                   />
                   {article.pollOptions && article.pollOptions.length > 0 && (
                     <div className="mt-3">
@@ -112,7 +112,7 @@ export function NoteArticleList({
                     data-ui-action="text"
                     href={`/notes/${noteId}/articles/${article.id}`}
                     prefetch={false}
-                    className="mt-2 inline-block text-[13px] font-medium text-accent pressable"
+                    className="mt-2 inline-block text-xs font-medium text-accent pressable"
                   >
                     {isLong ? "全文を表示" : "記事を開く"}
                   </Link>

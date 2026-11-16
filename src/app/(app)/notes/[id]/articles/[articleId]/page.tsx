@@ -67,7 +67,7 @@ export default async function NoteArticlePage({
               size="sm"
             />
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold">
+              <p className="truncate text-xs font-semibold">
                 {article.author.display_name}
               </p>
               <p className="text-micro">

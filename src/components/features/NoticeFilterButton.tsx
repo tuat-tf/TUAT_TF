@@ -55,7 +55,7 @@ export function NoticeFilterButton({
           data-ui-active={count > 0 || undefined}
           type="button"
           className={cn(
-            "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold",
+            "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold",
             count > 0
               ? "border-accent bg-accent text-white"
               : "border-separator bg-card text-muted2",

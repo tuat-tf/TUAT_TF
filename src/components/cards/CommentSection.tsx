@@ -258,7 +258,7 @@ export function CommentSection({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-h-7 items-center gap-2">
-                    <p className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                    <p className="min-w-0 flex-1 truncate text-xs font-semibold">
                       {comment.author.display_name || "名無し"}
                     </p>
                     {(comment.user_id === currentUser.id || currentUser.canModerateComments) && !editing && (
@@ -309,7 +309,7 @@ export function CommentSection({
                     </div>
                   ) : (
                     <>
-                      <p className="text-[14px] whitespace-pre-wrap break-words">
+                      <p className="text-sm whitespace-pre-wrap break-words">
                         <MentionText text={comment.content} mentions={comment.mentions} />
                       </p>
                       {edited && <p className="text-micro mt-0.5">編集済み</p>}
@@ -331,13 +331,13 @@ export function CommentSection({
         <div ref={endRef} />
       </div>
 
-      {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
 
       {mentionQuery !== null && (
-        <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-separator bg-bg p-1" role="listbox" aria-label="メンションする人">
+        <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-separator bg-bg p-1" role="listbox" aria-label="メンションする人">
           {suggestions.map(member => (
             <button data-ui-action key={member.id} type="button" role="option" aria-selected={false}
-              className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-[14px] active:bg-card"
+              className="flex min-h-11 w-full items-center rounded-xl px-2 text-left text-sm active:bg-card"
               // Keep the textarea focused (and the phone keyboard open) while choosing.
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectMention(member)}>
@@ -346,7 +346,7 @@ export function CommentSection({
           ))}
           {/* 候補を出せないときも理由を見せる（黙って何も出さないと、壊れているのか区別できない）。 */}
           {suggestions.length === 0 && (
-            <p className="flex min-h-11 items-center gap-2 px-2 text-[13px] text-muted">
+            <p className="flex min-h-11 items-center gap-2 px-2 text-xs text-muted">
               {membersFailed ? "メンションする人を読み込めませんでした" : !members ? "メンションする人を読み込み中…" : "条件に合う人はいません"}
               {membersFailed && <button type="button" className="font-semibold text-accent pressable" onMouseDown={(event) => event.preventDefault()} onClick={loadMembers}>再試行</button>}
             </p>

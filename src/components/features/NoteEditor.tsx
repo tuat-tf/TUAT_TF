@@ -236,7 +236,7 @@ export function NoteEditor({
           placeholder="このフォルダにまとめる内容を入力"
           rows={3}
           maxLength={300}
-        /> : <p className="whitespace-pre-wrap text-[14px]">{description || "説明はありません"}</p>}
+        /> : <p className="whitespace-pre-wrap text-sm">{description || "説明はありません"}</p>}
       </div>
 
       <div>

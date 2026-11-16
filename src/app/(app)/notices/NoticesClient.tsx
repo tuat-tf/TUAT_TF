@@ -247,7 +247,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
       type="button"
       onClick={onRemove}
       aria-label={`${label}の絞り込みを外す`}
-      className="inline-flex h-7 items-center gap-1 rounded-full bg-accent/10 px-2.5 text-[12px] font-semibold text-accent pressable"
+      className="inline-flex h-7 items-center gap-1 rounded-full bg-accent/10 px-2.5 text-xs font-semibold text-accent pressable"
     >
       {label}
       <X size={12} />

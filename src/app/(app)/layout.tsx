@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="min-h-dvh bg-bg md:bg-[#eef1f5] lg:bg-[#e9edf3]">
         <div className="app-frame mx-auto flex min-h-dvh w-full md:gap-3 md:px-3 lg:gap-6 lg:px-6">
           <DesktopNav />
-          <div className="app-main mx-auto min-h-dvh w-full max-w-md min-w-0 overflow-x-hidden md:overflow-x-clip bg-bg pb-[calc(52px+env(safe-area-inset-bottom))] md:mx-0 md:max-w-none md:flex-1 md:pb-24 md:shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_8px_28px_rgba(35,45,65,0.06)] lg:shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_12px_40px_rgba(35,45,65,0.08)]">
+          <div className="app-main mx-auto min-h-dvh w-full max-w-md min-w-0 overflow-x-hidden md:overflow-x-clip bg-bg pb-[var(--app-bottom-clear)] md:mx-0 md:max-w-none md:flex-1 md:pb-24 md:shadow-frame">
             <SystemGlassMarker />
             <SessionKeepAlive />
             <PullToRefresh />
@@ -45,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function FabPlaceholder() {
   return (
     <FloatingActionPosition>
-      <div aria-hidden="true" className="absolute right-5 bottom-[calc(74px+env(safe-area-inset-bottom))] h-14 w-14 rounded-full bg-separator/60 md:bottom-6 md:right-6 md:h-12 md:w-12" />
+      <div aria-hidden="true" className="absolute right-5 bottom-[calc(var(--app-bottom-clear)+12px)] h-14 w-14 rounded-full bg-separator/60 md:bottom-6 md:right-6 md:h-12 md:w-12" />
     </FloatingActionPosition>
   );
 }

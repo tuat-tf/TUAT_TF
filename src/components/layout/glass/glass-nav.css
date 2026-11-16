@@ -2,20 +2,18 @@
 .ios-glass-nav{padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
 .ios-glass-nav .glass-bar{position:relative;pointer-events:auto;color:#424a55}
 .ios-glass-nav .nav-items{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
-.ios-glass-nav .nav-button{position:relative;z-index:1;min-width:0;min-height:44px;border-radius:30px;white-space:nowrap;text-decoration:none}
+.ios-glass-nav .nav-button{position:relative;z-index:1;min-width:0;min-height:44px;border-radius:999px;white-space:nowrap;text-decoration:none}
 .ios-glass-nav .nav-button>span{color:inherit;gap:4px}
 .ios-glass-nav .nav-button>span>span:not(.sr-only){line-height:15px}
 .ios-glass-nav .nav-button svg{width:23px;height:23px}
 .ios-glass-nav .selection{position:absolute;inset:0 auto 0 0;width:20%;pointer-events:none}
-@media(max-width:767px){body:has(>.ios-glass-nav) .app-main{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
-@media(max-width:767px){body:has(>.ios-glass-nav) .app-floating-action{transform:translateY(-26px)}}
 /* One browser-composited backdrop during scrolling, updates and idle.
    Captured page pixels must not overlay it: they update after real content. */
-.ios-glass-nav .glass-bar{--light-x:30%;border:0;padding:5px;border-radius:34px;background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);box-shadow:0 8px 24px -7px #20304b33,0 1px 3px #263b5512,inset 0 .5px 0 #ffffffdb,inset 0 -.5px 0 #ffffff70}
+.ios-glass-nav .glass-bar{--light-x:30%;border:0;padding:5px;border-radius:999px;background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%);box-shadow:0 8px 24px -7px #20304b33,0 1px 3px #263b5512,inset 0 .5px 0 #ffffffdb,inset 0 -.5px 0 #ffffff70}
 .ios-glass-nav .glass-bar::before{content:"";position:absolute;inset:0;z-index:1;padding:.75px;border-radius:inherit;pointer-events:none;background:linear-gradient(155deg,#ffffffe0,#ffffff30 28%,#ffffff14 55%,#ffffff80);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude}
 .ios-glass-nav .glass-bar::after{content:"";position:absolute;inset:0;border:0;border-radius:inherit;pointer-events:none;box-shadow:inset 3px 0 7px -5px #ffffffb0,inset -3px 0 7px -5px #ffffff90;z-index:0;background:rgba(255,255,255,.035)}
 .ios-glass-nav .glass-bar .nav-items{height:58px;z-index:1;touch-action:pan-y}
-.ios-glass-nav .glass-bar .selection{border:0;border-radius:31px;background:linear-gradient(165deg,#ffffff52,#ffffff0a 55%,#ffffff2e),rgba(105,129,157,.095);box-shadow:inset 0 .5px 1px #ffffffb0,inset 0 -.5px 1px #ffffff50,0 1px 4px #3c537710;transition:none;will-change:transform}
+.ios-glass-nav .glass-bar .selection{border:0;border-radius:999px;background:linear-gradient(165deg,#ffffff52,#ffffff0a 55%,#ffffff2e),rgba(105,129,157,.095);box-shadow:inset 0 .5px 1px #ffffffb0,inset 0 -.5px 1px #ffffff50,0 1px 4px #3c537710;transition:none;will-change:transform}
 .ios-glass-nav .glass-bar .selection::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(ellipse at 30% 0%,#ffffff38,transparent 70%)}
 .ios-glass-nav .glass-bar .nav-button{color:#424a55;text-shadow:none;transition:color .16s;user-select:none;-webkit-user-select:none}
 .ios-glass-nav .glass-bar .nav-button svg{filter:none}

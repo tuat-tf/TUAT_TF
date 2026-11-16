@@ -81,7 +81,7 @@ function MeetTile({
       data-ui-panel
       href={href}
       aria-label={ariaLabel}
-      className="block overflow-hidden rounded-2xl border border-separator/70 bg-card p-4 transition-colors active:bg-bg"
+      className="block overflow-hidden rounded-card border border-separator/70 bg-card p-4 transition-colors active:bg-bg"
     >
       <p className="flex items-center justify-between gap-1 text-caption text-muted2">
         <span className="truncate">{label}</span>

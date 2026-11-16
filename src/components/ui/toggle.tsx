@@ -30,13 +30,13 @@ export function Toggle({
       className={cn(
         "w-full flex items-center justify-between active:bg-bg disabled:cursor-not-allowed disabled:opacity-50",
         variant === "card"
-          ? "rounded-xl bg-card border border-separator p-3.5 lg:rounded-lg lg:px-3 lg:py-2.5"
+          ? "rounded-xl bg-card border border-separator p-3.5 lg:px-3 lg:py-2.5"
           : "bg-transparent px-4 py-3",
         className,
       )}
     >
       <span className="min-w-0 text-left">
-        <span className="block text-[14px] font-medium">{label}</span>
+        <span className="block text-sm font-medium">{label}</span>
         {description && <span className="block text-micro">{description}</span>}
       </span>
       <span
@@ -45,7 +45,7 @@ export function Toggle({
         data-checked={checked || undefined}
         style={{ backgroundColor: checked ? "var(--color-success)" : "var(--color-separator)" }}
       >
-        <span data-ui-switch-thumb className="h-5 w-5 rounded-full bg-white shadow" />
+        <span data-ui-switch-thumb className="h-5 w-5 rounded-full bg-white shadow-sm" />
       </span>
     </button>
   );

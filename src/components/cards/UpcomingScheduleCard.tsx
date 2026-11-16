@@ -74,7 +74,7 @@ export function UpcomingScheduleCard({
         className="flex min-w-0 flex-1 items-center gap-3 pressable"
       >
         <div className="flex w-10 shrink-0 flex-col items-center">
-          <span className="text-[10px]" style={{ color: meta.color }}>
+          <span className="text-2xs" style={{ color: meta.color }}>
             {format(new Date(`${schedule.schedule_date}T00:00:00`), "EEE", { locale: ja })}
           </span>
           <span className="text-xl font-bold leading-tight tabular-nums">
@@ -84,11 +84,11 @@ export function UpcomingScheduleCard({
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-1.5">
             <Badge style={{ backgroundColor: `${meta.color}1a`, color: meta.color }}>{meta.label}</Badge>
-            <span className="truncate text-[14px] font-semibold">
+            <span className="truncate text-sm font-semibold">
               {schedule.title ?? venueShort(schedule.venue_name) ?? meta.label}
             </span>
           </div>
-          <div className={cn("mt-0.5 flex min-w-0 items-center gap-x-3 text-[12px] text-muted2", "flex-wrap gap-y-1")}>
+          <div className={cn("mt-0.5 flex min-w-0 items-center gap-x-3 text-xs text-muted2", "flex-wrap gap-y-1")}>
             {schedule.meeting_time && (
               <span className="flex shrink-0 items-center gap-1">
                 <Clock size={12} /> {schedule.meeting_time.slice(0, 5)}

@@ -42,7 +42,7 @@ export function GradeFilter({
         onClick={() => setOpen(true)}
         aria-label="学年で絞り込み"
         className={cn(
-          "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border pl-3 pr-2 text-[13px] font-semibold pressable",
+          "inline-flex h-8 shrink-0 items-center gap-1 rounded-full border pl-3 pr-2 text-xs font-semibold pressable",
           active ? "border-accent bg-accent text-white" : "border-separator bg-card text-muted2",
         )}
       >
@@ -86,7 +86,7 @@ function Row({
       data-ui-row
       aria-pressed={checked}
       onClick={onClick}
-      className="flex min-h-12 w-full items-center justify-between border-t border-separator/70 px-1 text-left text-[15px] first:border-t-0 active:bg-bg"
+      className="flex min-h-12 w-full items-center justify-between border-t border-separator/70 px-1 text-left text-sm first:border-t-0 active:bg-bg"
     >
       <span className={cn(checked ? "font-semibold text-ink" : "text-muted2")}>{label}</span>
       {checked && <Check size={18} className="shrink-0 text-accent" />}

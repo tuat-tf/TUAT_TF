@@ -47,7 +47,7 @@ export function IntensityBar({ record }: { record: Pick<PracticeRecord, "dist_lo
       <div className="flex flex-wrap gap-x-3 gap-y-0.5">
         {INTENSITY_ORDER.map((k) =>
           values[k] > 0 ? (
-            <span key={k} className="flex items-center gap-1 text-[11px] text-muted2">
+            <span key={k} className="flex items-center gap-1 text-2xs text-muted2">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: INTENSITY_LABELS[k].color }}
@@ -57,7 +57,7 @@ export function IntensityBar({ record }: { record: Pick<PracticeRecord, "dist_lo
           ) : null,
         )}
         {other > 0 && (
-          <span className="flex items-center gap-1 text-[11px] text-muted2">
+          <span className="flex items-center gap-1 text-2xs text-muted2">
             <span className="h-2 w-2 rounded-full bg-muted/35" />
             {"\u305d\u306e\u4ed6"} {formatKm(other)}km
           </span>

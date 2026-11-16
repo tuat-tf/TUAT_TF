@@ -11,7 +11,7 @@ import { noteImageDisplayUrl } from "@/lib/note-image";
 export function NoteBody({
   body,
   images = [],
-  className = "text-[15px] leading-7",
+  className = "text-sm leading-7",
 }: {
   body: string;
   images?: NoteImage[];

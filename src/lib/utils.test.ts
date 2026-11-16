@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cn, formatKm, roundKm } from "./utils";
 
 it("keeps the requested loading and icon shapes without conflicting defaults", () => {
-  expect(cn("animate-pulse rounded-md", "rounded-card")).toBe("animate-pulse rounded-card");
+  expect(cn("animate-pulse rounded", "rounded-card")).toBe("animate-pulse rounded-card");
   expect(cn("rounded-card", "rounded-full")).toBe("rounded-full");
   expect(cn("rounded-card md:rounded-card", "rounded-none")).toBe("md:rounded-card rounded-none");
 });

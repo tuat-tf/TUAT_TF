@@ -295,7 +295,7 @@ export const TweetForm = forwardRef<
             hashtag.track(event);
             if (error) setError(null);
           }}
-          className="min-h-[180px] rounded-none border-0 bg-transparent px-4 py-4 text-[16px] leading-7 placeholder:text-muted/75 focus:border-transparent"
+          className="min-h-[180px] rounded-none border-0 bg-transparent px-4 py-4 text-base leading-7 placeholder:text-muted/75 focus:border-transparent"
         />
         {hashtag.suggestions.length > 0 && (
           <div className="border-t border-separator bg-bg px-3 py-2">
@@ -315,11 +315,11 @@ export const TweetForm = forwardRef<
                   <button data-ui-action
                     key={member.id}
                     type="button"
-                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-[14px] active:bg-card"
+                    className="flex min-h-11 w-full items-center gap-2 rounded-xl px-2 text-left text-sm active:bg-card"
                     onClick={() => selectMention(member)}
                   >
                     <span className="min-w-0 flex-1 truncate">@{member.display_name}</span>
-                    <span className="shrink-0 text-[12px] font-semibold text-accent">追加</span>
+                    <span className="shrink-0 text-xs font-semibold text-accent">追加</span>
                   </button>
                 ))}
             </div>}
@@ -334,7 +334,7 @@ export const TweetForm = forwardRef<
                   key={member.id}
                   type="button"
                   onClick={() => removeMention(member)}
-                  className="inline-flex min-h-8 items-center gap-1 rounded-full bg-accent/10 px-2.5 text-[12px] font-semibold text-accent"
+                  className="inline-flex min-h-8 items-center gap-1 rounded-full bg-accent/10 px-2.5 text-xs font-semibold text-accent"
                   aria-label={`@${member.display_name} のメンションを外す`}
                 >
                   @{member.display_name}<X size={13} />
@@ -346,7 +346,7 @@ export const TweetForm = forwardRef<
         )}
         <div className="border-t border-separator/70 bg-bg/35">
           <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
-            <div className="min-w-0 text-[12px] text-muted2">
+            <div className="min-w-0 text-xs text-muted2">
               {urls.length > 0 && (
                 <span className="flex items-center gap-1.5">
                   <Link2 size={14} className="text-accent" />
@@ -356,7 +356,7 @@ export const TweetForm = forwardRef<
             </div>
             <span
               className={cn(
-                "shrink-0 text-[12px] font-semibold tabular-nums",
+                "shrink-0 text-xs font-semibold tabular-nums",
                 overLimit ? "text-danger" : remaining <= 100 ? "text-warning" : "text-muted2",
               )}
             >
@@ -461,7 +461,7 @@ export const TweetForm = forwardRef<
 
       </fieldset>
       {error && (
-        <p role="alert" className="rounded-xl bg-danger/8 px-3 py-2.5 text-[13px] text-danger">
+        <p role="alert" className="rounded-xl bg-danger/8 px-3 py-2.5 text-xs text-danger">
           {error}
         </p>
       )}

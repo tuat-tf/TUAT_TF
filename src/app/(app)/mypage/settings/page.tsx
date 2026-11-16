@@ -59,7 +59,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <Link data-ui-row href={SHEET_SETUP_PATH} prefetch={false} className="flex items-center gap-3 px-4 py-3 active:bg-bg">
               <SlidersHorizontal size={19} className="shrink-0 text-accent" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-medium">自分の記録の入力設定</span>
+                <span className="block text-sm font-medium">自分の記録の入力設定</span>
                 <span className="block text-micro text-muted">{profile.sheet_transition ? `現在: ${SHEET_INPUT_MODE_LABELS[profile.sheet_transition.mode]}` : "10月以降の設定を確認してください"}</span>
               </span>
               <ChevronRight size={18} className="shrink-0 text-muted" />

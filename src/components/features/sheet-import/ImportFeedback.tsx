@@ -3,7 +3,7 @@ import type { MenuImportEditableRow, ScheduleImportEditableRow } from "@/types";
 
 export function Step({ number }: { number: number }) {
   return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-bold text-white">
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
       {number}
     </span>
   );
@@ -15,7 +15,7 @@ export function RowStatus({ row }: {
 }) {
   if (row.status === "error") {
     return (
-      <div className="mt-1 max-w-40 text-[10px] leading-4 text-danger">
+      <div className="mt-1 max-w-40 text-2xs leading-4 text-danger">
         <span className="inline-flex items-center gap-1 font-semibold">
           <AlertCircle size={12} />
           エラー
@@ -31,7 +31,7 @@ export function RowStatus({ row }: {
     editing: "未確認",
   } as const;
   return (
-    <span className="mt-1 inline-block whitespace-nowrap text-[10px] font-semibold text-muted2">
+    <span className="mt-1 inline-block whitespace-nowrap text-2xs font-semibold text-muted2">
       {labels[row.status]}
     </span>
   );

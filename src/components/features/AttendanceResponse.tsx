@@ -16,7 +16,7 @@ const STYLE = {
   present: { label: "出席", cls: "bg-success text-white border-success", icon: Check },
   absent: { label: "欠席", cls: "bg-danger text-white border-danger", icon: X },
 };
-const CONTROL_CLASS = "h-11 min-h-11 w-full min-w-0 gap-1 rounded-full px-2 text-[13px] lg:h-11 lg:px-2 lg:text-[13px]";
+const CONTROL_CLASS = "h-11 min-h-11 w-full min-w-0 gap-1 rounded-full px-2 text-xs lg:h-11 lg:px-2 lg:text-xs";
 const CONTROL_STYLE = { paddingInline: 8 };
 
 /** Attendance and contact share one in-flight request, so neither can erase the other's pending save. */

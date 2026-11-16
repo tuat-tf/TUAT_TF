@@ -62,7 +62,7 @@ export function RecentHashtags({ onPick }: { onPick: (tag: string) => void }) {
           key={item.tag}
           type="button"
           onClick={() => onPick(`#${item.tag}`)}
-          className="inline-flex min-h-8 shrink-0 items-center rounded-full bg-accent/10 px-3 text-[13px] font-semibold text-accent pressable"
+          className="inline-flex min-h-8 shrink-0 items-center rounded-full bg-accent/10 px-3 text-xs font-semibold text-accent pressable"
         >
           #{item.tag}
         </button>

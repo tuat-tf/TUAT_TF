@@ -251,7 +251,7 @@ export function ProfileEditForm({
                 key={b}
                 type="button"
                 onClick={() => selectBlock(b)}
-                className="h-11 rounded-xl border text-[14px] font-semibold pressable"
+                className="h-11 rounded-xl border text-sm font-semibold pressable"
                 style={{
                   borderColor: active ? meta.color : "#e5e5ea",
                   backgroundColor: active ? meta.bg : "#fff",
@@ -292,7 +292,7 @@ export function ProfileEditForm({
                         type="button"
                         onClick={() => toggleEvent(event)}
                         className={cn(
-                          "min-h-11 rounded-full border px-3.5 text-[13px] font-semibold pressable",
+                          "min-h-11 rounded-full border px-3.5 text-xs font-semibold pressable",
                           active
                             ? "border-accent bg-accent text-white"
                             : "border-separator bg-card text-muted",
@@ -323,7 +323,7 @@ export function ProfileEditForm({
                 type="button"
                 onClick={() => setGrade(g.value)}
                 className={cn(
-                  "h-11 rounded-xl border text-[14px] font-semibold pressable",
+                  "h-11 rounded-xl border text-sm font-semibold pressable",
                   active
                     ? "border-accent bg-accent text-white"
                     : "border-separator bg-card text-muted",
@@ -349,7 +349,7 @@ export function ProfileEditForm({
               aria-label="スプレッドシートの自分のシート"
               value={sheetName}
               onChange={(e) => setSheetName(e.target.value)}
-              className="h-11 w-full rounded-xl border border-separator bg-card px-3 text-[16px] text-ink"
+              className="h-11 w-full rounded-xl border border-separator bg-card px-3 text-base text-ink"
             >
               <option value="">（連携しない）</option>
               {sheetOptions.map((n) => (
@@ -374,7 +374,7 @@ export function ProfileEditForm({
             >
               <SlidersHorizontal size={18} className="shrink-0 text-accent" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-semibold">入力フォーム・タイムライン表示項目</span>
+                <span className="block text-sm font-semibold">入力フォーム・タイムライン表示項目</span>
                 <span className="block text-micro text-muted">
                   {loadingHeader ? "見出しを取得中…" : "自分のシートの列から変更"}
                 </span>
@@ -408,7 +408,7 @@ export function ProfileEditForm({
           type="button"
           onClick={() => setConfirmSignOut(true)}
           disabled={signingOut}
-          className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-separator text-[15px] font-semibold text-danger active:bg-bg"
+          className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-separator text-sm font-semibold text-danger active:bg-bg"
         >
           <LogOut size={18} />
           ログアウト

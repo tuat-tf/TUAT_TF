@@ -17,7 +17,7 @@ function LoadingRegion({ label, children, className = "pb-6" }: { label: string;
 // This module is also used by client forms; keep its header free of data fetching.
 function Title({ title, action = false }: { title?: string; action?: boolean }) {
   return (
-    <header data-glass-header className="sticky top-0 z-30 bg-bg/88 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0">
+    <header data-glass-header>
       <div className="flex h-12 items-center justify-between px-4 md:px-6 lg:h-16">
         {title ? <h1 className="min-w-0 truncate text-large-title">{title}</h1> : <Skeleton className="h-6 w-28" />}
         {action && <Skeleton className="ml-3 h-11 w-11 shrink-0 rounded-full" />}
@@ -120,14 +120,14 @@ export function MyPageSkeleton({ showTraining = true, showAdmin = false, adminRo
 
 /** サブページ共通の見出し（左に戻る・中央にタイトル）。SubHeader と同じ高さ。 */
 function SubTitle({ title }: { title?: string } = {}) {
-  return <header data-glass-header className="sticky top-0 z-30 bg-bg/88 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:pt-0"><div data-new-ui-subheader-layout className="flex h-12 items-center gap-2 px-2 md:px-4 lg:h-16"><Skeleton className="h-5 w-11 shrink-0" /><div className="flex min-w-0 flex-1 justify-center">{title ? <h1 data-new-ui-title className="truncate text-center text-title">{title}</h1> : <Skeleton className="h-5 w-32 max-w-full" />}</div><div className="w-11 shrink-0" /></div></header>;
+  return <header data-glass-header><div data-new-ui-subheader-layout className="flex h-12 items-center gap-2 px-2 md:px-4 lg:h-16"><Skeleton className="h-5 w-11 shrink-0" /><div className="flex min-w-0 flex-1 justify-center">{title ? <h1 data-new-ui-title className="truncate text-center text-title">{title}</h1> : <Skeleton className="h-5 w-32 max-w-full" />}</div><div className="w-11 shrink-0" /></div></header>;
 }
 
 /** 設定の閉じたグループと、一般部員プレビューの復帰入口を本文へ合わせる。 */
 export function SettingsSkeleton({ manageSystem, previewingAsMember }: { manageSystem: boolean; previewingAsMember: boolean }) {
   return <div role="status" aria-label="設定を読み込み中"><SubTitle /><div className="space-y-5 px-4 pb-6 pt-1">
     {previewingAsMember && <MemberPreviewSetting previewing />}
-    {Array.from({ length: manageSystem ? 5 : 4 }).map((_, i) => <div key={i} data-ui-section aria-hidden="true" className="rounded-card border border-separator/70 bg-card"><div data-ui-disclosure className="flex items-center justify-between gap-3 rounded-card px-4 py-4 text-[15px] font-semibold"><span className="flex h-[22.5px] items-center"><Skeleton className={i === 4 ? "h-4 w-24" : i === 3 ? "h-4 w-20" : "h-4 w-16"} /></span><Skeleton className="h-[18px] w-[18px] rounded-full" /></div></div>)}
+    {Array.from({ length: manageSystem ? 5 : 4 }).map((_, i) => <div key={i} data-ui-section aria-hidden="true" className="rounded-card border border-separator/70 bg-card"><div data-ui-disclosure className="flex items-center justify-between gap-3 rounded-card px-4 py-4 text-sm font-semibold"><span className="flex h-[22.5px] items-center"><Skeleton className={i === 4 ? "h-4 w-24" : i === 3 ? "h-4 w-20" : "h-4 w-16"} /></span><Skeleton className="h-[18px] w-[18px] rounded-full" /></div></div>)}
   </div></div>;
 }
 
@@ -142,7 +142,7 @@ function Rows({ count, height = 56 }: { count: number; height?: number }) {
 
 export function GoalsSkeleton() {
   return <div className="pb-6"><SubTitle /><div className="space-y-5 px-4 pt-2">
-    <section className="space-y-2"><Label /><div className="space-y-3 rounded-card border border-separator bg-card p-4"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /><Skeleton className="h-9 w-32 rounded-lg" /></div></section>
+    <section className="space-y-2"><Label /><div className="space-y-3 rounded-card border border-separator bg-card p-4"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /><Skeleton className="h-9 w-32 rounded-xl" /></div></section>
     <section className="space-y-2"><Label /><Rows count={3} /><Skeleton className="mx-1 h-2.5 w-56" /></section>
     <section className="space-y-2"><Label /><Rows count={1} /></section>
   </div></div>;
@@ -188,7 +188,7 @@ export function MemberSkeleton() {
 }
 
 export function NoteFolderSkeleton() {
-  return <div className="pb-6"><SubTitle /><div className="space-y-4 px-4 pt-1"><Skeleton className="h-9 w-full rounded-lg" /><section className="space-y-2"><Label /><Rows count={2} /></section><section className="space-y-2"><Label /><Rows count={4} /></section></div></div>;
+  return <div className="pb-6"><SubTitle /><div className="space-y-4 px-4 pt-1"><Skeleton className="h-9 w-full rounded-xl" /><section className="space-y-2"><Label /><Rows count={2} /></section><section className="space-y-2"><Label /><Rows count={4} /></section></div></div>;
 }
 
 export function NoteArticleSkeleton() {

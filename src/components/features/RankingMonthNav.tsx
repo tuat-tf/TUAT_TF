@@ -29,7 +29,7 @@ export function RankingMonthNav({
         <ChevronLeft size={20} />
       </Link>
       <div className="text-center">
-        <p className="text-[15px] font-semibold tabular-nums">{year}年{monthNumber}月</p>
+        <p className="text-sm font-semibold tabular-nums">{year}年{monthNumber}月</p>
         <p className="text-micro">月別ランキング</p>
       </div>
       {canGoNext ? (

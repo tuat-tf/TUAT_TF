@@ -51,7 +51,7 @@ function PollOptionTabs({
       data-ui-group="segmented"
       role="tablist"
       aria-label="投票の選択肢"
-      className="flex h-9 snap-x snap-mandatory gap-1 overflow-x-auto rounded-[10px] bg-[#e9e9eb] p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex h-9 snap-x snap-mandatory gap-1 overflow-x-auto rounded-xl bg-[#e9e9eb] p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {options.map((option) => {
         const active = option.id === value;
@@ -82,7 +82,7 @@ function PollOptionTabs({
               button?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest", inline: "center" });
             }}
             className={cn(
-              "h-8 min-w-24 max-w-44 shrink-0 snap-center truncate rounded-[8px] px-3 text-[13px] font-semibold transition-colors pressable",
+              "h-8 min-w-24 max-w-44 shrink-0 snap-center truncate rounded-[calc(var(--radius-xl)-2px)] px-3 text-xs font-semibold transition-colors pressable",
               "gap-1.5",
               active ? "bg-white text-ink shadow-sm" : "text-muted2",
             )}
@@ -265,10 +265,10 @@ export function PollView({
             )}
           >
             <span className={cn("absolute inset-y-0 left-0 transition-[width] duration-300 motion-reduce:transition-none", option.voted_by_me ? "bg-accent/20" : "bg-accent/10")} style={{ width: `${percent}%` }} />
-            <span className="relative min-w-0 flex-1 whitespace-pre-wrap break-words py-2 text-[14px] font-medium">{option.text}</span>
+            <span className="relative min-w-0 flex-1 whitespace-pre-wrap break-words py-2 text-sm font-medium">{option.text}</span>
             {/* The check keeps its space when hidden, so the text never re-wraps on vote/unvote. */}
             <span className={cn("relative ml-2 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent text-white", !option.voted_by_me && "invisible")}>{option.voted_by_me && <Check size={13} strokeWidth={3} aria-label="投票済み" />}</span>
-            <span className="relative ml-3 w-9 text-right text-[12px] tabular-nums">{percent}%</span>
+            <span className="relative ml-3 w-9 text-right text-xs tabular-nums">{percent}%</span>
           </button>
           </div>
         );
@@ -304,7 +304,7 @@ export function PollView({
             </div>
             <section id={panelId} role="tabpanel" aria-labelledby={`${panelId}-tab-${detailOption.id}`} className="min-h-0 flex-1 overflow-y-auto rounded-card border border-separator bg-card">
               <div className="border-b border-separator px-4 py-3">
-                <p className="text-[15px] font-semibold">{detailOption.text}</p>
+                <p className="text-sm font-semibold">{detailOption.text}</p>
                 <p className="text-micro">{detailOption.vote_count}{"\u7968"}</p>
               </div>
               {detailOption.voters.length > 0 ? (
@@ -312,7 +312,7 @@ export function PollView({
                   {detailOption.voters.map((voter) => (
                     <li key={voter.profile_id} className="flex min-h-12 items-center gap-3 px-4 py-2.5">
                       <Avatar name={voter.display_name} blocks={voter.blocks} avatarUrl={voter.avatar_url} size="sm" />
-                      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{voter.display_name}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{voter.display_name}</span>
                     </li>
                   ))}
                 </ul>

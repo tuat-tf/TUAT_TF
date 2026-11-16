@@ -23,8 +23,8 @@ export function KeyValue({
 
   return (
     <div className={cn("grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 py-1", className)}>
-      <dt className="text-[13px] text-muted">{label}</dt>
-      <dd className="min-w-0 break-words text-[13px]">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="min-w-0 break-words text-xs">
         <div className={cn("whitespace-pre-wrap", collapsible && !expanded && "line-clamp-3")}>
           {typeof value === "string" ? <Linkify text={value} hashtags={hashtags} /> : value}
         </div>

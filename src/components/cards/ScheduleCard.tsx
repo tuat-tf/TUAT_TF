@@ -197,10 +197,10 @@ export function ScheduleCard({
         className="w-full p-4 flex items-center gap-3 text-left transition-colors duration-100 enabled:active:bg-bg disabled:cursor-default motion-reduce:transition-none lg:gap-2.5 lg:p-3"
       >
         <div className="flex flex-col items-center w-12 shrink-0 lg:w-10">
-          <span className={cn("text-[11px]", dayLabel && "font-bold")} style={{ color: meta.color }}>
+          <span className={cn("text-2xs", dayLabel && "font-bold")} style={{ color: meta.color }}>
             {dayLabel ?? format(date, "EEE", { locale: ja })}
           </span>
-          <span className="text-2xl font-bold leading-tight tabular-nums lg:text-xl">{format(date, "d")}</span>
+          <span className="text-xl font-bold leading-tight tabular-nums">{format(date, "d")}</span>
           <span className="text-micro">{format(date, "M月", { locale: ja })}</span>
         </div>
 
@@ -211,7 +211,7 @@ export function ScheduleCard({
               {schedule.title ?? venueShort(schedule.venue_name ?? schedule.location) ?? meta.label}
             </span>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px] text-muted2">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted2">
             {schedule.end_date && schedule.end_date !== schedule.schedule_date && (
               <span className="flex items-center gap-1">
                 <CalendarRange size={13} />
@@ -315,7 +315,7 @@ export function ScheduleCard({
                 {menuGroups.map((group) => (
                   <div key={group.key} className="space-y-1.5">
                     <p
-                      className="text-[11px] font-semibold"
+                      className="text-2xs font-semibold"
                       style={{ color: group.block ? BLOCKS[group.block].color : "#8e8e93" }}
                     >
                       {group.label}
@@ -362,7 +362,7 @@ export function ScheduleCard({
             </Disclosure>
           )}
           {safeHttpUrl(schedule.venue_url) && (
-            <a data-ui-action="text" data-ui-tone="primary" href={safeHttpUrl(schedule.venue_url)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-medium text-accent pressable">
+            <a data-ui-action="text" data-ui-tone="primary" href={safeHttpUrl(schedule.venue_url)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-accent pressable">
               <MapPin size={14} /> 地図を開く <ExternalLink size={12} className="opacity-50" />
             </a>
           )}
@@ -397,7 +397,7 @@ function Detail({
       <p className="section-label mb-0.5 flex items-center gap-1">
         {icon} {label}
       </p>
-      <p className="text-[14px] whitespace-pre-wrap">
+      <p className="text-sm whitespace-pre-wrap">
         <Linkify text={value} />
       </p>
     </div>

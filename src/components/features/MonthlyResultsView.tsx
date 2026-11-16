@@ -104,9 +104,9 @@ export function MonthlyResultsView({
         <p className="flex flex-wrap items-center gap-1.5 text-caption">
           {r.event_name}
           {r.wind !== null && r.wind !== undefined && <span>風速 {formatWind(r.wind)}</span>}
-          {r.is_pb && <span className="rounded border border-warning px-1 text-[10px] font-bold leading-tight text-warning">PB</span>}
-          {r.is_ub && <span className="rounded border border-accent px-1 text-[10px] font-bold leading-tight text-accent">UB</span>}
-          {r.is_official && <span className="rounded border border-success px-1 text-[10px] font-bold leading-tight text-success">公認</span>}
+          {r.is_pb && <span className="rounded border border-warning px-1 text-2xs font-bold leading-tight text-warning">PB</span>}
+          {r.is_ub && <span className="rounded border border-accent px-1 text-2xs font-bold leading-tight text-accent">UB</span>}
+          {r.is_official && <span className="rounded border border-success px-1 text-2xs font-bold leading-tight text-success">公認</span>}
         </p>
         {latest && (
           <p className="mt-0.5 text-micro text-muted2">
@@ -156,7 +156,7 @@ export function MonthlyResultsView({
       />
       {nav && (
         <Card data-ui-group className="flex items-center gap-2 p-2">
-          <Link data-ui-action="icon" href={nav.prev} aria-label="前へ" className="rounded-lg p-2 pressable">
+          <Link data-ui-action="icon" href={nav.prev} aria-label="前へ" className="rounded-xl p-2 pressable">
             <ChevronLeft size={20} />
           </Link>
           <div className="min-w-0 flex-1 text-center">
@@ -164,7 +164,7 @@ export function MonthlyResultsView({
             {nav.reset && <Link data-ui-action="text" data-ui-tone="primary" href={nav.reset.href} className="text-caption text-accent">{nav.reset.label}</Link>}
           </div>
           {nav.next ? (
-            <Link data-ui-action="icon" href={nav.next} aria-label="次へ" className="rounded-lg p-2 pressable">
+            <Link data-ui-action="icon" href={nav.next} aria-label="次へ" className="rounded-xl p-2 pressable">
               <ChevronRight size={20} />
             </Link>
           ) : (

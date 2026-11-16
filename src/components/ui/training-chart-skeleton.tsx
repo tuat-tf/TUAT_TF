@@ -24,7 +24,7 @@ export function TrainingChartSkeleton() {
           {BAR_HEIGHTS.map((height, index) => (
             <div key={index} className="flex min-w-0 flex-col items-center">
               <div className="flex w-full flex-1 items-end justify-center">
-                <Skeleton className="w-full max-w-7 rounded-b-none rounded-t-[4px]" style={{ height }} />
+                <Skeleton className="w-full max-w-7 rounded-b-none rounded-t" style={{ height }} />
               </div>
               <div className="mt-1 flex h-[14px] items-center"><Skeleton className="h-2.5 w-4" /></div>
             </div>

@@ -47,7 +47,7 @@ export default function HomePage() {
   const nowJst = jstNow();
   return (
     <>
-      <Header title="ホーム" large besideTitle={<time dateTime={jstToday()} className="truncate text-[13px] text-muted">{format(nowJst, "M月d日 (E)", { locale: ja })}</time>} />
+      <Header title="ホーム" large besideTitle={<time dateTime={jstToday()} className="truncate text-xs text-muted">{format(nowJst, "M月d日 (E)", { locale: ja })}</time>} />
       <Suspense fallback={<HomeSkeleton withHeader={false} />}>
         <div className="content-in"><HomeContent nowJst={nowJst} /></div>
       </Suspense>
@@ -286,7 +286,7 @@ function SectionHeading({ title, href }: { title: string; href: string }) {
   return (
     <div className="flex items-center justify-between">
       <p className="section-label">{title}</p>
-      <Link data-ui-row href={href} prefetch={false} className="flex items-center text-[13px] text-accent">
+      <Link data-ui-row href={href} prefetch={false} className="flex items-center text-xs text-accent">
         すべて見る <ChevronRight size={15} />
       </Link>
     </div>

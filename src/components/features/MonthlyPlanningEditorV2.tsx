@@ -436,7 +436,7 @@ export const MonthlyPlanningEditorV2 = forwardRef<MonthlyPlanningEditorHandle, {
         <button type="button" data-ui-disclosure aria-expanded={open} onClick={() => toggleOpen(date)} className="flex min-h-12 w-full items-center gap-2 px-3 py-2 text-left">
           <strong className={`min-w-[5.75rem] shrink-0 whitespace-nowrap text-sm tabular-nums ${date === today ? "text-accent" : ""}`}>{month}/{day}（{weekday}）</strong>
           <span className={`min-w-0 flex-1 truncate text-xs ${summary ? "text-ink" : "text-muted"}`}>{summary || (menuReady ? "予定あり" : "予定なし")}</span>
-          {canMenu && hasMenuValue(menuDrafts[date]) && <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">メニュー</span>}
+          {canMenu && hasMenuValue(menuDrafts[date]) && <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-2xs font-semibold text-accent">メニュー</span>}
           <RowStatus state={state} />
           <ChevronDown size={16} aria-hidden="true" className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
         </button>

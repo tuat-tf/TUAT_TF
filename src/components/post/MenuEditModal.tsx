@@ -148,7 +148,7 @@ function MenuEditor({ allowedBlocks, scheduleId, menu, onDone }: {
                   key={block}
                   type="button"
                   aria-pressed={active} onClick={() => setTargetBlock(block)}
-                  className="h-11 rounded-xl border text-[14px] font-semibold"
+                  className="h-11 rounded-xl border text-sm font-semibold"
                   style={{
                     borderColor: active ? meta.color : "#e5e5ea",
                     backgroundColor: active ? meta.bg : "#fff",
@@ -175,7 +175,7 @@ function MenuEditor({ allowedBlocks, scheduleId, menu, onDone }: {
                     key={block}
                     type="button"
                     aria-pressed={active} onClick={() => setTargetBlock(block)}
-                    className="h-11 rounded-xl border text-[14px] font-semibold"
+                    className="h-11 rounded-xl border text-sm font-semibold"
                     style={{
                       borderColor: active ? meta.color : "#e5e5ea",
                       backgroundColor: active ? meta.bg : "#fff",

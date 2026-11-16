@@ -297,12 +297,12 @@ function AvatarCropEditorDialog({
             event.preventDefault();
             if (openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
           }}
-          className="fixed left-1/2 top-1/2 z-[70] w-[calc(100%-24px)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-[22px] bg-card px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-4 shadow-xl outline-none"
+          className="fixed left-1/2 top-1/2 z-[70] w-[calc(100%-24px)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-panel bg-card px-4 pb-[max(env(safe-area-inset-bottom),16px)] pt-4 shadow-xl outline-none"
         >
           <div className="flex items-center justify-between gap-3">
             <div>
               <Dialog.Title className="text-title">写真の位置を調整</Dialog.Title>
-              <Dialog.Description className="mt-0.5 text-[13px] text-muted">
+              <Dialog.Description className="mt-0.5 text-xs text-muted">
                 写真を動かして、円の中に収めてください
               </Dialog.Description>
             </div>
@@ -347,7 +347,7 @@ function AvatarCropEditorDialog({
                   }}
                 />
               ) : (
-                <div className="absolute inset-0 grid place-items-center text-[13px] text-white/70">
+                <div className="absolute inset-0 grid place-items-center text-xs text-white/70">
                   {error ? "画像を表示できません" : "読み込み中…"}
                 </div>
               )}
@@ -383,7 +383,7 @@ function AvatarCropEditorDialog({
                 setZoom(MIN_ZOOM);
                 setPosition({ x: 0, y: 0 });
               }}
-              className="mx-auto mt-1 flex h-9 items-center gap-1.5 px-3 text-[13px] font-semibold text-accent disabled:opacity-40"
+              className="mx-auto mt-1 flex h-9 items-center gap-1.5 px-3 text-xs font-semibold text-accent disabled:opacity-40"
             >
               <RotateCcw size={14} />
               中央に戻す

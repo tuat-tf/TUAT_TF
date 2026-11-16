@@ -73,7 +73,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             ) : (
               <CheckCircle2 size={19} className="shrink-0 text-success" />
             )}
-            <p className="min-w-0 flex-1 text-[13px] font-medium">{toast.message}</p>
+            <p className="min-w-0 flex-1 text-xs font-medium">{toast.message}</p>
             <button
               data-ui-action="icon"
               data-ui-variant="ghost"

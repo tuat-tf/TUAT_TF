@@ -45,7 +45,7 @@ export function Select({
         data-ui-field
         aria-label={ariaLabel}
         className={cn(
-          "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-separator bg-card px-3 text-left text-[15px] outline-none data-[placeholder]:text-muted disabled:opacity-40 lg:h-9 lg:rounded-lg lg:text-[14px]",
+          "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-separator bg-card px-3 text-left text-sm outline-none data-[placeholder]:text-muted disabled:opacity-40 lg:h-9 lg:text-sm",
           className,
         )}
       >
@@ -69,7 +69,7 @@ export function Select({
                 key={option.value}
                 value={option.value}
                 disabled={option.disabled}
-                className="relative flex min-h-10 cursor-default select-none items-center rounded-lg py-2 pl-3 pr-9 text-[14px] outline-none data-[highlighted]:bg-bg data-[disabled]:opacity-40 lg:min-h-8 lg:py-1.5 lg:text-[13px]"
+                className="relative flex min-h-10 cursor-default select-none items-center rounded-xl py-2 pl-3 pr-9 text-sm outline-none data-[highlighted]:bg-bg data-[disabled]:opacity-40 lg:min-h-8 lg:py-1.5 lg:text-xs"
               >
                 <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-3 text-accent">

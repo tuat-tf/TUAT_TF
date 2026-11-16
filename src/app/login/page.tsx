@@ -66,7 +66,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-dvh flex flex-col items-center justify-center px-8 max-w-md mx-auto">
       <div className="flex flex-col items-center gap-3 mb-12">
-        <div className="h-20 w-20 rounded-[22px] bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
+        <div className="h-20 w-20 rounded-panel bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
           <span className="text-white text-[26px] font-extrabold tracking-tight">
             {APP_MONO}
           </span>
@@ -84,7 +84,7 @@ export default function LoginPage() {
           <div className="space-y-3 rounded-card border border-warning/40 bg-warning/8 p-4">
             <div>
               <p className="text-headline">ブラウザで開いてください</p>
-              <p className="mt-1 text-[13px] leading-relaxed text-muted2">
+              <p className="mt-1 text-xs leading-relaxed text-muted2">
                 {embeddedBrowser.name}内のブラウザでは、Googleのセキュリティ制限によりログインできません。
               </p>
             </div>
@@ -93,7 +93,7 @@ export default function LoginPage() {
                 <ExternalLink size={17} /> Chromeで開く
               </Button>
             ) : (
-              <p className="rounded-xl bg-card p-3 text-[13px] leading-relaxed">
+              <p className="rounded-xl bg-card p-3 text-xs leading-relaxed">
                 画面右上または右下のメニューから
                 <span className="font-semibold">「デフォルトのブラウザで開く」</span>
                 を選んでください。

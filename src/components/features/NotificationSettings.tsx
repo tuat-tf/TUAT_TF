@@ -181,9 +181,9 @@ export function NotificationSettings({
   return (
     <>
       {pushStatus === "unsupported" ? (
-        <p className="px-4 py-3 text-[13px] text-muted2">この端末は通知に対応していません。</p>
+        <p className="px-4 py-3 text-xs text-muted2">この端末は通知に対応していません。</p>
       ) : isIos && !isStandalone ? (
-        <p className="px-4 py-3 text-[13px] leading-relaxed text-muted2">
+        <p className="px-4 py-3 text-xs leading-relaxed text-muted2">
           iPhoneで通知を受け取るには、ブラウザの共有メニューから「ホーム画面に追加」をしてから、追加したアプリを開いて設定してください。
         </p>
       ) : (

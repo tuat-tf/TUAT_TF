@@ -89,7 +89,7 @@ export function NoteBodyEditor({
               className="w-full rounded-xl object-contain"
             />
             {photo.pending && (
-              <span className="absolute inset-x-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-center text-[10px] text-white">
+              <span className="absolute inset-x-2 bottom-2 rounded-full bg-black/60 px-2 py-0.5 text-center text-2xs text-white">
                 保存時に追加
               </span>
             )}

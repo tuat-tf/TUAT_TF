@@ -52,7 +52,7 @@ export function RankingList({
               </span>
               <Avatar name={row.display_name} blocks={row.blocks} avatarUrl={row.avatar_url} size="sm" />
               <div className="flex-1 min-w-0">
-                <p className="text-[14px] font-semibold truncate">
+                <p className="text-sm font-semibold truncate">
                   {row.display_name || "名無し"}
                   {gradeLabel && <span className="text-micro ml-1">{gradeLabel}</span>}
                 </p>

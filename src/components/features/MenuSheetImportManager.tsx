@@ -351,7 +351,7 @@ export function MenuSheetImportManager({ onDraftChange }: {
         ) : (
           <label data-ui-choice-row className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-separator bg-card px-4 active:bg-bg">
             <Upload size={19} className="text-accent" />
-            <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
               {fileName || "CSVファイルを選択"}
             </span>
             <input
@@ -467,7 +467,7 @@ function EditablePreviewTable({
                         aria-label={`${row.rowNumber}行目 ${column}`}
                         rows={2}
                         onChange={(event) => onChange(row.rowNumber, column, event.target.value)}
-                        className="w-full min-w-40 rounded-lg border border-separator bg-white px-2 py-1.5 text-[16px] outline-none focus:border-accent"
+                        className="w-full min-w-40 rounded-xl border border-separator bg-white px-2 py-1.5 text-base outline-none focus:border-accent"
                       />
                     ) : (
                       <input
@@ -475,7 +475,7 @@ function EditablePreviewTable({
                         value={row.values[column] ?? ""}
                         aria-label={`${row.rowNumber}行目 ${column}`}
                         onChange={(event) => onChange(row.rowNumber, column, event.target.value)}
-                        className="h-9 w-full min-w-32 rounded-lg border border-separator bg-white px-2 text-[16px] outline-none focus:border-accent"
+                        className="h-9 w-full min-w-32 rounded-xl border border-separator bg-white px-2 text-base outline-none focus:border-accent"
                       />
                     )}
                   </td>

@@ -25,7 +25,7 @@ export function HashtagSuggestions({
           // Keep the textarea focused (and the phone keyboard open) while choosing.
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onSelect(item.tag)}
-          className="inline-flex min-h-8 shrink-0 items-center rounded-full bg-accent/10 px-3 text-[13px] font-semibold text-accent pressable"
+          className="inline-flex min-h-8 shrink-0 items-center rounded-full bg-accent/10 px-3 text-xs font-semibold text-accent pressable"
         >
           #{item.tag}
         </button>

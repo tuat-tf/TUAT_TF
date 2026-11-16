@@ -23,9 +23,10 @@
   --color-warning: #ff9500;
   --color-danger: #ff3b30;
   --color-ink: #000000;
+  /* 補足文の色は1つ。muted2 / faint は既存クラス名のための別名で、同じ値にしておく。 */
   --color-muted: #6e6e73;
-  --color-muted2: #6c6c70;
-  --color-faint: #6c6c70;
+  --color-muted2: #6e6e73;
+  --color-faint: #6e6e73;
 
   /* ブロック別カラー（前景 / 背景） */
   --color-block-ml: #34c759;
@@ -43,8 +44,28 @@
   --color-int-high: #ff9500;
   --color-int-speed: #ff3b30;
 
-  /* 角丸。16pxのカード・入力枠は rounded-card に統一する（rounded-2xl / rounded-[16px] と書かない）。 */
+  /* 角丸は 4(rounded: バッジ・目印) / 12(rounded-xl: 入力・小さな部品) / 16(rounded-card: カード) /
+     22(rounded-panel: パネル) / 28(rounded-sheet: シート・メニュー・ダイアログ) / rounded-full の6段階。
+     これ以外の値を直接書かない。入れ子は calc(外側 - 余白) で書く。 */
   --radius-card: 16px;
+  --radius-panel: 22px;
+  --radius-sheet: 28px;
+
+  /* 文字サイズは 11 / 13 / 15 / 17 / 22 の5段階。text-[13px] のように直接書かない。
+     行の高さは持たせない（親から継ぐ。詰めたいときは leading-* を付ける）。
+     グラフの目盛りだけ text-[9px] を使ってよい。 */
+  --text-2xs: 11px;
+  --text-xs: 13px;
+  --text-xs--line-height: initial;
+  --text-sm: 15px;
+  --text-sm--line-height: initial;
+  --text-base: 17px;
+  --text-base--line-height: initial;
+  --text-xl: 22px;
+  --text-xl--line-height: initial;
+
+  /* 影は shadow-sm(面) / shadow-lg(浮いた部品) / shadow-xl(重なる面) の3段階。PC幅の外枠だけ shadow-frame。 */
+  --shadow-frame: 0 0 0 1px rgb(0 0 0 / 0.04), 0 12px 40px rgb(35 45 65 / 0.08);
 
   /* フォント */
   --font-sans:
@@ -53,6 +74,25 @@
 }
 
 /* Text-strength variants of the status colors, for labels on light glass. */
+/* 画面下端から、下部ナビが覆う範囲の上端までの距離。本文の下余白・作成ボタン・返信欄・
+   更新のお知らせは、ナビの高さを個別に書かずにこの値から決める。 */
+:root { --app-bottom-clear: calc(88px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 768px) { :root { --app-bottom-clear: 0px; } }
+
+/* 画面上部の見出し帯。Header / SubHeader / 読み込み中の仮画面が同じ見た目になるよう、ここだけで決める。 */
+@layer components {
+  [data-glass-header] {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding-top: env(safe-area-inset-top);
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
+  @media (min-width: 1024px) { [data-glass-header] { padding-top: 0; } }
+}
+
 :root {
   --color-accent-ink: #075db5;
   --color-success-ink: #087438;
@@ -90,7 +130,7 @@ h1, h2, h3, p {
 
 /* セクションラベル（uppercase + tracking） */
 .section-label {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -99,29 +139,29 @@ h1, h2, h3, p {
 
 /* iOS 風タイポグラフィ ヘルパー */
 .text-large-title {
-  font-size: 24px;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: -0.5px;
 }
 .text-title {
-  font-size: 17px;
+  font-size: var(--text-base);
   font-weight: 700;
 }
 .text-headline {
-  font-size: 15px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 .text-body {
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 400;
 }
 .text-caption {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 400;
   color: var(--color-muted);
 }
 .text-micro {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 400;
   color: var(--color-faint);
 }
@@ -353,7 +393,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   margin-left: auto;
 }
 
-.blog-article-body { padding-top: 20px; font-size: 15px; line-height: 1.9; color: var(--color-ink); }
+.blog-article-body { padding-top: 20px; font-size: var(--text-sm); line-height: 1.9; color: var(--color-ink); }
 .blog-article-body p, .blog-article-body div { margin: 0 0 0.8em; }
 .blog-article-body h2, .blog-article-body h3, .blog-article-body h4 { margin: 1.6em 0 0.65em; font-weight: 700; line-height: 1.45; }
 .blog-article-body img { display: block; width: 100%; height: auto; margin: 18px auto; border-radius: 12px; background: var(--color-bg); }

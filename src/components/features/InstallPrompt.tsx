@@ -86,9 +86,9 @@ export function InstallPrompt() {
           <Download size={18} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-semibold">アプリとして使う</p>
+          <p className="text-sm font-semibold">アプリとして使う</p>
           {isIos ? (
-            <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted2">
+            <p className="mt-0.5 text-xs leading-relaxed text-muted2">
               ホーム画面に追加すると、通知が受け取れて全画面で快適に使えます。
               <span className="mt-1 flex items-center gap-1 text-ink">
                 共有
@@ -99,7 +99,7 @@ export function InstallPrompt() {
               </span>
             </p>
           ) : (
-            <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted2">
+            <p className="mt-0.5 text-xs leading-relaxed text-muted2">
               {APP_NAME}をホーム画面に追加すると、通知が受け取れて全画面で快適に使えます。
             </p>
           )}
@@ -107,7 +107,7 @@ export function InstallPrompt() {
             <button
               type="button"
               data-ui-action data-ui-variant="primary" onClick={install}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[13px] font-semibold text-white pressable"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white pressable"
             >
               <Download size={14} /> 追加する
             </button>

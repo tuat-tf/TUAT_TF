@@ -66,7 +66,7 @@ export function NoticeCard({
             <HighlightedText text={notice.title} tokens={searchTokens} />
           </h3>
           {!expanded && searchSnippet && (
-            <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-muted2">
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted2">
               本文: <HighlightedText text={searchSnippet} tokens={searchTokens} />
             </p>
           )}
@@ -88,12 +88,12 @@ export function NoticeCard({
       {/* 本文（展開時のみ）。リンクのタップで閉じないよう伝播を止める */}
       {expanded && (
         <div className="mt-2.5 space-y-2" onClick={(e) => e.stopPropagation()}>
-          <p className="text-[14px] whitespace-pre-wrap break-words text-muted2">
+          <p className="text-sm whitespace-pre-wrap break-words text-muted2">
             <Linkify text={notice.content} />
           </p>
           {deadline && (
             <p
-              className="text-[12px] flex items-center gap-1 font-medium"
+              className="text-xs flex items-center gap-1 font-medium"
               style={{ color: overdue ? "#8e8e93" : "#ff3b30" }}
             >
               <CalendarClock size={13} />
@@ -118,7 +118,7 @@ function HighlightedText({ text, tokens }: { text: string; tokens: string[] }) {
 
   return text.normalize("NFKC").split(pattern).map((part, index) =>
     normalizedTokens.has(part.toLocaleLowerCase("ja"))
-      ? <mark key={`${part}-${index}`} className="rounded-sm bg-[#fff3b0] px-0.5 text-inherit">{part}</mark>
+      ? <mark key={`${part}-${index}`} className="rounded bg-[#fff3b0] px-0.5 text-inherit">{part}</mark>
       : part,
   );
 }

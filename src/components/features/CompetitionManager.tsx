@@ -212,7 +212,7 @@ export function CompetitionManager({
                 <p className="text-headline break-words">
                   {c.name}
                   {c.id === homeId && (
-                    <span className="ml-1.5 rounded border border-accent px-1 text-[10px] font-bold text-accent">
+                    <span className="ml-1.5 rounded border border-accent px-1 text-2xs font-bold text-accent">
                       ホーム
                     </span>
                   )}

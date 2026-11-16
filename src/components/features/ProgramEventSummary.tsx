@@ -9,7 +9,7 @@ export function ProgramEventSummary({ row, dateLabel, showAthletes = true }: { r
     </span>
     <span className="min-w-0 flex-1">
       <span className="block text-headline">{formatProgramEventLabel(row.eventLabel)}</span>
-      {showAthletes && <span className="mt-1 block text-[13px] leading-relaxed text-muted2">
+      {showAthletes && <span className="mt-1 block text-xs leading-relaxed text-muted2">
         {row.status?.includes("エントリー未確定") ? "エントリー未確定" : formatAthleteList(row.tuatEntries)}
       </span>}
     </span>

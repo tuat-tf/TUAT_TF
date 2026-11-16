@@ -85,7 +85,7 @@ export function LikersSheet({
                   blocks={p.blocks}
                   size="sm"
                 />
-                <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
                   {p.display_name}
                 </span>
                 <span className="text-micro shrink-0">{gradeShort(p.grade) ?? ""}</span>

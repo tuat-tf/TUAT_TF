@@ -353,13 +353,13 @@ export function PostActions({
           }}
           onContextMenu={(e) => e.preventDefault()}
           className={cn(
-            "no-native-callout flex touch-none select-none items-center gap-1.5 text-[13px] pressable",
+            "no-native-callout flex touch-none select-none items-center gap-1.5 text-xs pressable",
             liked ? "text-danger" : "text-muted",
           )}
         >
           <Heart size={18} fill={liked ? "currentColor" : "none"} strokeWidth={2} />
           {/* 常に数字を描画し0は透明にする＝箱が一定でガクつかない */}
-          <span className={cn("inline-block text-left tabular-nums", pending ? "text-[11px]" : "w-5", !pending && likes === 0 && "opacity-0")}>
+          <span className={cn("inline-block text-left tabular-nums", pending ? "text-2xs" : "w-5", !pending && likes === 0 && "opacity-0")}>
             {pending ? "確認する" : likes}
           </span>
         </button>
@@ -370,7 +370,7 @@ export function PostActions({
           aria-label={`コメント${commentsVisible ? "を閉じる" : "を表示"}、${commentCount}件`}
           aria-expanded={commentsVisible}
           className={cn(
-            "flex items-center gap-1.5 text-[13px] pressable",
+            "flex items-center gap-1.5 text-xs pressable",
             commentsVisible ? "text-accent" : "text-muted",
           )}
         >

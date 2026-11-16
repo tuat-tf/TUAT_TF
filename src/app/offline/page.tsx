@@ -12,7 +12,7 @@ export default function OfflinePage() {
         </p>
         <Link
           href="/home"
-          className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-accent px-4 text-[15px] font-semibold text-white"
+          className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-accent px-4 text-sm font-semibold text-white"
         >
           {"\u63a5\u7d9a\u5f8c\u306b\u518d\u8a66\u884c"}
         </Link>

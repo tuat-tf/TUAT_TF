@@ -3,7 +3,7 @@
 import { useCallback, type ReactNode } from "react";
 import { syncVisualViewport } from "@/lib/viewport-sync";
 
-export const floatingActionButtonClass = "app-create-button pointer-events-auto absolute right-5 bottom-[calc(74px+env(safe-area-inset-bottom))] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/30 pressable md:bottom-6 md:right-6 md:h-12 md:w-12";
+export const floatingActionButtonClass = "app-create-button pointer-events-auto absolute right-5 bottom-[calc(var(--app-bottom-clear)+12px)] flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/30 pressable md:bottom-6 md:right-6 md:h-12 md:w-12";
 
 export function FloatingActionPosition({ children }: { children: ReactNode }) {
   const attachPosition = useCallback((element: HTMLDivElement | null) => {

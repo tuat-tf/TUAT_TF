@@ -34,7 +34,7 @@ export function AdminDashboard({ snapshot, permissions, showRecordSource }: Prop
           <MemberPreviewSetting previewing={false} />
           <a data-ui-row href="/api/legacy-access" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-4 py-3 active:bg-bg">
             <ExternalLink size={19} className="shrink-0 text-muted2" />
-            <span className="min-w-0 flex-1 text-[14px] font-medium">旧アプリを開く</span>
+            <span className="min-w-0 flex-1 text-sm font-medium">旧アプリを開く</span>
             <ChevronRight size={18} className="shrink-0 text-muted" />
           </a>
         </Card>
@@ -79,7 +79,7 @@ function Overview({ snapshot, permissions }: { snapshot: AdminDashboardSnapshot;
 function Metric({ label, value, unit, detail, href, icon }: { label: string; value: number | null; unit: string; detail: string; href: string; icon: React.ReactNode }) {
   return <Link href={href} data-ui-row className="min-w-0 rounded-card border border-separator/70 bg-card p-3">
     <div className="mb-2 flex items-center gap-2 text-accent">{icon}<span className="text-micro font-medium text-muted">{label}</span></div>
-    <p className="text-2xl font-bold tabular-nums">{value === null ? <span className="text-sm font-medium text-muted">取得できません</span> : <>{value.toLocaleString("ja-JP")}<span className="ml-1 text-sm font-medium text-muted">{unit}</span></>}</p>
+    <p className="text-xl font-bold tabular-nums">{value === null ? <span className="text-sm font-medium text-muted">取得できません</span> : <>{value.toLocaleString("ja-JP")}<span className="ml-1 text-sm font-medium text-muted">{unit}</span></>}</p>
     <p className="mt-1 text-micro text-muted">{detail}</p>
   </Link>;
 }

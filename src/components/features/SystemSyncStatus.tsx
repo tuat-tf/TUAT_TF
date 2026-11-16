@@ -63,7 +63,7 @@ export function SystemSyncStatus() {
               : issue ? <AlertTriangle size={18} className="shrink-0 text-warning" />
                 : successful ? <CheckCircle2 size={18} className="shrink-0 text-success" />
                   : <Activity size={18} className="shrink-0 text-muted" />}
-          <span role="status" className="text-[14px] font-semibold">{label}</span>
+          <span role="status" className="text-sm font-semibold">{label}</span>
         </div>
         {error && <p role="alert" className="mt-2 text-sm text-danger">時間をおいて再確認してください</p>}
         {pending && <p className="mt-2 text-sm text-warning">未書き込みの記録があります</p>}
@@ -82,5 +82,5 @@ export function SystemSyncStatus() {
 }
 
 function Metric({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
-  return <div className="rounded-lg bg-bg px-1 py-2"><span className="block text-micro text-muted">{label}</span><span className={cn("mt-0.5 block text-[15px] font-bold tabular-nums", danger && "text-danger")}>{value}</span></div>;
+  return <div className="rounded-xl bg-bg px-1 py-2"><span className="block text-micro text-muted">{label}</span><span className={cn("mt-0.5 block text-sm font-bold tabular-nums", danger && "text-danger")}>{value}</span></div>;
 }

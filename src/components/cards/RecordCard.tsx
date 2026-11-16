@@ -84,7 +84,7 @@ export function RecordCard({
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="whitespace-nowrap text-caption">{format(new Date(record.recorded_date + "T00:00:00"), "M月d日(E)", { locale: ja })}の練習</p>
-            {cond && fieldVisible("condition") && <span className="inline-flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold" style={{ color: cond.color }} title={cond.label}><span className="text-[16px] leading-none">{cond.symbol}</span>{cond.label}</span>}
+            {cond && fieldVisible("condition") && <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold" style={{ color: cond.color }} title={cond.label}><span className="text-base leading-none">{cond.symbol}</span>{cond.label}</span>}
             {/* 本人には保存元だけ知らせる。システム管理者には由来を対で出す（設定でオフにできる）。 */}
             {isOwner && !showSource && record.from_sheet && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">スプレッドシート</span>}
             {showSource && <span className="rounded-full bg-bg px-2 py-0.5 text-micro text-muted2">{record.from_sheet ? "スプレッドシート由来" : "アプリ由来"}</span>}
@@ -94,7 +94,7 @@ export function RecordCard({
       </div>
 
       {distanceVisible && totalDistance > 0 && <IntensityBar record={record} />}
-      {fieldVisible("strides") && record.strides?.trim() && <p className="text-[12px] text-muted2 whitespace-pre-wrap break-words">{recordFieldLabel(recordFields, "strides", "流し")} {stridesText(record.strides)}</p>}
+      {fieldVisible("strides") && record.strides?.trim() && <p className="text-xs text-muted2 whitespace-pre-wrap break-words">{recordFieldLabel(recordFields, "strides", "流し")} {stridesText(record.strides)}</p>}
 
       {details.length > 0 && (
         <ExpandableSection maxHeight={150} forceExpanded={embedded}>

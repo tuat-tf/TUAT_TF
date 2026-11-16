@@ -114,13 +114,13 @@ export function MemberDirectory({
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex h-[21px] items-center gap-1.5">
-                            <span className="min-w-0 text-[14px] font-semibold truncate">
+                            <span className="min-w-0 text-sm font-semibold truncate">
                               {m.display_name || "名前未設定"}
                             </span>
                             <BlockPills blocks={m.blocks} />
                             {memberBadges?.[m.id] && <Badge className="bg-bg text-muted2">{memberBadges[m.id]}</Badge>}
                           </div>
-                          <div className="flex h-4 items-center gap-2 text-[11px] leading-4">
+                          <div className="flex h-4 items-center gap-2 text-2xs leading-4">
                             {gradeShort(m.grade) && (
                               <span className="shrink-0 text-muted">{gradeShort(m.grade)}</span>
                             )}

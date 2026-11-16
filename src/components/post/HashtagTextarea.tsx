@@ -25,7 +25,7 @@ export const HashtagTextarea = forwardRef<HTMLTextAreaElement, TextareaProps & {
         >
           {splitHashtags(value).map((part, index) => typeof part === "string"
             ? part
-            : <span key={index} className="rounded-sm bg-accent/15">#{part.tag}</span>)}
+            : <span key={index} className="rounded bg-accent/15">#{part.tag}</span>)}
           {/* A trailing newline needs something after it to take up a line. */}
           {"​"}
         </div>

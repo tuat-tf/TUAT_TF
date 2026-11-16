@@ -62,7 +62,7 @@ export function CompetitionResultRow({ row, showEntryPreview = true }: { row: Pa
       {open && (
         <ul className="mt-2 space-y-1.5 sm:ml-[52px]">
           {groupEntriesByPosition(row.tuatEntries).map(({ position, entries }, index) => (
-            <li key={index} className="rounded-lg bg-bg px-2.5 py-2 text-[13px]">
+            <li key={index} className="rounded-xl bg-bg px-2.5 py-2 text-xs">
               {position && <p className="text-micro text-muted2">{position}</p>}
               {sharedResult(entries) ? (
                 // リレーはチーム1つの記録なので、4人ぶん同じ行を繰り返さない。

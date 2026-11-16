@@ -355,7 +355,7 @@ export function NoteArticleEditor({
                   type="button"
                   disabled={saving}
                   onClick={() => placePhoto(photo.key)}
-                  className="w-full text-[12px] font-semibold text-accent pressable"
+                  className="w-full text-xs font-semibold text-accent pressable"
                 >
                   本文に入れる
                 </button>
@@ -368,7 +368,7 @@ export function NoteArticleEditor({
       {/* 追加できるものを1か所にまとめて、写真の入口を分かるようにする。 */}
       <div className="flex flex-wrap gap-2">
         <label data-ui-action
-          className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-separator bg-card px-3.5 text-[14px] font-semibold active:bg-bg ${
+          className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-separator bg-card px-3.5 text-sm font-semibold active:bg-bg ${
             imageCount >= MAX_IMAGES ? "pointer-events-none opacity-40" : ""
           }`}
         >
@@ -411,7 +411,7 @@ export function NoteArticleEditor({
         <section data-ui-section aria-label="投票の設定" className="space-y-3 rounded-card border border-separator bg-card p-3">
           {keptOptions.map((option) => (
             <div key={option.id} className="flex items-center gap-2">
-              <span className="min-h-11 min-w-0 flex-1 rounded-xl border border-separator bg-card px-3 py-3 text-[14px]">
+              <span className="min-h-11 min-w-0 flex-1 rounded-xl border border-separator bg-card px-3 py-3 text-sm">
                 {option.text}
               </span>
               <span className="shrink-0 text-caption tabular-nums">

@@ -33,7 +33,7 @@ export function MemberPreviewSetting({ previewing }: { previewing: boolean }) {
   if (on) {
     return (
       <Card className="border-accent/40 bg-accent/10 p-4">
-        <p className="flex items-center gap-1.5 text-[14px] font-semibold text-accent">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-accent">
           <Eye size={16} />
           一般部員の画面を表示中
         </p>
@@ -45,7 +45,7 @@ export function MemberPreviewSetting({ previewing }: { previewing: boolean }) {
           data-ui-tone="primary"
           type="button"
           onClick={() => apply(false)}
-          className="mt-3 inline-flex min-h-9 items-center rounded-lg bg-accent px-3 text-[13px] font-semibold text-white pressable"
+          className="mt-3 inline-flex min-h-9 items-center rounded-xl bg-accent px-3 text-xs font-semibold text-white pressable"
         >
           元の画面に戻す
         </button>

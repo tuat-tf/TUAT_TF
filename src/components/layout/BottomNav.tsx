@@ -54,7 +54,7 @@ function TabContent({
       )}
     >
       <Icon size={22} strokeWidth={highlighted ? 2.4 : 2} className={pending ? "motion-safe:animate-pulse" : undefined} />
-      <span className="text-[10px] font-medium leading-none">{label}</span>
+      <span className="text-2xs font-medium leading-none">{label}</span>
       {pending && <span className="sr-only" role="status">読み込み中</span>}
     </span>
   );

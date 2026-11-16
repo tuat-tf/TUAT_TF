@@ -479,7 +479,7 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
             <div className="flex items-center gap-2"><Input id={`${formId}-dist_actual`} type="number" inputMode="decimal" min={0} step="0.1" placeholder="0" value={actualDistance} onChange={(event) => setActualDistance(event.target.value)} className="text-right" /><span className="text-caption">km</span></div>
           </div>}
           {fieldEnabled("strides") && <div className="mt-2 flex items-center gap-2">
-            <label htmlFor={`${formId}-strides`} className="text-[13px] font-medium">{recordFieldLabel(configuredFields, "strides", "流し")}</label>
+            <label htmlFor={`${formId}-strides`} className="text-xs font-medium">{recordFieldLabel(configuredFields, "strides", "流し")}</label>
             {/* 本数だけでなく「100m×3」のような書き方もできる1行の自由入力 */}
             <Input
               id={`${formId}-strides`}
@@ -623,13 +623,13 @@ export const RecordForm = forwardRef<RecordFormHandle, { userId: string; isMiddl
                 }}
               >
                 <span
-                  className="text-[22px] leading-none font-semibold"
+                  className="text-xl leading-none font-semibold"
                   style={{ color: active ? meta.color : "#c7c7cc" }}
                 >
                   {meta.symbol}
                 </span>
                 <span
-                  className="text-[11px] font-semibold"
+                  className="text-2xs font-semibold"
                   style={{ color: active ? meta.color : "#8e8e93" }}
                 >
                   {meta.label}

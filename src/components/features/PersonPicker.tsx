@@ -126,11 +126,11 @@ export function PersonPicker({ people, value, onChange, pending = false, label =
         <div className="space-y-2 rounded-xl border border-separator bg-bg p-3">
           <div className="flex items-center justify-between gap-2"><p className="inline-flex items-center gap-1.5 text-sm font-semibold"><Users size={16} className="text-accent" />メンバーリスト</p>{draft.length > 0 && !creatingList && <button data-ui-action="text" data-ui-tone="primary" type="button" onClick={() => setCreatingList(true)} className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-accent"><Plus size={14} />現在の選択を保存</button>}</div>
           {memberLists.length === 0 && !creatingList && <p className="py-1 text-xs text-muted">部員を選ぶと、この組み合わせをリストとして保存できます</p>}
-          {memberLists.map((list) => <div key={list.key} className="flex min-h-11 items-center gap-2 rounded-lg bg-card px-3">
+          {memberLists.map((list) => <div key={list.key} className="flex min-h-11 items-center gap-2 rounded-xl bg-card px-3">
             <button data-ui-row type="button" onClick={() => applyMemberList(list)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{list.name}</span><span className="text-micro text-muted">{list.ids.filter((id) => !excluded.has(id) && people.some((person) => person.id === id)).length}人を選択</span></button>
-            <button data-ui-action="icon" data-ui-tone="danger" type="button" onClick={() => saveMemberLists(memberLists.filter((item) => item.key !== list.key))} aria-label={`${list.name}を削除`} className="rounded-lg p-2 text-muted active:bg-bg"><Trash2 size={16} /></button>
+            <button data-ui-action="icon" data-ui-tone="danger" type="button" onClick={() => saveMemberLists(memberLists.filter((item) => item.key !== list.key))} aria-label={`${list.name}を削除`} className="rounded-xl p-2 text-muted active:bg-bg"><Trash2 size={16} /></button>
           </div>)}
-          {creatingList && <div className="space-y-2 rounded-lg bg-card p-2">
+          {creatingList && <div className="space-y-2 rounded-xl bg-card p-2">
             <Input autoFocus value={listName} onChange={(event) => setListName(event.target.value)} placeholder="例: 駅伝メンバー" />
             <div className="flex justify-end gap-2"><button data-ui-action data-ui-variant="ghost" type="button" onClick={() => { setCreatingList(false); setListName(""); }} className="px-3 py-2 text-xs font-semibold text-muted">キャンセル</button><Button type="button" size="sm" disabled={!listName.trim()} onClick={createMemberList}>保存する</Button></div>
           </div>}

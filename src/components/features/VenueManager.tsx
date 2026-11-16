@@ -105,7 +105,7 @@ export function VenueManager({ initial }: { initial: VenueRow[] }) {
               <div className="flex-1 min-w-0">
                 {v.short && (
                   <p className="mb-1">
-                    <span className="inline-flex rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[11px] font-bold text-accent">
+                    <span className="inline-flex rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-2xs font-bold text-accent">
                       {v.short}
                     </span>
                   </p>

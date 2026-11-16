@@ -31,7 +31,7 @@ export function AdminSheetSettingsDetail({ member }: { member: MemberSheetSettin
   return <div className="space-y-4 px-4 pb-6 pt-2">
     <Card className="flex items-center gap-3 p-3">
       <Avatar name={member.display_name || "?"} avatarUrl={member.avatar_url} blocks={member.blocks} size="sm" />
-      <div className="min-w-0 flex-1"><h1 className="break-words text-[15px] font-semibold">{member.display_name || "名前未設定"}</h1>
+      <div className="min-w-0 flex-1"><h1 className="break-words text-sm font-semibold">{member.display_name || "名前未設定"}</h1>
         <div className="mt-1 flex flex-wrap items-center gap-2"><BlockPills blocks={member.blocks} /><span className="text-micro text-muted2">{gradeShort(member.grade)}{member.status === "graduated" ? "・卒業" : ""}</span></div>
       </div>
     </Card>
@@ -61,7 +61,7 @@ export function AdminSheetSettingsDetail({ member }: { member: MemberSheetSettin
 
 function FieldList({ fields, isMiddleLong, empty }: { fields: RecordFieldDef[]; isMiddleLong: boolean; empty: string }) {
   if (fields.length === 0) return <span>{empty}</span>;
-  return <ul className="flex flex-wrap gap-1.5">{fields.map((field, index) => <li key={`${field.key}-${index}`} className="max-w-full break-words rounded-lg bg-accent/8 px-2 py-1">
+  return <ul className="flex flex-wrap gap-1.5">{fields.map((field, index) => <li key={`${field.key}-${index}`} className="max-w-full break-words rounded-xl bg-accent/8 px-2 py-1">
     {field.label}{field.sourceColumn !== undefined && isFixedSheetColumn(field.sourceHeader ?? field.label, isMiddleLong) && <span className="text-muted2">（標準）</span>}
   </li>)}</ul>;
 }

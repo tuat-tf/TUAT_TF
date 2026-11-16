@@ -473,7 +473,7 @@ export const ResultForm = forwardRef<
               aria-pressed={stage === key}
               onClick={() => setStage(key)}
               className={cn(
-                "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold",
+                "flex-1 rounded-xl px-3 py-2 text-xs font-semibold",
                 stage === key ? "bg-card text-ink shadow-sm" : "text-muted",
               )}
             >
@@ -539,7 +539,7 @@ export const ResultForm = forwardRef<
               </select>
             </label>
             {measure !== "points" && (
-              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-[14px]">
+              <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   className="size-5 shrink-0 accent-accent"
@@ -612,7 +612,7 @@ export const ResultForm = forwardRef<
                   aria-pressed={windDirection === item.value}
                   onClick={() => setWindDirection(item.value)}
                   className={cn(
-                    "min-h-11 rounded-xl border px-3 py-2 text-[13px] font-semibold pressable",
+                    "min-h-11 rounded-xl border px-3 py-2 text-xs font-semibold pressable",
                     windDirection === item.value
                       ? "border-accent bg-accent/10 text-accent"
                       : "border-separator bg-card text-muted",
@@ -666,7 +666,7 @@ export const ResultForm = forwardRef<
               aria-pressed={meetMode === item.value}
               onClick={() => setMeetMode(item.value)}
               className={cn(
-                "flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold",
+                "flex-1 rounded-xl px-3 py-2 text-xs font-semibold",
                 meetMode === item.value
                   ? "bg-card text-ink shadow-sm"
                   : "text-muted",
@@ -711,7 +711,7 @@ export const ResultForm = forwardRef<
                           aria-pressed={active}
                           onClick={() => { setRecordedOn(day); setPrecision("day"); }}
                           className={cn(
-                            "inline-flex min-h-11 items-center justify-center gap-1 whitespace-nowrap rounded-xl border px-3 py-2 text-[14px] font-semibold pressable",
+                            "inline-flex min-h-11 items-center justify-center gap-1 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold pressable",
                             active ? "border-accent bg-accent/10 text-accent" : "border-separator bg-card",
                           )}
                         >

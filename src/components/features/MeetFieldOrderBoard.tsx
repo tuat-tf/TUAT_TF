@@ -49,7 +49,7 @@ export function MeetFieldOrderBoard({ data, entrants, disabled, onChange, modelL
   }
   return <div className="space-y-4">
     <div className="flex flex-wrap items-start justify-between gap-2"><p className="text-caption">左のつまみを上下に動かして試技順を決めてください。</p><div className="flex flex-wrap gap-1">{rows.some(item => item.number === null && !item.locked) && <Button size="sm" className="min-h-11" variant="outline" disabled={disabled} onClick={() => change(() => model.assignOrder(), "試技順を決めました")}>この順番で決める</Button>}<Button size="sm" className="min-h-11" variant="ghost" disabled={disabled || !past.length} onClick={() => { onChange(past.at(-1)!); setPast(past.slice(0, -1)); setMessage(""); setFailed(false); }}>元に戻す</Button></div></div>
-    {message && <p role={failed ? "alert" : "status"} aria-live="polite" className={`rounded-lg bg-bg p-3 text-body ${failed ? "text-danger" : ""}`}>{message}</p>}
+    {message && <p role={failed ? "alert" : "status"} aria-live="polite" className={`rounded-xl bg-bg p-3 text-body ${failed ? "text-danger" : ""}`}>{message}</p>}
     <section aria-label="試技順の出場者" className="overflow-hidden rounded-xl border border-separator bg-card">
       <h3 className="bg-bg p-3 text-headline">試技順 <span className="text-caption">{rows.length}{countUnit}</span></h3>
       <div role="list"><ReorderList items={rows} enabled={!disabled} isItemDisabled={item => item.locked} getDragLabel={item => `${item.number === null ? "順番未定" : `試技順${item.number}番`}の${labelledName(item.id)}をスライドして並べ替え`} onReorder={next => change(() => model.reorder(next.filter(item => !item.locked).map(item => item.id)), "試技順を変更しました")} renderItem={item => row(item.person, item.number)}/></div>

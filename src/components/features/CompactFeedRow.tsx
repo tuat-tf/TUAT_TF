@@ -70,33 +70,33 @@ export function CompactFeedRow({ item }: { item: FeedItem }) {
             href={"/members/" + author.id}
             prefetch={false}
             onClick={(event) => event.stopPropagation()}
-            className="truncate text-[13px] font-semibold text-foreground"
+            className="truncate text-xs font-semibold text-foreground"
           >
             {author.display_name || "名無し"}
           </Link>
-          {grade && <span className="shrink-0 text-[10px] text-muted2">{grade}</span>}
+          {grade && <span className="shrink-0 text-2xs text-muted2">{grade}</span>}
           {block && (
             <span
-              className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold leading-none"
+              className="shrink-0 rounded-full px-1.5 py-0.5 text-2xs font-semibold leading-none"
               style={{ backgroundColor: block.bg, color: block.color }}
             >
               {block.short}
             </span>
           )}
-          <span className="ml-auto shrink-0 text-[10px] text-muted2">
+          <span className="ml-auto shrink-0 text-2xs text-muted2">
             {item.kind === "tweet" ? tweetTime(item.created_at) : "練習"}
           </span>
         </div>
 
         <div className="mt-1 flex min-w-0 items-center gap-1.5">
           {recordSummary?.distance && (
-            <span className="shrink-0 text-[13px] font-bold tabular-nums">
+            <span className="shrink-0 text-xs font-bold tabular-nums">
               {recordSummary.distance}
             </span>
           )}
           {condition && (
             <span
-              className="shrink-0 text-[13px] font-bold"
+              className="shrink-0 text-xs font-bold"
               style={{ color: condition.color }}
               title={condition.label}
             >
@@ -105,7 +105,7 @@ export function CompactFeedRow({ item }: { item: FeedItem }) {
           )}
           <p
             className={cn(
-              "min-w-0 flex-1 truncate text-[12px]",
+              "min-w-0 flex-1 truncate text-xs",
               item.kind === "tweet" ? "text-foreground" : "text-muted2",
             )}
           >
@@ -114,7 +114,7 @@ export function CompactFeedRow({ item }: { item: FeedItem }) {
 
           <span
             className={cn(
-              "inline-flex shrink-0 items-center gap-0.5 text-[10px]",
+              "inline-flex shrink-0 items-center gap-0.5 text-2xs",
               item.liked_by_me ? "text-danger" : "text-muted2",
             )}
             aria-label={"いいね" + likes + "件"}
@@ -123,7 +123,7 @@ export function CompactFeedRow({ item }: { item: FeedItem }) {
             {likes > 0 && <span className="tabular-nums">{likes}</span>}
           </span>
           <span
-            className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-muted2"
+            className="inline-flex shrink-0 items-center gap-0.5 text-2xs text-muted2"
             aria-label={"メッセージ" + comments + "件"}
           >
             <MessageCircle size={13} />

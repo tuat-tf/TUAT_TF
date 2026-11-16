@@ -72,7 +72,7 @@ export function ExpandableSection({
           type="button"
           onClick={toggle}
           aria-expanded={expanded}
-          className="mt-1 text-[12px] font-semibold text-accent pressable"
+          className="mt-1 text-xs font-semibold text-accent pressable"
         >
           {expanded ? "閉じる" : "続きを読む"}
         </button>

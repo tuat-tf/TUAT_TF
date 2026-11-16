@@ -216,7 +216,7 @@ export function ThreadPostsView({
       <form
         ref={composerRef}
         data-ui-composer
-        className="fixed inset-x-0 bottom-[calc(52px+env(safe-area-inset-bottom))] z-30 mx-auto w-full max-w-md border-t border-separator bg-bg/88 px-3 py-2 backdrop-blur-xl md:bottom-0 md:left-[104px] md:right-3 md:w-auto md:max-w-none lg:left-auto lg:right-[max(24px,calc((100vw-1160px)/2+24px))] lg:w-[min(848px,calc(100vw-312px))]"
+        className="fixed inset-x-0 bottom-[var(--app-bottom-clear)] z-30 mx-auto w-full max-w-md border-t border-separator bg-bg/88 px-3 py-2 backdrop-blur-xl md:bottom-0 md:left-[104px] md:right-3 md:w-auto md:max-w-none lg:left-auto lg:right-[max(24px,calc((100vw-1160px)/2+24px))] lg:w-[min(848px,calc(100vw-312px))]"
         data-no-pull-refresh
         onSubmit={(event) => {
           event.preventDefault();
@@ -235,7 +235,7 @@ export function ThreadPostsView({
             rows={1}
             placeholder="メッセージを入力"
             aria-label="メッセージを入力"
-            className="min-h-11 max-h-32 flex-1 overflow-y-auto rounded-[22px] bg-card px-4 py-2.5 leading-6"
+            className="min-h-11 max-h-32 flex-1 overflow-y-auto rounded-panel bg-card px-4 py-2.5 leading-6"
           />
           <Button
             type="submit"

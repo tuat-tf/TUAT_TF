@@ -86,7 +86,7 @@ export function TweetCard({
       </div>
 
       <ExpandableSection maxHeight={140} forceExpanded={embedded}>
-        <p className="whitespace-pre-wrap break-words text-[15px] leading-7">
+        <p className="whitespace-pre-wrap break-words text-sm leading-7">
           <MentionText text={tweet.content} mentions={tweet.mentions} />
         </p>
       </ExpandableSection>

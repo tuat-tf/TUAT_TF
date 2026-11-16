@@ -69,7 +69,7 @@ describe("training chart display controls", () => {
     const html = render();
     expect(html).toContain(label);
     expect(html).toContain("data-training-week");
-    expect(html.match(/<span class="mt-1 text-\[11px\]/g)).toHaveLength(7);
+    expect(html.match(/<span class="mt-1 text-2xs/g)).toHaveLength(7);
     expect(html).not.toContain("data-ui-chart-bar");
     expect(html).not.toContain("data-training-axis");
   });
@@ -78,7 +78,7 @@ describe("training chart display controls", () => {
     const html = renderToStaticMarkup(createElement(TrainingChart, { records: [] }));
     expect(html).toContain('aria-label="直近7日間の走行距離は0kmです"');
     expect(html).not.toContain("flex-col-reverse");
-    expect(html.match(/rounded-t-\[3px\] bg-separator/g)).toHaveLength(7);
+    expect(html.match(/rounded-t bg-separator/g)).toHaveLength(7);
     expect(html).not.toContain("NaN");
     const text = html.replace(/<[^>]*>/g, "");
     expect(text).toContain("0km先週と同じ");

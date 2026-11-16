@@ -201,7 +201,7 @@ export function TrainingChart({
                     <>
                       <span
                         className={cn(
-                          "absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-semibold tabular-nums",
+                          "absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold tabular-nums",
                           isSel ? "text-accent" : "text-muted2",
                         )}
                         style={{ bottom: `${barH + 3}px` }}
@@ -218,7 +218,7 @@ export function TrainingChart({
                       />
                     </>
                   ) : (
-                    <div className="absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded-t-[3px] bg-separator/60" />
+                    <div className="absolute bottom-0 left-1/2 h-1 w-full -translate-x-1/2 rounded-t bg-separator/60" />
                   )}
                 </button>
               );
@@ -248,11 +248,11 @@ export function TrainingChart({
       {/* この期間の記録。開いてから、見たい項目だけに絞れる。 */}
       <div data-training-detail className="rounded-xl bg-bg">
         <div className="flex items-center gap-1 pr-1">
-          <button type="button" data-ui-disclosure aria-expanded={showDetail} aria-controls={detailId} onClick={() => setShowDetail(current => !current)} className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 px-3 text-left text-[13px] font-semibold">
+          <button type="button" data-ui-disclosure aria-expanded={showDetail} aria-controls={detailId} onClick={() => setShowDetail(current => !current)} className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 px-3 text-left text-xs font-semibold">
             この期間の記録
             <ChevronDown size={16} className={cn("shrink-0 text-muted transition-transform", showDetail && "rotate-180")} aria-hidden="true" />
           </button>
-          {showDetail && <Button variant="ghost" size="sm" className="shrink-0 text-[12px] text-accent" onClick={() => setFieldPickerOpen(true)}>項目を選ぶ</Button>}
+          {showDetail && <Button variant="ghost" size="sm" className="shrink-0 text-xs text-accent" onClick={() => setFieldPickerOpen(true)}>項目を選ぶ</Button>}
         </div>
         <Sheet open={fieldPickerOpen} onOpenChange={setFieldPickerOpen}>
           <SheetContent title="表示する項目">
@@ -278,7 +278,7 @@ export function TrainingChart({
               {sel.records.map((r) => {
                 const fields = trainingReviewFields(r, recordFields, showAllFields || selectedFields !== null).filter(field => showAllFields || selectedFields === null || selectedFields.includes(field.key));
                 return (
-                  <div key={r.id} className="text-[12px] space-y-0.5">
+                  <div key={r.id} className="text-xs space-y-0.5">
                     <p className="font-semibold flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                       <span>{format(new Date(r.recorded_date + "T00:00:00"), "M/d(E)", { locale: ja })}</span>
                     </p>
@@ -326,7 +326,7 @@ function IntensitySummary({
   return (
     <div data-training-summary>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate text-[12px] text-muted2" title={label}>{label}</p>
+        <p className="min-w-0 truncate text-xs text-muted2" title={label}>{label}</p>
         <p className="shrink-0 text-xl font-bold leading-6 tabular-nums">
           {formatDistance(summary.total)}
           <span className="ml-0.5 text-caption">km</span>
@@ -339,7 +339,7 @@ function IntensitySummary({
       </div>
       {segments.length > 0 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
         {segments.map((segment) => (
-          <span key={segment.key} className="inline-flex items-center gap-1 text-[11px] tabular-nums text-muted2">
+          <span key={segment.key} className="inline-flex items-center gap-1 text-2xs tabular-nums text-muted2">
             <span className={cn("h-2 w-2 shrink-0 rounded-full", segment.className)} style={segment.color ? { backgroundColor: segment.color } : undefined} />
             {segment.label} {formatDistance(segment.value)}km
           </span>
@@ -353,7 +353,7 @@ function IntensitySummary({
 function BarStack({ bucket, height, className }: { bucket: Bucket; height: number; className?: string }) {
   return (
     <div
-      className={cn("absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col-reverse overflow-hidden rounded-t-[4px] border shadow-sm", className)}
+      className={cn("absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col-reverse overflow-hidden rounded-t border shadow-sm", className)}
       style={{ height: `${height}px` }}
     >
       {INTENSITY_ORDER.map((k) =>
@@ -390,7 +390,7 @@ function RecentWeekBars({ buckets, total, today }: { buckets: Bucket[]; total: n
               {barH > 0 ? (
                 <>
                   <span
-                    className={cn("absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold tabular-nums", isToday ? "text-accent" : "text-muted2")}
+                    className={cn("absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-2xs font-semibold tabular-nums", isToday ? "text-accent" : "text-muted2")}
                     style={{ bottom: `${barH + 2}px` }}
                   >
                     {formatDistance(b.total)}
@@ -398,10 +398,10 @@ function RecentWeekBars({ buckets, total, today }: { buckets: Bucket[]; total: n
                   <BarStack bucket={b} height={barH} className={cn("w-full max-w-7", isToday ? "border-accent" : "border-separator/70")} />
                 </>
               ) : (
-                <div className="absolute bottom-0 left-1/2 h-1 w-full max-w-7 -translate-x-1/2 rounded-t-[3px] bg-separator/60" />
+                <div className="absolute bottom-0 left-1/2 h-1 w-full max-w-7 -translate-x-1/2 rounded-t bg-separator/60" />
               )}
             </div>
-            <span className={cn("mt-1 text-[11px] leading-[14px]", isToday ? "font-bold text-accent" : "text-muted2")}>
+            <span className={cn("mt-1 text-2xs leading-[14px]", isToday ? "font-bold text-accent" : "text-muted2")}>
               {isToday ? "今日" : format(b.start, "E", { locale: ja })}
             </span>
           </div>

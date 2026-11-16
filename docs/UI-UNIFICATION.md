@@ -232,3 +232,22 @@
   混在していて、同じ種類のボタンでも画面ごとに押した感じが違っていた（57箇所を `pressable` へ統一）。
 - 拡大縮小（`active:scale-*`）は使わない。2026-07-23に全廃した（安っぽく見え、ガクつきの原因になる）。
 - `prefers-reduced-motion: reduce` ではトランジションを切る（`globals.css` で対応済み）。
+
+---
+
+## 9. 大きさの段階（2026-11-16 統一）
+
+値は `src/app/globals.css` の `@theme` と `:root` にある。段階にない値を画面側に直接書かない。
+
+| 対象 | 段階 | 書き方 |
+|---|---|---|
+| 文字サイズ | 11 / 13 / 15 / 17 / 22px | `text-2xs` / `text-xs` / `text-sm` / `text-base` / `text-xl`。`.text-micro`(11)・`.text-caption`(13)・`.text-body`(15)・`.text-headline`(15太字)・`.text-title`(17)・`.text-large-title`(22) も同じ段階 |
+| 角丸 | 4 / 12 / 16 / 22 / 28px / 丸 | `rounded`(バッジ・目印) / `rounded-xl`(入力・小さな部品) / `rounded-card`(カード) / `rounded-panel`(パネル) / `rounded-sheet`(シート・メニュー・ダイアログ) / `rounded-full` |
+| 影 | 面 / 浮いた部品 / 重なる面 | `shadow-sm` / `shadow-lg` / `shadow-xl`。PC幅の外枠だけ `shadow-frame` |
+
+- Tailwind標準の `text-xs`・`text-sm`・`text-base`・`text-xl` は、このアプリでは上の値に置き換えてある（標準の12/14/16/20pxではない）。行の高さは付かないので、詰めたいときは `leading-*` を書く。
+- `text-[13px]`・`rounded-lg`・`rounded-[10px]` のような段階外の値は使わない。例外は、グラフの目盛りの `text-[9px]` とログイン画面のロゴだけ。
+- 入れ子の角丸は `calc(外側 - 余白)` で書く（例: メニュー項目は `calc(var(--radius-sheet) - 7px)`）。
+- 補足文の色は `text-muted` の1色。`muted2`・`faint` は同じ値の別名で、新しく書くときは `text-muted` を使う。
+- 画面上部の見出し帯の見た目（固定・濃さ・ぼかし）は `[data-glass-header]` のCSSだけで決める。`<header data-glass-header>` に同じクラスを書き足さない。
+- 下部ナビの上に置くもの（本文の下余白・作成ボタン・返信欄・更新のお知らせ）は `--app-bottom-clear` から位置を決める。ナビの高さ（88pxなど）を個別に書かない。

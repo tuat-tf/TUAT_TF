@@ -13,7 +13,7 @@ export function PeopleFilterButton({ blocks, grades, onBlocksChange, onGradesCha
   const count = blocks.length + grades.length;
   const gradeOptions = GRADE_OPTIONS.filter((grade) => availableGrades.includes(grade.value));
   return <>
-    <button data-ui-action data-ui-active={count > 0 || undefined} aria-expanded={open} type="button" onClick={() => setOpen(true)} className={cn("inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold", count ? "border-accent bg-accent text-white" : "border-separator bg-card text-muted2")}>
+    <button data-ui-action data-ui-active={count > 0 || undefined} aria-expanded={open} type="button" onClick={() => setOpen(true)} className={cn("inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold", count ? "border-accent bg-accent text-white" : "border-separator bg-card text-muted2")}>
       <SlidersHorizontal size={14} />絞り込み{count ? ` ${count}` : ""}
     </button>
     <Sheet open={open} onOpenChange={setOpen}>

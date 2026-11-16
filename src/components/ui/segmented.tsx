@@ -37,7 +37,7 @@ export function SegmentedControl<T extends string>({
       data-system-glass
       className={cn(
         // min-h を固定し、項目数や文字数で縦寸法が変わらないようにする
-        "flex min-h-[34px] items-center gap-0.5 rounded-[10px] bg-[#e9e9eb] p-0.5 lg:min-h-8 lg:rounded-lg",
+        "flex min-h-[34px] items-center gap-0.5 rounded-xl bg-[#e9e9eb] p-0.5 lg:min-h-8",
         className,
       )}
     >
@@ -57,7 +57,7 @@ export function SegmentedControl<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(it.key)}
             className={cn(
-              "flex-1 min-w-0 rounded-[8px] py-1.5 text-[13px] font-semibold transition-colors pressable truncate px-1 lg:rounded-md lg:py-1 lg:text-[12px]",
+              "flex-1 min-w-0 rounded-[calc(var(--radius-xl)-2px)] py-1.5 text-xs font-semibold transition-colors pressable truncate px-1 lg:py-1 lg:text-xs",
               active ? "bg-white text-ink shadow-sm" : "text-muted2",
             )}
           >

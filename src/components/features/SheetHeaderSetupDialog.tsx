@@ -134,7 +134,7 @@ export function SheetHeaderSetupDialog({
     <FormModal open={open} onOpenChange={(next) => !next && !busy && !locked && onCancel()} title="練習記録フォーム・タイムライン表示" autoFocus={false}>
       <FormDraftGuard dirty={draft !== initialDraft} busy={busy || locked} onSave={confirm} />
       {context}
-      {error && <p role="alert" className="m-4 rounded-lg bg-danger/10 p-3 text-caption text-danger">{error}</p>}
+      {error && <p role="alert" className="m-4 rounded-xl bg-danger/10 p-3 text-caption text-danger">{error}</p>}
       {recovery}
       <fieldset disabled={busy || locked} className="min-w-0 space-y-4 pb-5">
         {inputMethod}
@@ -144,23 +144,23 @@ export function SheetHeaderSetupDialog({
         {changedHeaders && <p className="text-caption text-muted2">シートの見出しが変わっています。現在の入力・表示項目を確認してください。</p>}
 
         {isMiddleLong && fixed.length > 0 && <section data-ui-panel className="rounded-card border border-separator bg-card p-3">
-          <div className="mb-2 flex items-center gap-2"><Check size={17} className="text-accent" /><h3 className="text-[14px] font-semibold">標準項目</h3></div>
+          <div className="mb-2 flex items-center gap-2"><Check size={17} className="text-accent" /><h3 className="text-sm font-semibold">標準項目</h3></div>
           <p className="mb-2 text-micro text-muted2">入力フォームとタイムラインに設定済みです</p>
           <div className="flex flex-wrap gap-2">{fixed.map((column) => <span key={column.index} className="rounded-full bg-accent/10 px-2.5 py-1 text-micro font-semibold text-accent">{column.label}</span>)}</div>
         </section>}
 
         <section>
-          <div className="mb-2 flex items-center gap-2"><ListChecks size={17} className="text-accent" /><h3 className="text-[14px] font-semibold">入力フォームに追加する項目</h3></div>
+          <div className="mb-2 flex items-center gap-2"><ListChecks size={17} className="text-accent" /><h3 className="text-sm font-semibold">入力フォームに追加する項目</h3></div>
           <div className="space-y-2">
             {selectable.map((column) => {
               const checked = selected.includes(column.index);
               return <div data-ui-panel key={column.index} className={`rounded-card border p-3 ${checked ? "border-accent/40 bg-accent/5" : "border-separator bg-card"}`}>
                 <button data-ui-row aria-pressed={checked} type="button" onClick={() => toggleInput(column.index)} className="flex min-h-8 w-full items-center gap-2 text-left">
-                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? "border-accent bg-accent text-white" : "border-separator bg-card"}`}>{checked && <Check size={14} strokeWidth={3} />}</span>
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{column.label}</span>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${checked ? "border-accent bg-accent text-white" : "border-separator bg-card"}`}>{checked && <Check size={14} strokeWidth={3} />}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{column.label}</span>
                 </button>
                 {checked && <div className="mt-3 border-t border-separator/70 pt-3">
-                  <div className="grid grid-cols-2 gap-2">{(["text", "number"] as const).map((type) => <button data-ui-choice aria-pressed={types[column.index] === type} key={type} type="button" onClick={() => setTypes((current) => ({ ...current, [column.index]: type }))} className={`h-9 rounded-lg border text-caption font-semibold ${types[column.index] === type ? "border-accent bg-accent/10 text-accent" : "border-separator bg-card text-muted2"}`}>{type === "text" ? "文字列" : "数値"}</button>)}</div>
+                  <div className="grid grid-cols-2 gap-2">{(["text", "number"] as const).map((type) => <button data-ui-choice aria-pressed={types[column.index] === type} key={type} type="button" onClick={() => setTypes((current) => ({ ...current, [column.index]: type }))} className={`h-9 rounded-xl border text-caption font-semibold ${types[column.index] === type ? "border-accent bg-accent/10 text-accent" : "border-separator bg-card text-muted2"}`}>{type === "text" ? "文字列" : "数値"}</button>)}</div>
                 </div>}
               </div>;
             })}
@@ -170,7 +170,7 @@ export function SheetHeaderSetupDialog({
 
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2"><Eye size={17} className="text-accent" /><h3 className="text-[14px] font-semibold">タイムラインへ表示する追加項目</h3></div>
+            <div className="flex items-center gap-2"><Eye size={17} className="text-accent" /><h3 className="text-sm font-semibold">タイムラインへ表示する追加項目</h3></div>
             <span className="rounded-full bg-card px-2.5 py-1 text-caption font-bold text-accent">{timelineSelected.length} / {limit}</span>
           </div>
           <p className="mb-2 text-micro text-muted2">入力フォームに追加した項目から選びます。感想もこの追加項目に含まれます</p>
@@ -178,8 +178,8 @@ export function SheetHeaderSetupDialog({
             {selectable.filter((column) => selected.includes(column.index)).map((column) => {
               const checked = timelineSelected.includes(column.index);
               return <button data-ui-choice-row aria-pressed={checked} key={column.index} type="button" onClick={() => toggleTimeline(column.index)} className={`flex min-h-12 w-full items-center gap-2 rounded-xl border px-3 text-left ${checked ? "border-accent/40 bg-accent/5" : "border-separator bg-card"}`}>
-                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? "border-accent bg-accent text-white" : "border-separator bg-card"}`}>{checked && <Check size={14} strokeWidth={3} />}</span>
-                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{column.label}</span>
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${checked ? "border-accent bg-accent text-white" : "border-separator bg-card"}`}>{checked && <Check size={14} strokeWidth={3} />}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{column.label}</span>
               </button>;
             })}
             {selected.length === 0 && <p className="rounded-xl border border-dashed border-separator p-3 text-center text-caption text-muted">先に入力フォームへ項目を追加してください</p>}

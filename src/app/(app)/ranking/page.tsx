@@ -30,7 +30,7 @@ export default async function RankingPage({
         <p className="text-body text-muted">中長距離ブロックの走行距離</p>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5">
           {INTENSITY_ORDER.map((k) => (
-            <span key={k} className="flex items-center gap-1 text-[10px] text-muted2">
+            <span key={k} className="flex items-center gap-1 text-2xs text-muted2">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: INTENSITY_LABELS[k].color }}

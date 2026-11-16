@@ -22,7 +22,7 @@ export function ServiceStatusPanel({ embedded = false }: { embedded?: boolean })
   return <div className={embedded ? "space-y-4" : "space-y-4 px-4 pb-8 pt-1"}>
     <div className="flex items-start justify-between gap-3">
       <p className="text-sm text-muted">システム管理者だけが確認できます。障害情報は各サービス全体の状況です。</p>
-      <button data-ui-action type="button" disabled={query.isFetching} onClick={() => void query.refetch()} className="flex shrink-0 items-center gap-1 rounded-lg border border-separator px-3 py-2 text-sm disabled:opacity-50">
+      <button data-ui-action type="button" disabled={query.isFetching} onClick={() => void query.refetch()} className="flex shrink-0 items-center gap-1 rounded-xl border border-separator px-3 py-2 text-sm disabled:opacity-50">
         <RefreshCw size={14} className={query.isFetching ? "animate-spin" : ""} />再確認
       </button>
     </div>

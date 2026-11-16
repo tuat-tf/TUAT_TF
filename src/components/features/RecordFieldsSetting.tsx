@@ -142,7 +142,7 @@ export function RecordFieldsSetting({ profileId, initial, isMiddleLong, onConfir
   return <>
     {!onConfirm && <button data-ui-row type="button" onClick={showEditor} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-bg">
       <SlidersHorizontal size={19} className="shrink-0 text-accent" />
-      <span className="min-w-0 flex-1"><span className="block text-[14px] font-medium">記録フォームを編集</span><span className="block text-micro text-muted">入力項目の名前を変えたり、使わない項目を外したりできます。</span></span>
+      <span className="min-w-0 flex-1"><span className="block text-sm font-medium">記録フォームを編集</span><span className="block text-micro text-muted">入力項目の名前を変えたり、使わない項目を外したりできます。</span></span>
       <ChevronRight size={18} className="shrink-0 text-muted" />
     </button>}
 
@@ -151,7 +151,7 @@ export function RecordFieldsSetting({ profileId, initial, isMiddleLong, onConfir
       <fieldset disabled={saving} className="min-w-0 space-y-4 pb-5">
         <div className="rounded-xl bg-accent/8 px-3 py-2.5 text-caption leading-relaxed">各カードの「項目名」を直接変更できます。不要な項目は右上の×でフォームから外せます。中長距離の強度別距離と日付は集計のため固定です。</div>
         <LockedField label="日付"><Input type="date" disabled value="2026-07-15" readOnly /></LockedField>
-        {isMiddleLong && <LockedField label="強度別距離（ランキング集計）"><div className="grid grid-cols-4 gap-1.5">{["低強度", "中強度", "高強度", "解糖系"].map((label) => <div key={label} className="rounded-lg border border-separator bg-bg p-2 text-center"><span className="block text-micro text-muted">{label}</span><span className="text-caption text-muted">0 km</span></div>)}</div></LockedField>}
+        {isMiddleLong && <LockedField label="強度別距離（ランキング集計）"><div className="grid grid-cols-4 gap-1.5">{["低強度", "中強度", "高強度", "解糖系"].map((label) => <div key={label} className="rounded-xl border border-separator bg-bg p-2 text-center"><span className="block text-micro text-muted">{label}</span><span className="text-caption text-muted">0 km</span></div>)}</div></LockedField>}
 
         {visibleBuiltins.map((field) => <EditableBuiltinField
           key={field.key}
@@ -191,10 +191,10 @@ export function RecordFieldsSetting({ profileId, initial, isMiddleLong, onConfir
           </Button>
         </div>
 
-        <button data-ui-action data-ui-tone="primary" type="button" onClick={() => setAddOpen(true)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-card border-2 border-dashed border-accent/35 bg-accent/5 text-[14px] font-semibold text-accent active:bg-accent/10"><Plus size={19} />新しい入力項目を追加</button>
+        <button data-ui-action data-ui-tone="primary" type="button" onClick={() => setAddOpen(true)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-card border-2 border-dashed border-accent/35 bg-accent/5 text-sm font-semibold text-accent active:bg-accent/10"><Plus size={19} />新しい入力項目を追加</button>
         {addOpen && <div className="space-y-4 rounded-card border border-separator p-3">
           <Input aria-label="新しい項目名" value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder="項目名（例: 睡眠時間）" maxLength={30} />
-          <div className="grid grid-cols-2 gap-2">{(["text", "number"] as const).map((type) => <button data-ui-choice aria-pressed={newType === type} key={type} type="button" onClick={() => setNewType(type)} className={`h-12 rounded-xl border text-[14px] font-semibold ${newType === type ? "border-accent bg-accent/10 text-accent" : "border-separator bg-card"}`}>{type === "text" ? "文章入力" : "数値入力"}</button>)}</div>
+          <div className="grid grid-cols-2 gap-2">{(["text", "number"] as const).map((type) => <button data-ui-choice aria-pressed={newType === type} key={type} type="button" onClick={() => setNewType(type)} className={`h-12 rounded-xl border text-sm font-semibold ${newType === type ? "border-accent bg-accent/10 text-accent" : "border-separator bg-card"}`}>{type === "text" ? "文章入力" : "数値入力"}</button>)}</div>
           <Button size="lg" onClick={addField} disabled={!newLabel.trim()}>追加する</Button>
         </div>}
         {message && <p className="text-center text-caption text-danger">{message}</p>}

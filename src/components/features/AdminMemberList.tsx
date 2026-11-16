@@ -91,12 +91,12 @@ export function AdminMemberList({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex h-[21px] items-center gap-1.5">
-                      <span className="truncate text-[14px] font-semibold">
+                      <span className="truncate text-sm font-semibold">
                         {member.display_name || "名前未設定"}
                       </span>
                       <BlockPills blocks={member.blocks} />
                     </div>
-                    <div className="h-4 truncate text-[11px] leading-4" title={member.roles.filter(role => !role.is_everyone).map(role => role.name).join("・")}>
+                    <div className="h-4 truncate text-2xs leading-4" title={member.roles.filter(role => !role.is_everyone).map(role => role.name).join("・")}>
                       {member.roles.filter((role) => !role.is_everyone).length === 0 ? (
                         <span className="text-micro">ロールなし</span>
                       ) : (
@@ -230,7 +230,7 @@ function MemberRoleEditor({
         <h2 className="section-label">ロール・権限</h2>
         {canManageSystem && (
           <label className="block space-y-1.5">
-            <span className="text-[13px] font-semibold">{"\u30e1\u30f3\u30b7\u30e7\u30f3\u7528\u3072\u3089\u304c\u306a\u540d"}</span>
+            <span className="text-xs font-semibold">{"\u30e1\u30f3\u30b7\u30e7\u30f3\u7528\u3072\u3089\u304c\u306a\u540d"}</span>
             <Input value={mentionReading} onChange={(event) => setMentionReading(event.target.value)} placeholder={"\u4f8b\uff1a\u305f\u306a\u304b \u305f\u308d\u3046"} maxLength={80} />
             <span className="block text-micro">{"\u540d\u5b57\u3068\u540d\u524d\u3092\u7a7a\u767d\u3067\u533a\u5207\u308b\u3068\u3001\u3069\u3061\u3089\u306e\u8aad\u307f\u3067\u3082\u5019\u88dc\u306b\u8868\u793a\u3055\u308c\u307e\u3059\u3002"}</span>
           </label>
@@ -260,7 +260,7 @@ function MemberRoleEditor({
                   className="h-3 w-3 shrink-0 rounded-full"
                   style={{ backgroundColor: role.color }}
                 />
-                <span className="min-w-0 flex-1 text-[14px] font-semibold">
+                <span className="min-w-0 flex-1 text-sm font-semibold">
                   {role.name}
                 </span>
                 {active && <Check size={18} />}

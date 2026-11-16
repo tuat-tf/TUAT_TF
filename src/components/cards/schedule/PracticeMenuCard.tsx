@@ -97,44 +97,44 @@ export function MenuCard({
       {hasBadges && (
         <div className={cn("mb-1 flex flex-wrap items-center gap-1.5", canManage && "pr-8")}>
           {menu.status === "draft" && (
-            <span className="rounded border border-warning px-1.5 py-0.5 text-[10px] font-bold text-warning">
+            <span className="rounded border border-warning px-1.5 py-0.5 text-2xs font-bold text-warning">
               下書き
             </span>
           )}
           {targetNames.length > 0 && (
-            <span className="text-[11px] text-muted2">
+            <span className="text-2xs text-muted2">
               対象: {targetNames.join("、")}
             </span>
           )}
         </div>
       )}
       {menu.content && (
-        <p className={cn("text-[14px] whitespace-pre-wrap", canManage && !hasBadges && "pr-8")}>
+        <p className={cn("text-sm whitespace-pre-wrap", canManage && !hasBadges && "pr-8")}>
           <Linkify text={menu.content} />
         </p>
       )}
       {menu.pace && (
         <div className="mt-2">
-          <p className="text-[11px] font-semibold text-muted2">ペース</p>
-          <p className="text-[14px] whitespace-pre-wrap">
+          <p className="text-2xs font-semibold text-muted2">ペース</p>
+          <p className="text-sm whitespace-pre-wrap">
             <Linkify text={menu.pace} />
           </p>
         </div>
       )}
       {menu.remark && (
         <div className="mt-2">
-          <p className="text-[11px] font-semibold text-muted2">
+          <p className="text-2xs font-semibold text-muted2">
             {menu.target_block === "short" ? "説明" : "補足"}
           </p>
-          <p className="text-[14px] whitespace-pre-wrap">
+          <p className="text-sm whitespace-pre-wrap">
             <Linkify text={menu.remark} />
           </p>
         </div>
       )}
       {menu.supplement && (
         <div className="mt-2">
-          <p className="text-[11px] font-semibold text-muted2">補強</p>
-          <p className="text-[14px] whitespace-pre-wrap">
+          <p className="text-2xs font-semibold text-muted2">補強</p>
+          <p className="text-sm whitespace-pre-wrap">
             <Linkify text={menu.supplement} />
           </p>
         </div>
@@ -144,7 +144,7 @@ export function MenuCard({
           type="button"
           data-ui-action="text" data-ui-tone="primary" onClick={publish}
           disabled={publishing}
-          className="mt-2 inline-flex items-center gap-1 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-semibold text-white pressable disabled:opacity-50"
+          className="mt-2 inline-flex items-center gap-1 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-white pressable disabled:opacity-50"
         >
           {publishing ? "公開中…" : "公開する"}
         </button>
@@ -175,7 +175,7 @@ function SheetMenuCard({
   const [editing, setEditing] = useState(false);
   return (
     <div className="relative space-y-3 rounded-xl border border-[#34c759]/45 bg-[#34c759]/8 p-3">
-      <p className={cn("text-[10px] font-semibold text-muted2", canManage && "pr-8")}>
+      <p className={cn("text-2xs font-semibold text-muted2", canManage && "pr-8")}>
         スプレッドシートから最新表示
       </p>
       {canManage && (
@@ -236,11 +236,11 @@ function SheetMenuSection({
 }) {
   return (
     <div>
-      <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-muted2">
+      <p className="mb-1 flex items-center gap-1.5 text-2xs font-semibold text-muted2">
         {icon}
         {label}
       </p>
-      <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
         <Linkify text={text} />
       </p>
     </div>
