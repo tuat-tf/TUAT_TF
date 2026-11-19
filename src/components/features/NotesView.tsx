@@ -196,21 +196,22 @@ export function NoteList({
   }
 
   return (
-    <div className="grid gap-2 md:grid-cols-2 md:gap-3">
+    // grid-cols-1（minmax(0,1fr)）と min-w-0 で、長いタイトルや説明でも列が画面幅を超えないようにする
+    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3">
       {[...notes].sort((a, b) => Number(b.pinned) - Number(a.pinned)).map((note) => (
-        <Link data-ui-row key={note.id} href={`/notes/${note.id}`} prefetch={false}>
+        <Link data-ui-row key={note.id} href={`/notes/${note.id}`} prefetch={false} className="min-w-0">
           <Card className="p-4 active:bg-bg">
             <div className="flex items-start gap-3">
               <Folder size={20} className="mt-0.5 shrink-0 text-accent" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <p className="min-w-0 flex-1 truncate text-headline">{note.title}</p>
+                  {note.pinned && <Pin size={14} className="shrink-0 fill-accent text-accent" aria-label="ピン留め" />}
                   {note.status === "draft" && <Badge>下書き</Badge>}
                 </div>
-                  {note.pinned && <Pin size={14} className="shrink-0 fill-accent text-accent" aria-label="ピン留め" />}
                 <p className="mt-1 text-caption">{folderContentsLabel(note)}</p>
                 {note.description && (
-                  <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-caption">
+                  <p className="mt-1 line-clamp-2 whitespace-pre-wrap break-words text-caption [overflow-wrap:anywhere]">
                     {note.description}
                   </p>
                 )}
